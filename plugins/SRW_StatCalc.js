@@ -151,7 +151,7 @@ StatCalc.prototype.canStandOnTileAfterTransformation = function(actor, transform
 	testActor.event = event;
 	this.invalidateAbilityCache(actor);
 	if(this.canFly(testActor)){
-		this.setFlying(testActor, isFlying, true);
+		this.setFlying(testActor, true, true);
 	}	
 	return this.canStandOnTile(testActor, {x: event.posX(), y: event.posY()});
 }
@@ -160,6 +160,14 @@ StatCalc.prototype.updateFlightState = function(actor, noSE){
 	if(this.isActorSRWInitialized(actor)){
 		var event = this.getReferenceEvent(actor);
 		if(event){
+			if(!this.canHover(actor) && actor.SRWStats.stageTemp.isHovering){
+				actor.SRWStats.stageTemp.isHovering = false;
+			}
+			
+			if(!this.canFly(actor)){
+				this.setFlying(actor, false, noSE);
+			}
+			
 			var position = {x: event.posX(), y: event.posY()};
 			if($gameMap.regionId(position.x, position.y) % 8 == 1){//air
 				if(this.canFly(actor)){
@@ -178,7 +186,9 @@ StatCalc.prototype.updateFlightState = function(actor, noSE){
 				}
 			}
 			if($gameMap.regionId(position.x, position.y) % 8 == 3){//water
-				if(!this.canBeOnWater(actor)){
+				if(this.canHover(actor)){
+					actor.SRWStats.stageTemp.isHovering = true;
+				} else if(!this.canBeOnWater(actor)){
 					if(this.canFly(actor)){
 						if(!this.isFlying(actor)){
 							this.setFlying(actor, true, noSE);
@@ -1441,6 +1451,8 @@ StatCalc.prototype.initSRWStats = function(actor, level, itemIds, preserveVolati
 	var dbAbilities = this.getPilotAbilityInfo(actorProperties, this.getCurrentLevel(actor));	
 	var dbRelationships = this.getPilotRelationshipInfo(actorProperties);
 	
+	actor.SRWStats.pilot.spirits = this.getSpiritInfo(actor, actorProperties);	
+	
 	if(actor.isActor()){
 		this.applyStoredActorData(actor, dbAbilities, dbRelationships);
 	} else {
@@ -1536,7 +1548,7 @@ StatCalc.prototype.initSRWStats = function(actor, level, itemIds, preserveVolati
 			}
 		}
 	}
-	actor.SRWStats.pilot.spirits = this.getSpiritInfo(actor, actorProperties);	
+	
 	
 	if(actorProperties.pilotTwinSpirit){
 		var parts = actorProperties.pilotTwinSpirit.split(",");
@@ -1662,12 +1674,12 @@ StatCalc.prototype.getMechData = function(mech, forActor, items, previousWeapons
 		result.classData = mech;
 		result.statsLabel = mechProperties.mechStatsLabel || "";
 		result.isShip = mechProperties.mechIsShip * 1;
-		result.canFly = mechProperties.mechAirEnabled;
-		result.canLand = mechProperties.mechLandEnabled || 1;
-		result.canWater = mechProperties.mechWaterEnabled || 1;
-		result.canSpace = mechProperties.mechSpaceEnabled || 1;
-		result.canHover =  mechProperties.mechHoverEnabled || 0;
-		result.isFlying = false;
+		result.canFly = mechProperties.mechAirEnabled * 1;
+		result.canLand = (mechProperties.mechLandEnabled || 0) * 1;
+		result.canWater = (mechProperties.mechWaterEnabled || 0) * 1;
+		result.canSpace = (mechProperties.mechSpaceEnabled || 0) * 1;
+		result.canHover =  (mechProperties.mechHoverEnabled || 0) * 1;
+		result.isFlying = mechProperties.mechAirEnabled * 1;
 		result.id = mech.id;
 		result.expYield = parseInt(mechProperties.mechExpYield || 0);
 		result.PPYield = parseInt(mechProperties.mechPPYield || 0);
@@ -2262,8 +2274,8 @@ StatCalc.prototype.twin = function(actor, otherActor){
 			otherActor.event.isUnused = true;
 			otherActor.event = null;	
 			if(!this.canFly(actor) || !this.canFly(otherActor)){
-				this.setFlying(actor, false);
-				this.setFlying(otherActor, false);
+				this.setFlying(actor, false, true);
+				this.setFlying(otherActor, false, true);
 			}
 			
 			//this invalidation and reload ensures that the spawned unit has its stats calculated with abilities taken into account
@@ -2440,6 +2452,7 @@ StatCalc.prototype.transform = function(actor, idx, force, forcedId, noRestore){
 				
 				var actionsResult = this.applyDeployActions(actor.SRWStats.pilot.id, actor.SRWStats.mech.id);
 				
+				//undeployed pilost must be checked to properly transform with a subpilot to main pilot transition
 				var targetActor = this.getCurrentPilot(transformIntoId, true);
 				if(targetActor && targetActor.actorId() != actor.actorId() && actor.event){
 					targetActor.event = actor.event;
@@ -2483,6 +2496,7 @@ StatCalc.prototype.transform = function(actor, idx, force, forcedId, noRestore){
 					}			
 				});					
 				this.invalidateAbilityCache(actor);
+				this.updateFlightState(actor);
 			}			
 		}		
 	}
@@ -2497,7 +2511,7 @@ StatCalc.prototype.transformOnDestruction = function(actor, force){
 		actor.isSubPilot = false;
 		actor.SRWStats.mech = this.getMechDataById(transformIntoId, true);
 		this.calculateSRWMechStats(actor.SRWStats.mech, false, actor);
-		this.applyDeployActions(actor.SRWStats.pilot.id, actor.SRWStats.mech.id);
+		let actionsResult = this.applyDeployActions(actor.SRWStats.pilot.id, actor.SRWStats.mech.id);
 		
 		if(targetActorId != null){
 			var targetActor = $gameActors.actor(targetActorId);
@@ -2566,16 +2580,9 @@ StatCalc.prototype.swapPilot = function(actor, newActorId){
 		
 		let targetPilot = $gameActors.actor(newActorId);
 		var actionsResult = this.applyDeployActions(newActorId, currentMechId);
-		if(!actionsResult){//if no deploy actions are assigned		
-			if(!actor._intermissionClassId){
-				actor._intermissionClassId = actor._classId;
-			}
+		if(!actionsResult){//if no deploy actions are assigned	
 			actor._classId = 0;
 			$statCalc.reloadSRWStats(actor, false, true);			
-			
-			if(!targetPilot._intermissionClassId){
-				targetPilot._intermissionClassId = targetPilot._classId;
-			}
 			targetPilot._classId = currentMechId;
 			targetPilot.isSubPilot = false;
 			$statCalc.reloadSRWStats(targetPilot, false, true);				
@@ -2604,12 +2611,14 @@ StatCalc.prototype.split = function(actor){
 	if(this.isActorSRWInitialized(actor) && actor.isActor()){
 		var combineInfo = actor.combineInfo;
 		var targetActor = actor;
+		const isFlying = this.isFlying(actor);
 		var calculatedStats = this.getCalculatedMechStats(actor);
 		var combinedHPRatio = calculatedStats.currentHP / calculatedStats.maxHP;
 		var combinedENRatio = calculatedStats.currentEN / calculatedStats.maxEN;
 		
 		var subPilots = JSON.parse(JSON.stringify(targetActor.SRWStats.mech.subPilots));
 		
+		const startFromMechId = actor._classId;
 		/*targetActor.SRWStats.mech = this.getMechData(actor.currentClass(), true);
 		this.calculateSRWMechStats(targetActor.SRWStats.mech);	*/	
 		
@@ -2619,56 +2628,63 @@ StatCalc.prototype.split = function(actor){
 		calculatedStats.currentHP = Math.round(combinedHPRatio * calculatedStats.maxHP);
 		calculatedStats.currentEN = Math.round(combinedENRatio * calculatedStats.maxEN);*/
 		var combinesFrom = actor.SRWStats.mech.combinesFrom;
-		for(var i = 0; i < combinesFrom.length; i++){
+
+		for(var i = 0; i < combineInfo.participants.length; i++){
 			var actor;
-			if(i == 0){
-				actor = targetActor;
-			} else {
-				actor = $gameActors.actor(subPilots[i-1]);	
-			}
-			var actionsResult = this.applyDeployActions(actor.SRWStats.pilot.id, combinesFrom[i]);
-			if(!actionsResult && i == 0){//if no deploy actions are assigned to main split target
-				targetActor.SRWStats.mech = this.getMechDataById(combinesFrom[i], true);
-				this.calculateSRWMechStats(targetActor.SRWStats.mech);					
-			}			
-			var event = actor.event;
-			if(!event){
-				event = $gameMap.requestDynamicEvent(targetActor.event)
-				actor.event = event;
-				event.setType(targetActor.event.isType());
-				$gameSystem.setEventToUnit(actor.event.eventId(), 'actor', actor.actorId());
+			actor = $gameActors.actor(combineInfo.participants[i]);	
+			if(actor && actor.reversalInfo[startFromMechId]){	
 				
-				//SceneManager.reloadCharacters();
-			}
-			if(event){
-				//if(actor.actorId() != targetActor.actorId()){
-				var space;
-				if(actor.positionBeforeCombine){
-					space = actor.positionBeforeCombine;
-					actor.positionBeforeCombine = null;
-				} else if(actor.actorId() != targetActor.actorId()){
-					space = this.getAdjacentFreeSpace({x: targetActor.event.posX(), y: targetActor.event.posY()});
+				var actionsResult = this.applyDeployActions(combineInfo.participants[i], actor.reversalInfo[startFromMechId]);
+				if(!actionsResult){//if no deploy actions are assigned to main split target
+					actor.SRWStats.mech = this.getMechDataById(combinesFrom[i], true);
+					this.calculateSRWMechStats(actor.SRWStats.mech);					
+				}			
+				actor.isSubPilot = false;
+				
+				var event = actor.event;
+				if(!event){
+					event = $gameMap.requestDynamicEvent(targetActor.event)
+					actor.event = event;
+					event.setType(targetActor.event.isType());
+					$gameSystem.setEventToUnit(actor.event.eventId(), 'actor', actor.actorId());
+					
+					//SceneManager.reloadCharacters();
 				}
+				if(event){
+					//if(actor.actorId() != targetActor.actorId()){
+					var space;
+					if(actor.positionBeforeCombine && (this.isFreeSpace(actor.positionBeforeCombine) || (targetActor.event.posX() == actor.positionBeforeCombine.x && targetActor.event.posY() == actor.positionBeforeCombine.y))){
+						space = actor.positionBeforeCombine;
+						actor.positionBeforeCombine = null;
+					} else if(actor.actorId() != targetActor.actorId()){
+						space = this.getAdjacentFreeSpace({x: targetActor.event.posX(), y: targetActor.event.posY()});
+					}
+					
+					if(space){
+						event.appear();
+						event.locate(space.x, space.y);
+					}
+					
+					//}
+					event.refreshImage();
+					actor.initImages(actor.SRWStats.mech.classData.meta.srpgOverworld.split(","));
+					actor.event.refreshImage();
+				}	
 				
-				if(space){
-					event.appear();
-					event.locate(space.x, space.y);
+				//this invalidation and reload ensures that the spawned unit has its stats calculated with abilities taken into account
+				this.invalidateAbilityCache();
+				this.reloadSRWStats(actor, true);
+				
+				var calculatedStats = this.getCalculatedMechStats(actor);
+				calculatedStats.currentHP = Math.round(combinedHPRatio * calculatedStats.maxHP);
+				calculatedStats.currentEN = Math.round(combinedENRatio * calculatedStats.maxEN);	
+				
+				if(isFlying){
+					this.setFlying(actor, true, true);
 				}
-				
-				//}
-				event.refreshImage();
-				actor.initImages(actor.SRWStats.mech.classData.meta.srpgOverworld.split(","));
-				actor.event.refreshImage();
-			}	
-			
-			//this invalidation and reload ensures that the spawned unit has its stats calculated with abilities taken into account
-			this.invalidateAbilityCache();
-			this.reloadSRWStats(actor, true);
-			
-			var calculatedStats = this.getCalculatedMechStats(actor);
-			calculatedStats.currentHP = Math.round(combinedHPRatio * calculatedStats.maxHP);
-			calculatedStats.currentEN = Math.round(combinedENRatio * calculatedStats.maxEN);	
-			//
+				this.updateFlightState(actor);	
+				//
+			}
 		}				
 	}
 }
@@ -2676,36 +2692,44 @@ StatCalc.prototype.split = function(actor){
 StatCalc.prototype.combine = function(actor, forced){
 	if(this.isActorSRWInitialized(actor) && actor.isActor()){
 		var combineResult = this.canCombine(actor, forced);
+		let combineReversalInfo = [];
 		if(combineResult.isValid){
 			var HPRatioSum = 0;
 			var HPRatioCount = 0;
 			var ENRatioSum = 0;
 			var ENRatioCount = 0;
 			var combinesInto = combineResult.combinesInto;
+			let hasFlyer = false;
 			
 			for(var i = 0; i < combineResult.participants.length; i++){
 				var combineActor = $gameActors.actor(combineResult.participants[i]);
+				if(!combineActor.reversalInfo){
+					combineActor.reversalInfo = {};
+				}
+				combineActor.reversalInfo[combinesInto] = combineActor._classId;
 				var combineEvent = this.getReferenceEvent(combineActor);
 				combineActor.positionBeforeCombine = {x: combineEvent.posX(), y: combineEvent.posY()};
 				var calculatedStats = this.getCalculatedMechStats(combineActor);
 				HPRatioSum+=calculatedStats.currentHP / calculatedStats.maxHP;
 				HPRatioCount++;
 				ENRatioSum+=calculatedStats.currentEN / calculatedStats.maxEN;
-				ENRatioCount++;						
+				ENRatioCount++;	
+				if(this.isFlying(combineActor)){
+					hasFlyer++;
+				}
 			}
-			
 			
 			var targetMechData = this.getMechDataById(combinesInto, true);
 			
-			this.applyDeployActions(actor.SRWStats.pilot.id, combinesInto);
+			let actionsResult = this.applyDeployActions(actor.SRWStats.pilot.id, combinesInto);
 			
-			var targetActor = this.getCurrentPilot(combinesInto, true);
+			var targetActor = this.getCurrentPilot(combinesInto);
 			if(!targetActor){
 				targetActor = actor;
 				actor.SRWStats.mech = targetMechData;
 			}
 			targetActor.combineInfo = combineResult;
-					
+		
 			
 			this.calculateSRWMechStats(targetActor.SRWStats.mech);
 			//$gameSystem.redeployActor(targetActor, targetActor.event);
@@ -2728,6 +2752,9 @@ StatCalc.prototype.combine = function(actor, forced){
 			//targetActor.event.locate(actor.event.posX(), actor.event.posY());
 			targetActor.initImages(targetActor.SRWStats.mech.classData.meta.srpgOverworld.split(","));
 			targetActor.event.refreshImage();
+			
+			this.setFlying(targetActor, hasFlyer, true);
+			this.updateFlightState(targetActor);
 		}		
 	}
 }
@@ -2754,7 +2781,7 @@ StatCalc.prototype.canCombine = function(actor, forced){
 			if(!required){
 				return result; //early return if no combinesFrom info is defined
 			}
-			var requiredWill = mechData.combineWill || 0;
+			var requiredWill = actor.SRWStats.mech.combineWill || 0;
 			var requiredLookup = {};
 			for(var i = 0; i < required.length; i++){
 				requiredLookup[required[i]] = true;
@@ -2803,7 +2830,8 @@ StatCalc.prototype.applyStoredActorData = function(actor, dbAbilities, dbRelatio
 		actor.SRWStats.pilot.PP = storedData.PP;
 		actor.SRWStats.pilot.exp = storedData.exp;
 		actor.SRWStats.pilot.kills = storedData.kills;
-		actor.SRWStats.pilot.stats.upgrades = storedData.pilotUpgrades;			
+		actor.SRWStats.pilot.stats.upgrades = storedData.pilotUpgrades;	
+		actor.SRWStats.pilot.customSpirits = storedData.customSpirits || {};	
 		
 		var storedAbilities = $SRWSaveManager.getActorData(actor.actorId()).abilities || {};
 		var usedSlots = {};
@@ -2852,7 +2880,39 @@ StatCalc.prototype.applyStoredActorData = function(actor, dbAbilities, dbRelatio
 		});
 		
 		actor.SRWStats.pilot.relationships = storedRelationships;
+		
+		if(storedData.customSpirits){
+			for(let slot in storedData.customSpirits){
+				actor.SRWStats.pilot.spirits[slot] = {
+					idx: storedData.customSpirits[slot].idx * 1,
+					level: storedData.customSpirits[slot].level * 1,
+					cost: storedData.customSpirits[slot].cost * 1,
+				};
+			}
+		}
 	}
+}
+
+StatCalc.prototype.setCustomSpirit = function(actor, slot, spiritIdx, spiritCost, spiritIdxLevel){
+	if(!this.isActorSRWInitialized(actor)){
+		this.initSRWStats(actor);//convenience to allow custom spirits to be set on units before they've been deployed
+	}
+	if(!actor.SRWStats.pilot.customSpirits){
+		actor.SRWStats.pilot.customSpirits = {};
+	}
+	actor.SRWStats.pilot.customSpirits[slot] = {
+		idx: spiritIdx,
+		level: spiritIdxLevel,
+		cost: spiritCost
+	};	
+	this.storeActorData(actor);
+}
+
+StatCalc.prototype.clearCustomSpirit = function(actor, slot){
+	if(this.isActorSRWInitialized(actor) && actor.SRWStats.pilot.customSpirits){
+		delete actor.SRWStats.pilot.customSpirits[slot];
+	}
+	this.storeActorData(actor);
 }
 
 StatCalc.prototype.getStoredMechData = function(mechId){
@@ -2867,22 +2927,10 @@ StatCalc.prototype.storeActorData = function(actor){
 			exp: actor.SRWStats.pilot.exp,
 			kills: actor.SRWStats.pilot.kills,
 			abilities: actor.SRWStats.pilot.abilities,
-			relationships: actor.SRWStats.pilot.relationships
+			relationships: actor.SRWStats.pilot.relationships,
+			favPoints: actor.SRWStats.pilot.favPoints,
+			customSpirits: actor.SRWStats.pilot.customSpirits
 		});
-		/*var classId;
-		if(actor.SRWStats.mech.inheritsUpgradesFrom != null){
-			classId = actor.SRWStats.mech.inheritsUpgradesFrom;
-		} else if(actor.currentClass()){
-			classId = actor.currentClass().id;
-		}
-		if(classId){
-			$SRWSaveManager.storeMechData(classId, {
-				mechUpgrades: actor.SRWStats.mech.stats.upgradeLevels,
-				genericFUBAbilityIdx: actor.SRWStats.mech.genericFUBAbilityIdx,
-				unlockedWeapons: actor.SRWStats.mech.unlockedWeapons,
-				subPilots: actor.SRWStats.mech.subPilots
-			});	
-		}*/		
 		this.storeMechData(actor.SRWStats.mech);
 	}	
 }
@@ -5427,6 +5475,21 @@ StatCalc.prototype.getRealMechTerrainStrings = function(actor){
 	}
 }
 
+StatCalc.prototype.getFavPoints = function(actor){
+	return actor.SRWStats.pilot.favPoints || 0;
+}
+
+StatCalc.prototype.addFavPoints = function(actor, amount){
+	if(!actor.SRWStats.pilot.favPoints){
+		actor.SRWStats.pilot.favPoints = 0;
+	}
+	actor.SRWStats.pilot.favPoints+=amount;
+	if(actor.SRWStats.pilot.favPoints < 0){
+		actor.SRWStats.pilot.favPoints = 0;
+	}
+	this.storeActorData(actor);
+}
+
 StatCalc.prototype.getExp = function(actor){
 	return actor.SRWStats.pilot.exp;
 }
@@ -6290,6 +6353,27 @@ StatCalc.prototype.getActiveStatMods = function(actor, excludedSkills){
 			
 			accumulateFromAbilityList(abilities, $mechAbilityManager);
 			
+			if(ENGINE_SETTINGS.ENABLE_FAV_POINTS){
+				if(actor.isActor()){				
+					let abilityList = ENGINE_SETTINGS.FAV_POINT_ABILITIES[actor.actorId()] || ENGINE_SETTINGS.FAV_POINT_ABILITIES[-1];
+					if(abilityList){
+						let pointCount = this.getFavPoints(actor);
+						let ctr = 0;
+						let favAbilities = [];
+						while(ctr < abilityList.length && pointCount >= abilityList[ctr].cost){
+							favAbilities.push({
+								idx: abilityList[ctr].id,
+								level: 0,
+								appliesTo: null
+							})							
+							pointCount-=abilityList[ctr].cost;
+							ctr++;
+						}
+						accumulateFromAbilityList(favAbilities, $pilotAbilityManager);
+					}	
+				}	
+			}
+			
 			var FUBAbility = actor.SRWStats.mech.fullUpgradeAbility;	
 			if(typeof FUBAbility != "undefined" && FUBAbility != -1 && FUBAbility.idx != -1){
 				accumulateFromAbilityList([FUBAbility], $mechAbilityManager);	
@@ -7050,10 +7134,7 @@ StatCalc.prototype.isValidForDeploy = function(actor){
 	if(this.isActorSRWInitialized(actor)){
 		var deployConditionsMet = true;
 		
-		var referenceMechId = actor._classId;
-		if(actor._intermissionClassId){
-			referenceMechId = actor._intermissionClassId;
-		}
+		var referenceMechId = $gameSystem.getPilotFallbackInfo(actor).classId;
 		
 		var deployActions = this.getDeployActions(actor.SRWStats.pilot.id, referenceMechId);
 		
@@ -7264,9 +7345,7 @@ StatCalc.prototype.applyDeployActions = function(actorId, mechId){
 					});
 					
 					var actor = $gameActors.actor(actorId);
-					if(!actor._intermissionClassId){
-						actor._intermissionClassId = actor._classId;
-					}
+					$gameSystem.registerPilotFallbackInfo(actor);	
 					actor._classId = 0;
 					$statCalc.reloadSRWStats(actor, false, true);	
 				});		
@@ -7280,9 +7359,7 @@ StatCalc.prototype.applyDeployActions = function(actorId, mechId){
 					if(sourceId != 0 && sourceId != -1){
 						var targetPilot = $gameActors.actor(sourceId);	
 						if(!lockedPilots[sourceId]){
-							if(!targetPilot._intermissionClassId){
-								targetPilot._intermissionClassId = targetPilot._classId;
-							}
+							$gameSystem.registerPilotFallbackInfo(targetPilot);	
 							targetPilot._classId = targetMechId;
 							
 							if(targetDef.type == "main"){								
@@ -7291,6 +7368,8 @@ StatCalc.prototype.applyDeployActions = function(actorId, mechId){
 								targetPilot.isSubPilot = false;//reaffirm in case the unit reload processed a previous main pilot and set the new main pilot back to sub pilot
 							} else {
 								var targetMech = $statCalc.getMechData($dataClasses[targetMechId], true);
+								$gameSystem.registerMechFallbackInfo(targetMechId, JSON.parse(JSON.stringify(targetMech.subPilots)));	
+
 								targetMech.subPilots[targetDef.slot] = targetPilot.actorId();							
 								$statCalc.storeMechData(targetMech);
 								targetPilot.isSubPilot = true;//set to false for unit reinit
@@ -7300,7 +7379,8 @@ StatCalc.prototype.applyDeployActions = function(actorId, mechId){
 								if(currentPilot){
 									$statCalc.reloadSRWStats(currentPilot, false, true);
 								}
-							}
+								
+							}							
 						}					
 					}
 				});
@@ -7308,7 +7388,9 @@ StatCalc.prototype.applyDeployActions = function(actorId, mechId){
 		});	
 					
 		this.reloadSRWStats($gameActors.actor(actorId), false, true);
-	}		
+	} else {
+		$gameSystem.registerPilotFallbackInfo($gameActors.actor(actorId));	
+	}
 	this.unlockAbilityCache();
 	this.invalidateAbilityCache();
 	return result;

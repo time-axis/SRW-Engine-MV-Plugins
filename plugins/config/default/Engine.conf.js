@@ -14,6 +14,16 @@ var ENGINE_SETTINGS = {
 	ALERT_CLEARS_ON_ATTACK: false,//if true alert clears after dodging one attack, otherwise it affects all attacks in one battle phase(support attacks, etc.)
 	PERSIST_CLEARS_ON_HIT: false,//if true persist clears after taking one attack, otherwise it affects all attacks in one battle phase(support attacks, etc.)
 	DISABLE_EVASION_DECAY: false,
+	CURSOR_TINT_INFO: {//a blend color set for the cursor when hovering units of a certain faction
+		enabled: false,
+		colors: {
+			"player": [38, 110, 172, 128],//players
+			0: [172, 38, 38, 128],//enemy
+			1: [38, 172, 83, 128],//green
+			2: [172, 172, 38, 128],//yellow
+		}
+	},	
+	TINT_CURSOR_PER_FACTION: true,
 	USE_TILE_PASSAGE: true,
 	ENABLE_QUICK_MOVE: true,
 	LEVEL_CAP: 99,
@@ -191,6 +201,34 @@ var ENGINE_SETTINGS = {
 	DISCLAIMER_TEXT: "",
 	ALLY_ZONE_COUNT: 4,
 	EXPIRE_ZONES_ON_DEATH: true,
+	ENABLE_FAV_POINTS: true,
+	FAV_POINT_ABILITIES: {
+		//all ability ids are for pilot abilities
+		//cost are in number of fav points
+		//max 5 abilities may be defined
+		"-1": [ //default if no specific abilities are defined for a pilot
+			{
+				id: 97,
+				cost: 2
+			},
+			{
+				id: 98,
+				cost: 3
+			},
+			{
+				id: 99,
+				cost: 4
+			},
+			{
+				id: 100,
+				cost: 5
+			},
+			{
+				id: 101,
+				cost: 10
+			},
+		]
+	},
 	PRELOADER: function(){//function called on game boot, should be used to preload system assets
 	
 		AudioManager.loadStaticSe({name: "SRWAppear"});

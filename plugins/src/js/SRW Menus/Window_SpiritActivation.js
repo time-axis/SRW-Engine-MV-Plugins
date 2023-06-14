@@ -5,6 +5,17 @@ export default function Window_SpiritActivation() {
 	this.initialize.apply(this, arguments);	
 }
 
+function printStackTrace() {
+  const error = new Error();
+  const stack = error.stack
+	.split('\n')
+	.slice(2)
+	.map((line) => line.replace(/\s+at\s+/, ''))
+	.join('\n');
+  console.log(stack);
+}
+	
+
 Window_SpiritActivation.prototype = Object.create(Window_CSS.prototype);
 Window_SpiritActivation.prototype.constructor = Window_SpiritActivation;
 
@@ -159,7 +170,11 @@ Window_SpiritActivation.prototype.getActorInfo = function() {
 }
 
 Window_SpiritActivation.prototype.show = function(softRefresh) {
-	var _this = this;
+	var _this = this;	
+	
+	
+	console.log("Window_SpiritActivation.prototype.show called at "+Date.now());
+	printStackTrace();
 	this._doubleSpeedEnabled = false;
 	this._processingAction = false;
 	this._finishing = false;
@@ -168,14 +183,17 @@ Window_SpiritActivation.prototype.show = function(softRefresh) {
 		_this.createComponents();
 	}
 	
+	_this.visible = true;
+	_this._redrawRequested = true;
+	_this._visibility = "";
+	_this.refresh();	
+	Graphics._updateCanvas();	
+	
 	_this.getActorInfo();	
+	_this._waitingTimer = 120;//wait 120 frames max for images to load
 	_this.loadRequiredImages().then(function(){
 		_this._handlingInput = false;
-		_this.visible = true;
-		_this._redrawRequested = true;
-		_this._visibility = "";
-		_this.refresh();	
-		Graphics._updateCanvas();
+		_this._waitingTimer = 0;//immediately clear load wait	
 	});	
 };
 
@@ -229,10 +247,24 @@ Window_SpiritActivation.prototype.animateHP = function(elem, fillElem, startPerc
 
 }*/
 
+Window_SpiritActivation.prototype.hide = function() {
+	console.log("Window_SpiritActivation.prototype.hide called at "+Date.now());
+	printStackTrace();
+	
+    this.visible = false;
+	this._visibility = "none";
+	//this._bgFadeContainer.style.display = "none";
+	this.refresh();
+};
+
 Window_SpiritActivation.prototype.update = function() {
 	var _this = this;
 	Window_Base.prototype.update.call(this);
 	
+	if(_this._waitingTimer > 0){
+		_this._waitingTimer--;
+		return;
+	}
 	if(this.isOpen() && !this._handlingInput){
 		if(this._finishing){
 			if(this._finishTimer <= 0){
@@ -242,6 +274,7 @@ Window_SpiritActivation.prototype.update = function() {
 				}				
 			}
 			this._finishTimer--;
+			return;
 		}
 		
 		if(!this._processingAction){

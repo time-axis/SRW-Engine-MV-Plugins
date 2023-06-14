@@ -1096,9 +1096,9 @@ SceneManager.isInSaveScene = function(){
 	
 	Scene_Map.prototype.handleMultipleSpiritSelection = function(spirits, callback) {
 		var _this = this;
-		if($gameTemp.playingSpiritAnimations){
-			return;//fix attempt for issue where spirit activation window lingers after activating a spirit
-		}
+		//if($gameTemp.playingSpiritAnimations){
+		//	return;//fix attempt for issue where spirit activation window lingers after activating a spirit
+		//}
 		$gameTemp.playingSpiritAnimations = true;
 		var currentSpirit = spirits.pop();	
 		this._spiritWindow.close();
@@ -1127,10 +1127,7 @@ SceneManager.isInSaveScene = function(){
 				if(callback){
 					callback();
 				} else {
-					$gameTemp.playingSpiritAnimations = false;
 					$gameTemp.popMenu = true;
-					_this.idToMenu["spirit_activation"].hide();
-					$gameTemp.killMenu("spirit_activation")
 					$gameSystem.setSrpgActorCommandWindowNeedRefresh($gameSystem.EventToUnit($gameTemp.activeEvent().eventId()));
 					$gameSystem.setSubBattlePhase("actor_command_window");
 				}				
@@ -1451,7 +1448,7 @@ SceneManager.isInSaveScene = function(){
     var _SRPG_SceneMap_update = Scene_Map.prototype.update;
     Scene_Map.prototype.update = function() {
 		var _this = this;
-	
+			
 		//Soft Reset
 		if(!$gameSystem.isIntermission() && Input.isPressed("ok") && Input.isPressed("cancel") && Input.isPressed("pageup") && Input.isPressed("pagedown")){
 			Input.clear();
@@ -2370,9 +2367,9 @@ SceneManager.isInSaveScene = function(){
 		this._deploySelectionWindow.setAvailableUnits($statCalc.getBoardedUnits(actionBattlerArray[1]));
 		this._deploySelectionWindow.setCurrentSelection(0);
       	$gameTemp.pushMenu = "boarded_deploy_selection";
-		//this._mapSrpgActorCommandWindow.hide();
+		this._mapSrpgActorCommandWindow.hide();
 		//this._mapSrpgActorCommandWindow.close();
-		$gameSystem.clearSrpgActorCommandWindowNeedRefresh(actionBattlerArray[1]);
+		//$gameSystem.clearSrpgActorCommandWindowNeedRefresh(actionBattlerArray[1]);
 		
 		$gameTemp.deployWindowCallback = function(deployed){
 			var shipEvent = $gameTemp.activeEvent();
@@ -2391,12 +2388,14 @@ SceneManager.isInSaveScene = function(){
 			//$gameSystem.srpgMakeMoveTable(event);
 			var battlerArray = actor;		
 			$gameSystem.setSrpgActorCommandWindowNeedRefresh($gameSystem.EventToUnit($gameTemp.activeEvent().eventId()));
-			
+			_this._mapSrpgActorCommandWindow.close();
 			//$gameSystem.setSubBattlePhase('actor_move');
 		}
 		
 		$gameTemp.deployCancelWindowCallback = function(){
-			$gameSystem.setSrpgActorCommandWindowNeedRefresh($gameSystem.EventToUnit($gameTemp.activeEvent().eventId()));
+			//$gameSystem.setSrpgActorCommandWindowNeedRefresh($gameSystem.EventToUnit($gameTemp.activeEvent().eventId()));
+			_this._mapSrpgActorCommandWindow.show();
+			_this._mapSrpgActorCommandWindow.activate();
 		}
     };	
 	
@@ -4736,6 +4735,26 @@ Scene_Disclaimer.prototype.createForeground = function() {
 	for(line of lines){		
 		this._disclaimerSprite.bitmap.drawText(line, x, y + 28 * ctr++, maxWidth, 28 , "left");
 	}	
+};
+
+SceneManager.onKeyDown = function(event) {
+	if (!event.ctrlKey && !event.altKey) {
+		switch (event.keyCode) {
+		case 116:   // F5
+			if (Utils.isNwjs()) {
+				if($battleSceneManager){
+					$battleSceneManager.dispose();
+				}
+				location.reload();
+			}
+			break;
+		case 119:   // F8
+			if (Utils.isNwjs() && Utils.isOptionValid('test')) {
+				require('nw.gui').Window.get().showDevTools();
+			}
+			break;
+		}
+	}
 };
 
 let lastLogTime = {};

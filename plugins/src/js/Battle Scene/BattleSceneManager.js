@@ -345,9 +345,42 @@ BattleSceneManager.prototype.init = async function(attachControl){
 	}
 }
 
+BattleSceneManager.prototype.stopEffekContext = function(ctx){
+	if(ctx){
+		ctx.stopAll();
+	}
+}
 
-//workaround for a bug where spawning effekseer effects would have them render all their texture upside down
-//preloading them before the animation starts prevents this
+BattleSceneManager.prototype.dispose = function(){
+	function destroyCanvas(canvas){
+		if(canvas){
+			canvas.parentNode.removeChild(canvas);
+		}		
+	}
+	
+	destroyCanvas(this._canvas);
+	destroyCanvas(this._pixiCanvas);
+	destroyCanvas(this._movieCanvas);
+	if(this._scene){
+		this._scene.dispose();
+	}	
+	
+	this.disposeAnimationSprites();
+	this.disposeAnimationBackgrounds();
+	this.disposeSpriterBackgrounds();
+	this.disposeEffekseerInstances();
+	/*this.stopEffekContext(this._effksContext);
+	this.stopEffekContext(this._effksContextMirror);
+	this.stopEffekContext(this._effksContextBg);
+	this.stopEffekContext(this._effksContextBgMirror);
+	this.stopEffekContext(this._effksContextAttached);*/
+	
+	
+	this.disposeMovieBackgrounds();
+	this.disposeRMMVBackgrounds();
+	this._animationList = [];
+}
+
 BattleSceneManager.prototype.initEffekseerParticles = async function(){
 	var _this = this;	
 	var promises = [];
@@ -605,6 +638,7 @@ BattleSceneManager.prototype.initScene = function(){
 	//canvas.setAttribute("height", 624);
 	canvas.style.width = "100%";
 	canvas.style.height = "100%";
+	this._pixiCanvas = canvas;
 	this._PIXIContainer.innerHTML = "";
 	this._PIXIContainer.appendChild(canvas);
 	
@@ -2242,6 +2276,12 @@ BattleSceneManager.prototype.disposeEffekseerInstances = function(){
 		}		
 	});
 	this._effekseerInfo = [];
+	
+	this.stopEffekContext(this._effksContext);
+	this.stopEffekContext(this._effksContextMirror);
+	this.stopEffekContext(this._effksContextBg);
+	this.stopEffekContext(this._effksContextBgMirror);
+	this.stopEffekContext(this._effksContextAttached);
 }
 
 BattleSceneManager.prototype.disposeBarrierEffects = function(){
@@ -2885,6 +2925,23 @@ BattleSceneManager.prototype.getTargetObject = function(name){
 	return obj;	
 }
 
+
+BattleSceneManager.prototype.stopShakeAnimations = function(target){
+	const _this = this;
+	const targetObj = _this.getTargetObject(target);
+	if(targetObj){
+		let tmp = [];
+		if(_this._shakeAnimations){
+			for(let animCtr in _this._shakeAnimations){
+				if(_this._shakeAnimations[animCtr].targetObj != targetObj){
+					tmp.push(_this._shakeAnimations[animCtr]);
+				}
+			}
+			_this._shakeAnimations = tmp;
+		}
+	}	
+}			
+
 BattleSceneManager.prototype.executeAnimation = function(animation, startTick){
 	var _this = this;
 	//debug
@@ -3009,6 +3066,7 @@ BattleSceneManager.prototype.executeAnimation = function(animation, startTick){
 			}
 			if(targetObj){
 				targetObj.wasMoved = true;
+				_this.stopShakeAnimations(target);
 				targetObj.position = _this.applyAnimationDirection(params.position || new BABYLON.Vector3(0,0,0));
 				targetObj.realPosition = new BABYLON.Vector3().copyFrom(targetObj.position);
 				if(targetObj.handle){
@@ -3053,8 +3111,22 @@ BattleSceneManager.prototype.executeAnimation = function(animation, startTick){
 				}
 			}
 		},
+		stop_matrix_animations: function(target, params){
+			const targetObj = getTargetObject(target);
+			let tmp = [];
+			if(_this._matrixAnimations){
+				for(let animCtr in _this._matrixAnimations){
+					if(_this._matrixAnimations[animCtr].targetObj != targetObj){
+						tmp.push(_this._matrixAnimations[animCtr]);
+					}
+				}
+				_this._matrixAnimations = tmp;
+			}
+			
+		},
 		translate: function(target, params){
 			var targetObj = getTargetObject(target);
+			_this.stopShakeAnimations(target);
 			if(targetObj.parent_handle){
 				targetObj = targetObj.parent_handle;
 			}
@@ -3154,6 +3226,7 @@ BattleSceneManager.prototype.executeAnimation = function(animation, startTick){
 		shake: function(target, params){
 			var targetObj = getTargetObject(target);
 			if(targetObj){				
+				_this.stopShakeAnimations(target);
 				targetObj.realPosition = new BABYLON.Vector3().copyFrom(targetObj.position);
 				_this.registerShakeAnimation(targetObj, params.magnitude_x || 0, params.speed_x || 1, params.magnitude_y || 0, params.speed_y || 1, startTick, params.duration, params.fadeInTicks || 0, params.fadeOutTicks || 0);
 			}			
@@ -4056,7 +4129,20 @@ BattleSceneManager.prototype.executeAnimation = function(animation, startTick){
 				
 			});
 			//effect.scale = scale;
-		},		
+		},	
+		remove_effekseer_parent: function(target, params){	
+			var targetObj;
+			var ctr = 0;
+			while(!targetObj && ctr < _this._effekseerInfo.length){
+				if(_this._effekseerInfo[ctr].name == target){
+					targetObj = _this._effekseerInfo[ctr];
+				}
+				ctr++;
+			}
+			if(targetObj){
+				delete targetObj.parent;
+			}
+		}			,
 		play_rmmv_anim: function(target, params){
 			var position = _this.applyAnimationDirection(params.position || new BABYLON.Vector3(0,0,0));	
 			var width = params.scaleX || 5;

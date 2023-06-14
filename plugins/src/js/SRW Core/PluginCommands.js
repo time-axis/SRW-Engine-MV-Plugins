@@ -51,8 +51,10 @@
 				
 				if (command === 'assignUnit') {
 					const actor = $gameActors.actor(args[0]);
-					actor._classId = args[1] * 1; 
-					actor._intermissionClassId = args[1] * 1; 
+					actor._classId = args[1] * 1;
+					actor.isSubPilot = false;
+					//actor._intermissionClassId = args[1] * 1; 
+					$gameSystem.overwritePilotFallbackInfo(actor);
 				}
 				
 				if (command === 'UnlockUnit') {
@@ -1238,6 +1240,36 @@
 				}	
 				if (command === 'clearLocationHeader') {					
 					$gameTemp.locationHeader = null;
+				}
+				if (command === 'clearLocationHeader') {					
+					$gameTemp.locationHeader = null;
+				}
+				
+				if (command === 'setCustomSpirit') {					
+					var actor = $gameActors.actor(args[0]);
+					if(actor){
+						$statCalc.setCustomSpirit(
+							actor,
+							args[1],//slot
+							args[2],//idx
+							args[3],//cost
+							args[4],//level						
+						);
+					}
+				}
+				
+				if (command === 'clearCustomSpirit') {					
+					var actor = $gameActors.actor(args[0]);
+					if(actor){
+						$statCalc.clearCustomSpirit(
+							actor,
+							args[1],//slot				
+						);
+					}
+				}
+				
+				if (command === 'awardFavPoints') {					
+					$gameSystem.awardFavPoints(args[0]);
 				}
 							
 			} catch(e){

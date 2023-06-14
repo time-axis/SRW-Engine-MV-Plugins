@@ -252,6 +252,10 @@ Window_SpiritSelection.prototype.update = function() {
 							}											
 						});
 					});
+					let debug = [];
+					for(let entry of spirits){
+						debug.push(entry);
+					}
 					if(_this._callbacks["selectedMultiple"]){
 						_this._callbacks["selectedMultiple"](spirits);
 					}
@@ -265,7 +269,7 @@ Window_SpiritSelection.prototype.update = function() {
 				}	
 				
 				$gameTemp.popMenu = true;	
-				
+				this._handlingInput = true;
 				
 			}
 			this.refresh();
@@ -653,7 +657,7 @@ Window_SpiritSelection.prototype.redraw = function() {
 				content+="</div>"
 				content+="<div class='section_column'>";
 			}
-			if(typeof spiritList[i] != "undefined" && spiritList[i].idx != "" && spiritList[i].level <= currentLevel){
+			if(typeof spiritList[i] != "undefined" && spiritList[i].idx !== "" && spiritList[i].level <= currentLevel){
 				targetType = $spiritManager.getSpiritDef(spiritList[i].idx).targetType;
 				var displayInfo = $spiritManager.getSpiritDisplayInfo(spiritList[i].idx);
 				displayName = "<div class='scaled_width spirit_label scaled_text fitted_text'>"+displayInfo.name+"</div>("+spiritList[i].cost+")" ;
