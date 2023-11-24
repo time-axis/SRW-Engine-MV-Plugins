@@ -201,7 +201,7 @@ var ENGINE_SETTINGS = {
 	DISCLAIMER_TEXT: "",
 	ALLY_ZONE_COUNT: 4,
 	EXPIRE_ZONES_ON_DEATH: true,
-	ENABLE_FAV_POINTS: true,
+	ENABLE_FAV_POINTS: false,
 	FAV_POINT_ABILITIES: {
 		//all ability ids are for pilot abilities
 		//cost are in number of fav points

@@ -78,8 +78,8 @@ Window_Intermission.prototype.initialize = function() {
 			{name: APPSTRINGS.INTERMISSION.list_label, key: "pilot_list"},
 			{name:  APPSTRINGS.INTERMISSION.upgrade_label, key: "upgrade_pilot"},
 			//{name: "Search", key: "pilot_search"}
-		]},
-		{name: APPSTRINGS.INTERMISSION.deployment, key: "deployment", enabled: validateDeployMenu,},
+		]},/*
+		{name: APPSTRINGS.INTERMISSION.deployment, key: "deployment", enabled: validateDeployMenu,},*/
 		{name: APPSTRINGS.INTERMISSION.reassign, key: "reassign", enabled: validateReassignMenu},
 		{name: APPSTRINGS.INTERMISSION.options, key: "options"},
 		{name: APPSTRINGS.INTERMISSION.data_label, key: "data", subCommands: [
