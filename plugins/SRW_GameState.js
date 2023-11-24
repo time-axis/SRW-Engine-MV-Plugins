@@ -20,7 +20,7 @@ GameState.prototype.updateMapEvent = function(x, y, triggers){
 }
 
 GameState.prototype.canCursorMove = function(){
-	return !!this.allowedActions.cursor;
+	return this.allowedActions.cursor;
 }
 
 GameState.prototype.canUseMenu = function(){
@@ -100,6 +100,7 @@ function GameStateManager(){
 		await_actor_float: "GameState_await_actor_float",
 		stage_conditions: "GameState_stage_conditions",
 		popup_anim: "GameState_popup_anim",
+		check_item_pickup: "GameState_check_item_pickup",
 	};
 	this._stateObjMapping = {};
 	Object.keys(_this._stateClassMapping).forEach(function(stateId){
@@ -1030,7 +1031,7 @@ GameState_actor_target.prototype.updateMapEvent = function(x, y, triggers){
 							x: $gameTemp.activeEvent().posX(),
 							y: $gameTemp.activeEvent().posY(),
 						};
-						var supporters = $statCalc.getSupportAttackCandidates("player", position, $statCalc.getCurrentTerrain($gameTemp.currentBattleActor));
+						var supporters = $statCalc.getSupportAttackCandidates("player", position, $statCalc.getCurrentAliasedTerrainIdx($gameTemp.currentBattleActor));
 						
 						var aSkill = $statCalc.getPilotStat($gameTemp.currentBattleActor, "skill");
 						var dSkill = $statCalc.getPilotStat($gameTemp.currentBattleEnemy, "skill");
@@ -1112,7 +1113,7 @@ GameState_actor_target.prototype.updateMapEvent = function(x, y, triggers){
 								var supporters = $statCalc.getSupportDefendCandidates(
 									$gameSystem.getFactionId($gameTemp.currentBattleEnemy), 
 									{x: event.posX(), y: event.posY()},
-									$statCalc.getCurrentTerrain($gameTemp.currentBattleEnemy)
+									$statCalc.getCurrentAliasedTerrainIdx($gameTemp.currentBattleEnemy)
 								);
 								
 								if($statCalc.applyStatModsToValue($gameTemp.currentBattleEnemy, 0, ["disable_support"]) || 
@@ -1460,7 +1461,9 @@ GameState_map_attack_animation.prototype.update = function(scene){
 					activeEvent = $gameTemp.activeEvent();
 					options.direction = $gameTemp.mapTargetDirection;
 				} else {
-					activeEvent = $gamePlayer;
+					activeEvent = $gameMap.requestDynamicEvent();
+					activeEvent.isMAPAttackEvent = true;
+					activeEvent.locate($gamePlayer._x, $gamePlayer._y);
 					//options.direction = "up";
 					//options.offset = {x: 0, y: 0};
 				}				
@@ -1472,6 +1475,10 @@ GameState_map_attack_animation.prototype.update = function(scene){
 				if(!$gameTemp.animCharacter.isAnimationPlaying()){
 					$gameTemp.afterMapAttackAnimationDelay = 30;
 					$gameTemp.awaitingMapAttackAnim = true;
+					if($gameTemp.animCharacter.isMAPAttackEvent){
+						delete $gameTemp.animCharacter.isMAPAttackEvent;
+						$gameTemp.animCharacter.isUnused = true;	
+					}					
 				}
 			}					
 		}				
@@ -2422,7 +2429,7 @@ GameState_process_destroy_transform_queue.prototype.update = function(scene){
 function GameState_rearrange_deploys(){
 	GameState.call(this);
 	this.allowedActions = {
-		cursor: true,
+		cursor: 2,
 		menu: false,
 		summaries: false
 	};
@@ -2702,6 +2709,67 @@ GameState_popup_anim.prototype.update = function(scene){
 		$gameTemp.animCharacter = null;
 		$gameSystem.setSubBattlePhase($gameTemp.contextState);	
 	}	
+	return true;
+}
+
+function GameState_check_item_pickup(){
+	GameState.call(this);
+}
+
+GameState_check_item_pickup.prototype = Object.create(GameState.prototype);
+GameState_check_item_pickup.prototype.constructor = GameState_check_item_pickup;
+
+GameState_check_item_pickup.prototype.update = function(scene){
+	let targetEvent;
+	if(!$gameTemp.activeEvent().isErased()){
+		$gameMap.eventsXy($gameTemp.activeEvent().posX(), $gameTemp.activeEvent().posY()).forEach(function(event) {
+			if (!event.isErased() && event.isDropBox) {
+				targetEvent = event;
+				event.isDropBox = false;
+			}
+		});
+	}
+	
+	if(targetEvent){
+		var battlerArray = $gameSystem.EventToUnit($gameTemp.activeEvent().eventId());
+		if(battlerArray){
+			if($gameSystem.isFriendly(battlerArray[1], "player")){
+				$gameMessage.setFaceImage("", "");
+				$gameMessage.setBackground(1);
+				$gameMessage.setPositionType(1);
+				let names = targetEvent.dropBoxItems.map((itemId) => $itemEffectManager.getAbilityDisplayInfo(itemId).name);
+				$gameMessage.add("\\TA[1]\n" + APPSTRINGS.GENERAL.label_box_pickup.replace("{ITEMS}", names.join(", ")));
+			} else {
+				$gameMessage.setFaceImage("", "");
+				$gameMessage.setBackground(1);
+				$gameMessage.setPositionType(1);
+				$gameMessage.add("\\TA[1]\n" + APPSTRINGS.GENERAL.label_box_stolen);
+			}			
+		}
+		targetEvent.erase();
+		for(let item of targetEvent.dropBoxItems){
+			$inventoryManager.addItem(item);
+		}
+		$gameMap._interpreter.setWaitMode('message');
+	} else if (!$gameMessage.isBusy()) {
+		scene.eventAfterAction();
+        if ($gameSystem.isBattlePhase() === 'actor_phase') {
+            scene.eventUnitEvent();
+        }
+        $gameTemp.clearActiveEvent();
+        if ($gameSystem.isBattlePhase() === 'actor_phase') {
+            if (scene.isSrpgActorTurnEnd()) {
+                $gameSystem.srpgStartEnemyTurn(0); //自動行動のアクターが行動する
+            } else {
+                $gameSystem.setSubBattlePhase('event_after_actor_action');
+            }
+        } else if ($gameSystem.isBattlePhase() === 'auto_actor_phase') {
+            $gameSystem.setSubBattlePhase('auto_actor_command');
+        } else if ($gameSystem.isBattlePhase() === 'AI_phase') {
+            $gameSystem.setSubBattlePhase('enemy_command');
+        }
+	}
+
 	return true;
 }
 

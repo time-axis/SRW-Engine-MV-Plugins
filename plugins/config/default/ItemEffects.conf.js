@@ -883,4 +883,45 @@ $SRWConfig.itemEffects = function(){
 		null,
 		1500
 	);
+	
+	this.addDefinition(
+		50, 
+		"Weapon toggler", 
+		"Toggles between weapons by locking one weapon and unlocking another.", 
+		false,
+		false,
+		function(actor, level){
+			//value is the weapon id, the target mech must have the weapon(s) assigned for this to work
+			return [
+				{type: "lock_weapon", modType: "addFlat", value: 55},
+				{type: "unlock_weapon", modType: "addFlat", value: 56}
+			];
+		},
+		function(actor, level){
+			return true;
+		},
+		null,
+		150
+	);
+	
+	this.addDefinition(
+		51, 
+		"Throat lozenge", 
+		"Restore all MP once per stage.", 
+		false,
+		true,
+		function(actor, level){
+			return [
+				{type: "MP_recover", modType: "addFlat", value: 100}
+			];
+		},
+		function(actor, level){
+			return $statCalc.canRecoverMP(actor);	
+		},
+		{
+			type: "repair",
+			animId: "resupply"
+		},
+		500
+	);
 }

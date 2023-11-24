@@ -122,58 +122,6 @@ AttackList.prototype.createComponents = function(){
 	this._container.appendChild(this._topBorder);	
 }
 
-AttackList.prototype.createAttributeBlock = function(attack) {
-	var content = "";
-	content+="<div class='attribute_block'>";
-	content+="<div class='attribute_block_entry scaled_width scaled_height scaled_text'>";
-	if(attack.effects.length){
-		content+="S";
-	} 
-	content+="</div>";
-	content+="<div class='attribute_block_entry scaled_width scaled_height scaled_text'>";
-	if(attack.postMoveEnabled){
-		content+="P";
-	} 
-	content+="</div>";
-	content+="<div class='attribute_block_entry scaled_width scaled_height scaled_text'>";
-	if(attack.isCounter){
-		content+="C";
-	} 
-	content+="</div>";
-	content+="<div class='attribute_block_entry scaled_width scaled_height scaled_text'>";
-	/*if(attack.particleType == "missile"){
-		content+="Mi";	
-	}
-	if(attack.particleType == "physical"){
-		content+="Ph";	
-	}
-	if(attack.particleType == "funnel"){
-		content+="Fu";	
-	}
-	if(attack.particleType == "beam"){
-		content+="Be";	
-	}
-	if(attack.particleType == "gravity"){
-		content+="Gr";	
-	}*/
-	if(attack.particleType != ""){
-		var typeIndicator = attack.particleType.substring(0, 2);
-		content+=typeIndicator.charAt(0).toUpperCase() + typeIndicator.slice(1);
-	}
-	content+="</div>";
-	
-	if(ENGINE_SETTINGS.ENABLE_TWIN_SYSTEM){
-		content+="<div class='attribute_block_entry all scaled_width scaled_height scaled_text fitted_text'>";
-		if(attack.isAll){
-			content+="ALL";
-		} 
-		content+="</div>";
-	}
-	
-	
-	content+="</div>";
-	return content;
-}
 
 AttackList.prototype.getUpgradeAmount = function(attack) {
 	if(this._weaponModProvider){
@@ -216,13 +164,7 @@ AttackList.prototype.createSummaryViewRow = function(refData, attack) {
 	listContent+="</div>";
 	listContent+="<div class='attack_list_block scaled_text fitted_text'>"+attack.name+"</div>";
 	listContent+="<div class='attack_list_block scaled_text'>"+this.createAttributeBlock(attack)+"</div>";
-	var currentPower = $statCalc.getWeaponPower(refData, attack)*1;
-	
-	if(attack.type == "M"){ //melee		
-		currentPower = $statCalc.applyStatModsToValue(refData, currentPower, ["weapon_melee"]);
-	} else { //ranged
-		currentPower = $statCalc.applyStatModsToValue(refData, currentPower, ["weapon_ranged"]);
-	}
+	var currentPower = $statCalc.getWeaponPowerWithMods(refData, attack)*1;
 	
 	var tagBoostInfo = $statCalc.getModDefinitions(refData, ["weapon_type_boost"]);
 	for(const modDef of tagBoostInfo){
@@ -378,6 +320,8 @@ AttackList.prototype.redraw = function(softRefresh) {
 	content+=(this._currentPage + 1)+"/"+maxPage;
 	content+="<img id='next_page' src=svg/chevron_right.svg>";
 	this._pageDiv.innerHTML = content;
+	
+	this.loadImages();
 	
 	var windowNode = this.getWindowNode();
 	var entries = windowNode.querySelectorAll(".attack_list_row");

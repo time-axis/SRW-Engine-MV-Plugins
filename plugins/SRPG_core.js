@@ -97,6 +97,9 @@ var $patternManager = new PatternManager();
 var $abilityZoneManager = new AbilityZoneManager();
 
 var $inventoryManager = new SRWInventoryManager();
+var $equipablesManager = new SRWEquipablesManager();
+
+var $terrainTypeManager = new TerrainTypeManager();
 
 var $scriptCharactersLoader = new ScriptCharactersLoader();
 var $deployActionsLoader = new DeployActionsLoader();
@@ -302,10 +305,21 @@ var _defaultPlayerSpeed = parameters['defaultPlayerSpeed'] || 4;
 		filename = this.getTranslationInfo(filename); 
 		return this.reserveBitmap('img/faces/', filename, hue, true, reservationId);
 	};
-    	
 
-
-
+	ImageManager.loadBitmapPromise = async function(folder, filename, hue, smooth) {
+		return new Promise((resolve, reject) => {
+			if (filename) {
+				var path = folder + encodeURIComponent(filename);
+				var bitmap = this.loadNormalBitmap(path, hue || 0);
+				bitmap.smooth = smooth;
+				bitmap.addLoadListener(() => {
+					resolve(bitmap);
+				});
+			} else {
+				resolve(this.loadEmptyBitmap());
+			}	
+		});		
+	};	
 	
 	
 //====================================================================
@@ -453,8 +467,11 @@ SceneManager.isInSaveScene = function(){
 		this.createPilotUpgradeSelectionWindow();
 		this.createPilotUpgradeWindow();
 		this.createItemEquipWindow();
+		this.createWeaponEquipWindow();
+		this.createWeaponUpgradeWindow();
 		this.createItemSellWindow();
 		this.createItemEquipSelectionWindow();
+		this.createWeaponEquipSelectionWindow();
 		this.createMinimalBattleWindow();
 		this.createSpiritAnimWindow();
 		this.createDetailPagesWindow();
@@ -848,6 +865,24 @@ SceneManager.isInSaveScene = function(){
 		this.idToMenu["equip_item"] = this._itemEquipWindow;
     };	
 	
+	Scene_Map.prototype.createWeaponEquipWindow = function() {
+		var _this = this;
+		this._weaponEquipWindow = new Window_EquipWeapon(0, 0, Graphics.boxWidth, Graphics.boxHeight);
+		this._weaponEquipWindow.close();
+		this.addWindow(this._weaponEquipWindow);
+		this._weaponEquipWindow.hide();
+		this.idToMenu["equip_weapon"] = this._weaponEquipWindow;
+    };	
+	
+	Scene_Map.prototype.createWeaponUpgradeWindow = function() {
+		var _this = this;
+		this._weaponUpgradeWindow = new Window_UpgradeEquipWeapon(0, 0, Graphics.boxWidth, Graphics.boxHeight);
+		this._weaponUpgradeWindow.close();
+		this.addWindow(this._weaponUpgradeWindow);
+		this._weaponUpgradeWindow.hide();
+		this.idToMenu["upgrade_equip_weapon"] = this._weaponUpgradeWindow;
+    };	
+	
 	Scene_Map.prototype.createItemSellWindow = function() {
 		var _this = this;
 		this._itemSellWindow = new Window_SellItem(0, 0, Graphics.boxWidth, Graphics.boxHeight);
@@ -866,6 +901,15 @@ SceneManager.isInSaveScene = function(){
 		this._itemEquipSelectWindow.hide();
 		this.idToMenu["equip_item_select"] = this._itemEquipSelectWindow;
     };		
+	
+	Scene_Map.prototype.createWeaponEquipSelectionWindow = function() {
+		var _this = this;
+		this._weaponEquipSelectWindow = new Window_EquipWeaponSelection(0, 0, Graphics.boxWidth, Graphics.boxHeight);
+		this._weaponEquipSelectWindow.close();
+		this.addWindow(this._weaponEquipSelectWindow);
+		this._weaponEquipSelectWindow.hide();
+		this.idToMenu["equip_weapon_select"] = this._weaponEquipSelectWindow;
+    };	
 	
 	Scene_Map.prototype.createMinimalBattleWindow = function() {
 		var _this = this;
@@ -967,6 +1011,11 @@ SceneManager.isInSaveScene = function(){
 		this._mapSrpgActorCommandWindow.setHandler('status', this.statusActorMenuCommand.bind(this));	
 		
 		this._mapSrpgActorCommandWindow.setHandler('swap_pilot', this.swapPilotMenuCommand.bind(this));	
+		
+		this._mapSrpgActorCommandWindow.setHandler('change_super_state_0',  this.commandChangeSuperState.bind(this, 0));
+		this._mapSrpgActorCommandWindow.setHandler('change_super_state_1',  this.commandChangeSuperState.bind(this, 1));
+		this._mapSrpgActorCommandWindow.setHandler('change_super_state_2',  this.commandChangeSuperState.bind(this, 2));
+		this._mapSrpgActorCommandWindow.setHandler('change_super_state_3',  this.commandChangeSuperState.bind(this, 3));
 		
 		
         this._mapSrpgActorCommandWindow.setHandler('cancel', this.cancelActorMenuCommand.bind(this));
@@ -1541,7 +1590,7 @@ SceneManager.isInSaveScene = function(){
 			}
 		}
 		
-		if($gameTemp.enemyAppearQueueIsProcessing){
+		if($gameTemp.enemyAppearQueueIsProcessing && $gameTemp.enemyAppearQueue){
 			if(ImageManager.isReady()){//wait for potential still pending character sheet loading by addEnemy or deployActor
 				$gameTemp.unitAppearTimer--;
 				if($gameTemp.unitAppearTimer <= 0){
@@ -1564,7 +1613,7 @@ SceneManager.isInSaveScene = function(){
 			}			
 		}
 		
-		if($gameTemp.disappearQueueIsProcessing){
+		if($gameTemp.disappearQueueIsProcessing && $gameTemp.disappearQueue){
 			$gameTemp.unitAppearTimer--;
 			if($gameTemp.unitAppearTimer <= 0){
 				if(!$gameTemp.disappearQueue || !$gameTemp.disappearQueue.length){
@@ -1865,10 +1914,14 @@ SceneManager.isInSaveScene = function(){
 						if(battleResult.hasActed){
 							var ENCost = battleResult.ENUsed;
 							ENCost = $statCalc.applyStatModsToValue(actor, ENCost, ["EN_cost"]);
+							
+							if(!$statCalc.applyStatModsToValue(actor, 0, ["en_to_power"])){
+								ENCost = $statCalc.applyStatModsToValue(actor, ENCost, ["EN_cost"]);
+							}
 										
 							actor.setMp(actor.mp - Math.floor(ENCost));
 							if(weapon){
-								weapon.currentAmmo-=battleResult.ammoUsed;
+								$statCalc.modifyCurrentAmmo(actor, weapon, battleResult.ammoUsed * -1);
 							}
 							var MPCost = battleResult.MPCost;
 							if(MPCost){
@@ -2166,22 +2219,8 @@ SceneManager.isInSaveScene = function(){
         $gameParty.clearSrpgBattleActors();
         $gameTroop.clearSrpgBattleEnemys();
 		$gameTemp.battleEffectCache = null;
-        this.eventAfterAction();
-        if ($gameSystem.isBattlePhase() === 'actor_phase') {
-            this.eventUnitEvent();
-        }
-        $gameTemp.clearActiveEvent();
-        if ($gameSystem.isBattlePhase() === 'actor_phase') {
-            if (this.isSrpgActorTurnEnd()) {
-                $gameSystem.srpgStartEnemyTurn(0); //自動行動のアクターが行動する
-            } else {
-                $gameSystem.setSubBattlePhase('event_after_actor_action');
-            }
-        } else if ($gameSystem.isBattlePhase() === 'auto_actor_phase') {
-            $gameSystem.setSubBattlePhase('auto_actor_command');
-        } else if ($gameSystem.isBattlePhase() === 'AI_phase') {
-            $gameSystem.setSubBattlePhase('enemy_command');
-        }
+       
+	   $gameSystem.setSubBattlePhase('check_item_pickup');	
     };
 
     //ユニットイベントの実行
@@ -2328,7 +2367,7 @@ SceneManager.isInSaveScene = function(){
 	
 	Scene_Map.prototype.commandLand = function() {
 		var actor = $gameSystem.EventToUnit($gameTemp.activeEvent().eventId())[1];
-		$statCalc.setFlying(actor, false);
+		$statCalc.setSuperState(actor, false);
 		
 		$gameTemp.activeEvent().transitioningFloat = true;
 		$gameSystem.setSubBattlePhase('await_actor_float');
@@ -2341,7 +2380,7 @@ SceneManager.isInSaveScene = function(){
 	Scene_Map.prototype.commandFly = function() {
 		
 		var actor = $gameSystem.EventToUnit($gameTemp.activeEvent().eventId())[1];
-		$statCalc.setFlying(actor, true);
+		$statCalc.setSuperState(actor, true);
 	   
 		$gameTemp.activeEvent().transitioningFloat = true;
 		$gameSystem.setSubBattlePhase('await_actor_float');
@@ -2350,6 +2389,19 @@ SceneManager.isInSaveScene = function(){
 		this._mapSrpgActorCommandWindow.refresh();
 		this._mapSrpgActorCommandWindow.deactivate();
     };
+	
+	Scene_Map.prototype.commandChangeSuperState = function(idx) {
+		
+		var actor = $gameSystem.EventToUnit($gameTemp.activeEvent().eventId())[1];
+		let terrainCmd = $statCalc.getAvailableSuperStateTransitionsForCurrentPosition(actor)[idx];	
+		$statCalc.setSuperState(actor, terrainCmd.endState, false, terrainCmd.se);
+	   
+		$gameTemp.activeEvent().transitioningFloat = true;
+		$gameSystem.setSubBattlePhase('await_actor_float');		
+		
+		this._mapSrpgActorCommandWindow.refresh();
+		this._mapSrpgActorCommandWindow.deactivate();
+    };	
 	
 	Scene_Map.prototype.commandSpirit = function() {
 		var actionBattlerArray = $gameSystem.EventToUnit($gameTemp.activeEvent().eventId());
@@ -2374,7 +2426,7 @@ SceneManager.isInSaveScene = function(){
 		$gameTemp.deployWindowCallback = function(deployed){
 			var shipEvent = $gameTemp.activeEvent();
 			$gameTemp.activeShip = {position: {x: shipEvent.posX(), y: shipEvent.posY()}, actor: $gameSystem.EventToUnit(shipEvent.eventId())[1], event: $gameTemp.activeEvent()};
-			
+			$gameTemp.activeEvent().isActiveShip = true;
 			$statCalc.removeBoardedUnit(deployed.actor, $gameTemp.activeShip.actor);				
 			var event = deployed.actor.event;
 			event.locate($gameTemp.activeEvent().posX(), $gameTemp.activeEvent().posY());
@@ -2639,7 +2691,7 @@ SceneManager.isInSaveScene = function(){
 			$gameTemp.forceActorMenuRefresh = true;
 			$gameSystem.setSrpgActorCommandWindowNeedRefresh($gameSystem.EventToUnit($gameTemp.activeEvent().eventId()));
 				
-			$gameTemp.activeShip = null;
+			$gameTemp.clearActiveShip();
 		} else if($gameSystem.isSubBattlePhase() == "confirm_boarding"){
 			$gameSystem.setSubBattlePhase('actor_move');
 		} else if($gameTemp.isPostMove){
@@ -2689,7 +2741,7 @@ SceneManager.isInSaveScene = function(){
 		var actor = $gameSystem.EventToUnit($gameTemp.activeEvent().eventId())[1];
 		if(itemDef && itemDef.isActiveHandler(actor)){			
 			var useInfo = $abilityCommandManger.getUseInfo(actor, item);
-			if(useInfo.type == "ammo"){
+			if(useInfo.type == "ammo" || useInfo.type == null){
 				$statCalc.setAbilityUsed(actor, item);
 			} else if(useInfo.type == "EN"){
 				var ENCost = useInfo.cost;										
@@ -2734,8 +2786,11 @@ SceneManager.isInSaveScene = function(){
         var item = this._swapPilotWindow.item();		
 		$statCalc.swapPilot(actor, item);
 		$gameSystem.clearSrpgActorCommandWindowNeedRefresh();
-		$gameSystem.setSubBattlePhase('normal')
+		//$gameSystem.setSubBattlePhase('normal')
 		this._swapPilotWindow.hide();
+		
+		actor.onAllActionsEnd();
+		this.srpgAfterAction();	
     };	
 	
 	Scene_Map.prototype.onAbilityCancel = function() {
@@ -3346,8 +3401,15 @@ SceneManager.isInSaveScene = function(){
 			}					
 		} 
 		
+		if(enemy.targetBox != -1 && enemy.targetBox != null){
+			const targetBoxEvent = $gameMap.event(enemy.targetBox);
+			if(targetBoxEvent && targetBoxEvent.isDropBox){
+				optimalPos = this.srpgSearchOptimalPos({x: targetBoxEvent.posX(), y: targetBoxEvent.posY()}, enemy, type, -1, 0);
+			}
+		}
+		
 		//if the priority target is in range, target it
-		if(priorityTargetInRange || (!AIFlags.preferTarget && optimalPosStanding)){
+		if(!optimalPos && (priorityTargetInRange || (!AIFlags.preferTarget && optimalPosStanding))){
 			optimalPos = optimalPosStanding;
 		}
 		
@@ -3496,7 +3558,7 @@ SceneManager.isInSaveScene = function(){
         var targets = $statCalc.getAllInRange(battler);
 		var tmp = [];
 		for(var i = 0; i < targets.length; i++){
-			if(!battler.isEnemy() || !$gameSystem.untargetableAllies[targets[i].eventId()]){		
+			if((!battler.isEnemy() || !$gameSystem.untargetableAllies[targets[i].eventId()]) && $statCalc.canBeTargetedOnCurrentTerrain($gameSystem.EventToUnit(targets[i].eventId())[1])){		
 				var actor = $gameSystem.EventToUnit(targets[i].eventId())[1];
 				
 				if($battleCalc.getBestWeapon({actor: battler, pos: {x: referenceEvent.posX(), y: referenceEvent.posY()}}, {actor: actor, pos: {x: targets[i].posX(), y: targets[i].posY()}}, false, false, false)){
@@ -3542,7 +3604,7 @@ SceneManager.isInSaveScene = function(){
         var targets =  $statCalc.getAllInRange(battler, true);
 		var tmp = [];
 		for(var i = 0; i < targets.length; i++){
-			if(!battler.isEnemy() || !$gameSystem.untargetableAllies[targets[i].eventId()]){			
+			if((!battler.isEnemy() || !$gameSystem.untargetableAllies[targets[i].eventId()]) && $statCalc.canBeTargetedOnCurrentTerrain($gameSystem.EventToUnit(targets[i].eventId())[1])){		
 				var actor = $gameSystem.EventToUnit(targets[i].eventId())[1];
 				if($battleCalc.getBestWeapon({actor: battler}, {actor: actor}, false, true, false)){
 					tmp.push(targets[i]);
@@ -3602,7 +3664,7 @@ SceneManager.isInSaveScene = function(){
 		var tauntTargetEvent = -1;
 		
 		canAttackTargets.forEach(function(event) {
-			if(!event.isErased() && !$gameSystem.untargetableAllies[event.eventId()]){					
+			if(!event.isErased() && !$gameSystem.untargetableAllies[event.eventId()] && $statCalc.canBeTargetedOnCurrentTerrain($gameSystem.EventToUnit(event.eventId())[1])){					
 				var defender = $gameSystem.EventToUnit(event.eventId())[1];
 				if(defender.isActor() && defender.actorId() == priorityTargetId){
 					priorityTargetEvent = event;
@@ -3853,7 +3915,7 @@ SceneManager.isInSaveScene = function(){
 				var isBottomPassable;
 				var isLeftPassable;
 				var isRightPassable;
-				if(!isCenterPassable || $statCalc.isFlying(battler) || !ENGINE_SETTINGS.USE_TILE_PASSAGE){
+				if(!isCenterPassable || $statCalc.ignoresTerrainCollision(battler, $gameMap.regionId(i, j) % 8) || !ENGINE_SETTINGS.USE_TILE_PASSAGE){
 				 	isTopPassable = isCenterPassable;
 					isBottomPassable = isCenterPassable;
 					isLeftPassable = isCenterPassable;
@@ -3867,7 +3929,7 @@ SceneManager.isInSaveScene = function(){
 				
 				var weight = 1 ;
 				
-				if(!$statCalc.isFlying(battler)){
+				if(!$statCalc.ignoresTerrainCost(battler, $gameMap.regionId(i, j) % 8)){
 					weight+=$gameMap.SRPGTerrainTag(i, j);
 				}				
 				pathfindingGrid[i][j] = isCenterPassable ? weight : 0; 	
@@ -3923,6 +3985,10 @@ SceneManager.isInSaveScene = function(){
 			var deltaY = Math.abs(targetCoords.y - node.y);
 			var dist = deltaX + deltaY;
 			
+			var srcDeltaX = Math.abs(battler.event.posX() - node.x);
+			var srcDeltaY = Math.abs(battler.event.posY() - node.y);
+			
+			
 			var environmentScore = 0;
 			
 			if(AIFlags.terrain){			
@@ -3941,7 +4007,7 @@ SceneManager.isInSaveScene = function(){
 				var supporterDefenders = $statCalc.getSupportDefendCandidates(
 					$gameSystem.getFactionId(battler), 
 					{x: node.x, y: node.y},
-					$statCalc.getCurrentTerrain(battler),
+					$statCalc.getCurrentAliasedTerrainIdx(battler),
 					battler.event.eventId()
 				);
 				
@@ -3952,7 +4018,7 @@ SceneManager.isInSaveScene = function(){
 				var supportersAttackers = $statCalc.getSupportAttackCandidates(
 					$gameSystem.getFactionId(battler), 
 					{x: node.x, y: node.y},
-					$statCalc.getCurrentTerrain(battler),
+					$statCalc.getCurrentAliasedTerrainIdx(battler),
 					battler.event.eventId()
 				);
 				
@@ -3970,7 +4036,9 @@ SceneManager.isInSaveScene = function(){
 				distanceOK: distanceOK,
 				dist: dist,
 				travelDistToTarget: travelDistToTarget,
-				environment: environmentScore
+				environment: environmentScore,
+				srcDeltaX: srcDeltaX,
+				srcDeltaY: srcDeltaY
 			});
 		});
 		
@@ -3987,6 +4055,13 @@ SceneManager.isInSaveScene = function(){
 				return 1;
 			} else if(a.travelDistToTarget != b.travelDistToTarget){
 				return a.travelDistToTarget - b.travelDistToTarget;
+			} else if(b.pathLength == a.pathLength){
+				return [
+					{retVal: -1, refVal: a.srcDeltaX},
+					{retVal: -1, refVal: a.srcDeltaY},
+					{retVal: 1, refVal: b.srcDeltaX},
+					{retVal: 1, refVal: b.srcDeltaY}
+				].sort((a, b) => b.refVal - a.refVal)[0].retVal;
 			} else {
 				return b.pathLength - a.pathLength;
 			}				
@@ -4246,7 +4321,7 @@ SceneManager.isInSaveScene = function(){
 				var supporters = $statCalc.getSupportDefendCandidates(
 					$gameSystem.getFactionId(actorInfo.actor), 
 					actorInfo.pos,
-					$statCalc.getCurrentTerrain(actorInfo.actor)
+					$statCalc.getCurrentAliasedTerrainIdx(actorInfo.actor)
 				);
 				
 				if($statCalc.applyStatModsToValue($gameTemp.currentBattleActor, 0, ["disable_support"]) || 
@@ -4282,7 +4357,7 @@ SceneManager.isInSaveScene = function(){
 			var supporters = $statCalc.getSupportAttackCandidates(
 				$gameSystem.getFactionId(enemyInfo.actor), 
 				{x: $gameTemp.activeEvent().posX(), y: $gameTemp.activeEvent().posY()},
-				$statCalc.getCurrentTerrain($gameTemp.currentBattleEnemy)
+				$statCalc.getCurrentAliasedTerrainIdx($gameTemp.currentBattleEnemy)
 			);
 			
 			var aSkill = $statCalc.getPilotStat(enemyInfo.actor, "skill");
@@ -4731,9 +4806,9 @@ Scene_Disclaimer.prototype.createForeground = function() {
 	var text = ENGINE_SETTINGS.DISCLAIMER_TEXT;
 	var lines = text.split("\n");
 	var ctr = 0;
-	this._disclaimerSprite.bitmap.fontSize = 24;
+	this._disclaimerSprite.bitmap.fontSize = ENGINE_SETTINGS.FONT_SIZE || 24;
 	for(line of lines){		
-		this._disclaimerSprite.bitmap.drawText(line, x, y + 28 * ctr++, maxWidth, 28 , "left");
+		this._disclaimerSprite.bitmap.drawText(line, x, y + 28 * ctr++, maxWidth, ENGINE_SETTINGS.LINE_HEIGHT || 28, "left");
 	}	
 };
 
@@ -4767,3 +4842,23 @@ function logSafe(type, msg){
 		console.log(msg);
 	}
 }
+
+
+Game_Actors.prototype.actor = function(actorId) {
+	if(actorId == null){
+		return null;
+	}
+	//resolve indirect actor id. if the pattern <x> is matched, the actor id is the value of game variable x
+	var parts = String(actorId).match(/\<(.*)\>/);	
+	if(parts && parts.length > 1){
+		actorId = $gameVariables.value(parts[1]);
+	}
+	
+    if ($dataActors[actorId]) {
+        if (!this._data[actorId]) {
+            this._data[actorId] = new Game_Actor(actorId);
+        }
+        return this._data[actorId];
+    }
+    return null;
+};

@@ -103,7 +103,13 @@ SRWBattleTextManager.prototype.getText = function(target, ref, type, subType, ta
 	
 	if(!text && !noAlias){
 		if(ref.SRWStats.pilot.textAlias > 0){
-			const actor = $gameActors.actor(ref.SRWStats.pilot.textAlias);
+			let actor;
+			if(ref.isActor()){
+				actor = $gameActors.actor(ref.SRWStats.pilot.textAlias);
+			} else {
+				actor = new Game_Enemy(ref.SRWStats.pilot.textAlias, 0, 0);
+			}
+			
 			if(!$statCalc.isActorSRWInitialized(actor)){
 				$statCalc.initSRWStats(actor);
 			}
@@ -230,6 +236,15 @@ SRWBattleTextManager.prototype.getTextCandidate = function(definitions, target, 
 				if(subType == "default"){
 					options = definitions.default;
 				} 
+				
+				var tmp = [];
+				for(let option of options){
+					if(option[0].variable == null || $gameVariables.value(option[0].variable) == option[0].variableValue){
+						tmp.push(option);
+					}
+				}
+				options = tmp;
+				
 				var idx = -1;
 				if(type == "attacks"){
 					var ctr = 0;

@@ -17,7 +17,7 @@ Window_CSS.prototype.initialize = function() {
 	this._glowCycleTime = 120;
 	this._maxGlowDelta = 0.25;
 	this._glowTimer = this._glowCycleTime;
-	
+	this._container.classList.add("custom_css");
 }
 
 Window_CSS.prototype.destroy = function() {
@@ -82,6 +82,39 @@ Window_CSS.prototype.createComponents = function() {
 	this._bgTextureContainer.classList.add("bg_container");
 	this._bgFadeContainer.appendChild(this._bgTextureContainer);
 	windowNode.appendChild(this._bgFadeContainer);
+}
+
+Window_CSS.prototype.loadImages = async function() {	
+	const windowNode = this.getWindowNode();
+	
+	let images = windowNode.querySelectorAll("img");
+	
+	let promises = [];
+	let imgNameLookup = {};
+	let ctr = 0;
+	for(let img of images){
+		let imgPath = img.getAttribute("data-img");
+		if(imgPath){
+			if(imgNameLookup[imgPath] == null){
+				imgNameLookup[imgPath] = ctr++;
+				promises.push(ImageManager.loadBitmapPromise("", imgPath));
+			}	
+		}				
+	}
+	
+	await Promise.all(promises);
+	
+	let bitmaps = [];
+	for(let promise of promises){
+		bitmaps.push(await promise);
+	}
+	
+	for(let img of images){
+		let imgPath = img.getAttribute("data-img");
+		if(imgNameLookup[imgPath] != null){
+			img.setAttribute("src", bitmaps[imgNameLookup[imgPath]].canvas.toDataURL());
+		}	
+	}	
 }
 
 Window_CSS.prototype.createEntryList = function(node, listInfo, id) {	
@@ -562,4 +595,90 @@ Window_CSS.prototype.handleElemScrol = function(scrolledElem, scroll) {
 		scrolledElem.scrollTop = scroll;
 	}
 	return scrolledElem.scrollTop;
+}
+
+Window_CSS.prototype.createAttributeEffectivenessBlock = function(actor, attribute, attack, target) {
+	let content = "";
+	let effectClass = "";
+	if(target){
+		let effectiveness = $statCalc.getEffectivenessMultiplier(actor, attack, target, "damage");
+		if(effectiveness > 1){
+			effectClass = "SE";
+		} else if(effectiveness < 1){
+			effectClass = "NVE";
+		}
+	}
+	content+="<div class='attribute_effectiveness_block "+effectClass+"'>";
+	let attr = $statCalc.getParticipantAttribute(actor, attribute, attack);
+	if(attr){
+		
+		content+="<img class='effectiveness_icon' data-img='img/system/attribute_"+attr+".png'>";	
+		content+="<div class='effectiveness_indicator glowing_elem'></div>";	
+	}			
+	content+="</div>";
+	return content;
+}
+
+
+Window_CSS.prototype.createAttributeBlock = function(attack) {
+	var content = "";
+	content+="<div class='attribute_block'>";
+	
+	if(ENGINE_SETTINGS.USE_WEAPON_ATTRIBUTE){
+		content+="<div class='attribute_block_entry scaled_width scaled_height scaled_text effectiveness'>";
+		let attr1 = $statCalc.getParticipantAttribute($gameTemp.currentMenuUnit.actor, "attribute1", attack);
+		if(attr1){
+			content+="<img data-img='img/system/attribute_"+attr1+".png'>";	
+		}			
+		content+="</div>";
+	}
+	
+	content+="<div class='attribute_block_entry scaled_width scaled_height scaled_text'>";
+	if(attack.effects.length){
+		content+="S";
+	} 
+	content+="</div>";
+	content+="<div class='attribute_block_entry scaled_width scaled_height scaled_text'>";
+	if(attack.postMoveEnabled){
+		content+="P";
+	} 
+	content+="</div>";
+	content+="<div class='attribute_block_entry scaled_width scaled_height scaled_text'>";
+	if(attack.isCounter){
+		content+="C";
+	} 
+	content+="</div>";
+	content+="<div class='attribute_block_entry scaled_width scaled_height scaled_text'>";
+	/*if(attack.particleType == "missile"){
+		content+="Mi";	
+	}
+	if(attack.particleType == "physical"){
+		content+="Ph";	
+	}
+	if(attack.particleType == "funnel"){
+		content+="Fu";	
+	}
+	if(attack.particleType == "beam"){
+		content+="Be";	
+	}
+	if(attack.particleType == "gravity"){
+		content+="Gr";	
+	}*/
+	if(attack.particleType != "" && attack.particleType != null){
+		var typeIndicator = attack.particleType.substring(0, 2);
+		content+=typeIndicator.charAt(0).toUpperCase() + typeIndicator.slice(1);
+	}
+	content+="</div>";
+	
+	if(ENGINE_SETTINGS.ENABLE_TWIN_SYSTEM){
+		content+="<div class='attribute_block_entry all scaled_width scaled_height scaled_text fitted_text'>";
+		if(attack.isAll){
+			content+="ALL";
+		} 
+		content+="</div>";
+	}
+	
+	
+	content+="</div>";
+	return content;
 }

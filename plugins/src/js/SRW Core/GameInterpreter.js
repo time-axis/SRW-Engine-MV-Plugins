@@ -449,14 +449,21 @@
 					params.items, 
 					params.squadId, 
 					params.targetRegion,
-					params.factionId
+					params.factionId,
+					params.counterBehavior,
+					params.attackBehavior,
+					params.noUpdateCount,
+					params.attribute1,
+					params.attribute2,
+					params.boxDrop,
+					params.targetBox
 				);
 			}
 		}
 
-		Game_Interpreter.prototype.addEnemies = function(toAnimQueue, startId, endId, enemyId, mechClass, level, mode, targetId, items, squadId, targetRegion, factionId) {
+		Game_Interpreter.prototype.addEnemies = function(toAnimQueue, startId, endId, enemyId, mechClass, level, mode, targetId, items, squadId, targetRegion, factionId, attribute1, attribute2, boxDrop, targetBox) {
 			for(var i = startId; i <= endId; i++){
-				this.addEnemy(toAnimQueue, i, enemyId, mechClass, level, mode, targetId, items, squadId, targetRegion, factionId);
+				this.addEnemy(toAnimQueue, i, enemyId, mechClass, level, mode, targetId, items, squadId, targetRegion, factionId, attribute1, attribute2, boxDrop, targetBox);
 			}
 		}
 
@@ -475,12 +482,16 @@
 				params.factionId,
 				params.counterBehavior,
 				params.attackBehavior,
-				params.noUpdateCount
+				params.noUpdateCount,
+				params.attribute1,
+				params.attribute2,
+				params.boxDrop,
+				params.targetBox
 			);
 		}
 
 		// 新規エネミーを追加する（増援）
-		Game_Interpreter.prototype.addEnemy = function(toAnimQueue, eventId, enemyId, mechClass, level, mode, targetId, items, squadId, targetRegion, factionId, counterBehavior, attackBehavior, noUpdateCount) {
+		Game_Interpreter.prototype.addEnemy = function(toAnimQueue, eventId, enemyId, mechClass, level, mode, targetId, items, squadId, targetRegion, factionId, counterBehavior, attackBehavior, noUpdateCount, attribute1, attribute2, boxDrop, targetBox) {
 			if(!$dataEnemies[enemyId] || !$dataEnemies[enemyId].meta || !Object.keys($dataEnemies[enemyId].meta).length){
 				throw("Attempted to create an enemy pilot with id '"+enemyId+"' which does not have SRW data.");
 			}
@@ -504,15 +515,22 @@
 			if(typeof targetRegion == "undefined"|| targetRegion == ""){
 				targetRegion = -1;
 			}
+			if(typeof targetBox == "undefined"|| targetBox == ""){
+				targetBox = -1;
+			}
 			if(typeof factionId == "undefined"|| factionId == ""){
 				factionId = 0;
 			}
 			if (enemy_unit && event) { 	
 				event._lastModsPosition = null;
-				
+				event.isDropBox = false;
+				event.isShip = false;
+				delete event.dropBoxItems;
+
 				enemy_unit._mechClass = mechClass;	
 				enemy_unit.squadId = squadId;	
 				enemy_unit.targetRegion = targetRegion;	
+				enemy_unit.targetBox = targetBox;
 				enemy_unit.factionId = factionId;	
 				enemy_unit.targetUnitId = targetId || "";
 				enemy_unit.counterBehavior = counterBehavior || "attack";
@@ -535,9 +553,9 @@
 					}
 					
 					$gameSystem.setEventToUnit(event.eventId(), 'enemy', enemy_unit);
-					$statCalc.initSRWStats(enemy_unit, level, items);
+					$statCalc.initSRWStats(enemy_unit, level, items, false, false, boxDrop);
 					$statCalc.applyBattleStartWill(enemy_unit);
-					$statCalc.updateFlightState(enemy_unit);
+					$statCalc.updateSuperState(enemy_unit, false, true);
 					
 					
 					if(!noUpdateCount){
@@ -566,8 +584,16 @@
 						$gameMap.setEventImages();
 					}
 				}
+				if(attribute1){
+					$statCalc.setStageTemp(enemy_unit, "attribute1", attribute1);
+				}
+				if(attribute2){
+					$statCalc.setStageTemp(enemy_unit, "attribute2", attribute2);
+				}
 			}
 			//$statCalc.invalidateAbilityCache();
+			
+			
 			return true;
 		};
 		
@@ -1013,9 +1039,11 @@
 		}
 
 		Game_Interpreter.prototype.processDisappearQueue = function(){
-			this.setWaitMode("enemy_appear");
-			$gameTemp.disappearQueueIsProcessing = true;
-			$gameTemp.unitAppearTimer = 0;
+			if($gameTemp.disappearQueue && $gameTemp.disappearQueue.length){
+				this.setWaitMode("enemy_appear");
+				$gameTemp.disappearQueueIsProcessing = true;
+				$gameTemp.unitAppearTimer = 0;
+			}			
 		}
 
 		Game_Interpreter.prototype.manualDeploy = function(unlockedOnly){

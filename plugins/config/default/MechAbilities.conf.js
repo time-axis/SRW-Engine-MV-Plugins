@@ -696,7 +696,7 @@ $SRWConfig.mechAbilties = function(){
 		function(actor, level){
 			return [
 				//{type: "water_enabled", modType: "addFlat", value: 2},
-				{type: "is_hover", modType: "addFlat", value: 1},
+				{type: "hover_enabled", modType: "addFlat", value: 1},
 			];
 		},
 		function(actor, level){
@@ -749,4 +749,148 @@ $SRWConfig.mechAbilties = function(){
 			return false;
 		}
 	);
+	
+	this.addDefinition(
+		49, 
+		"Drill", 
+		"Enables underground movement.", 
+		false,
+		false,
+		function(actor, level){
+			return [
+				//{type: "water_enabled", modType: "addFlat", value: 2},
+				{type: "dig_enabled", modType: "addFlat", value: 1},
+			];
+		},
+		function(actor, level){
+			return true;
+		}
+	);
+	
+	this.addDefinition(
+		50, 
+		"Weapon Reenergize - Fire", 
+		"Changes the attribute of the unit's weapons to Fire", 
+		false,
+		false,
+		function(actor, level){
+			return [
+				{type: "weapon_attribute", modType: "addFlat", value: 1, attribute: "fire"},
+			];
+		},
+		function(actor, level){
+			return true;
+		}
+	);
+	
+	this.addDefinition(
+		51, 
+		"Reenergize - Air", 
+		"Changes the attribute of the unit to Fire", 
+		false,
+		false,
+		function(actor, level){
+			return [
+				{type: "attribute", modType: "addFlat", value: 1, attribute: "air"},
+			];
+		},
+		function(actor, level){
+			return true;
+		}
+	);
+	
+	this.addDefinition(
+		52, 
+		"Elemental Master", 
+		"All damage inflicted becomes super effective", 
+		false,
+		false,
+		function(actor, level){
+			return [
+				{type: "always_se", modType: "addFlat", value: 1},
+			];
+		},
+		function(actor, level){
+			return true;
+		}
+	);
+	
+	this.addDefinition(
+		53, 
+		"Nullify Elements", 
+		"Ignore the penalties from elemental matchups", 
+		false,
+		false,
+		function(actor, level){
+			return [
+				{type: "ignore_se", modType: "addFlat", value: 1},
+			];
+		},
+		function(actor, level){
+			return true;
+		}
+	);
+	
+	this.addDefinition(
+		54, 
+		"HP Degen XXL", 
+		"50% HP reduced at the start of the turn.", 
+		false,
+		false,
+		function(actor, level){
+			return [{type: "HP_regen", modType: "addFlat", value: -50}];
+		},
+		function(actor, level){
+			return true;
+		}
+	);
+	
+	this.addDefinition(
+		55, 
+		"Large Backpack", 
+		"Carrying capacity +100.", 
+		false,
+		false,
+		function(actor, level){
+			return [{type: "carrying_capacity", modType: "addFlat", value: 100}];
+		},
+		function(actor, level){
+			return true;
+		}
+	);
+	
+	this.addDefinition(
+		56, 
+		"Weapons unlocking Weapons example", 
+		"Unlocks a fixed weapon for a unit if they are holding the right equipable weapons.", 
+		false,
+		false,
+		function(actor, level){
+			const requiredWeapons = [9,3];
+			const availableWeapons = $statCalc.getActorMechEquipables(actor.SRWStats.mech.id)
+			let weaponsLookup = {};
+			for(let weapon of availableWeapons){
+				if(weapon){
+					weaponsLookup[weapon.weaponId] = true;
+				}
+			}
+			const hasAllWeapons = requiredWeapons.filter(i => weaponsLookup[i]).length == requiredWeapons.length; 
+			if(hasAllWeapons){
+				return [{type: "unlock_weapon", modType: "addFlat", value: 7}];
+			} else {
+				return [];
+			}
+		},
+		function(actor, level){
+			return true;
+		}
+	);
+	
+	
+	
+	
+	/*Insert new ability here*/
+	
+
+	
 };

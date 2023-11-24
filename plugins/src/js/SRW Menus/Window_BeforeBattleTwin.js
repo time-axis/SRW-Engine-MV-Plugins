@@ -267,7 +267,7 @@ Window_BeforebattleTwin.prototype.createComponents = function() {
 	
 	this._btn_start = document.createElement("div");
 	this._btn_start.id = this.createId("btn_start");
-	this._btn_start.innerHTML = "Start Battle";
+	this._btn_start.innerHTML = APPSTRINGS.BEFORE_BATTLE.label_start_battle;
 	this._btn_start.classList.add("action_btn");
 	this._btn_start.classList.add("scaled_text");
 	this._btn_start.setAttribute("action_id", 0);
@@ -284,7 +284,7 @@ Window_BeforebattleTwin.prototype.createComponents = function() {
 	
 	this._btn_demo = document.createElement("div");
 	this._btn_demo.id = this.createId("btn_demo");
-	this._btn_demo.innerHTML = "DEMO: OFF";
+	this._btn_demo.innerHTML = APPSTRINGS.BEFORE_BATTLE.label_demo_off;
 	this._btn_demo.classList.add("action_btn");
 	this._btn_demo.classList.add("scaled_text");
 	this._btn_demo.setAttribute("action_id", 1);
@@ -301,7 +301,7 @@ Window_BeforebattleTwin.prototype.createComponents = function() {
 	
 	this._btn_assist = document.createElement("div");
 	this._btn_assist.id = this.createId("btn_asssist");
-	this._btn_assist.innerHTML = "Select Assist";
+	this._btn_assist.innerHTML = APPSTRINGS.BEFORE_BATTLE.label_select_assist;
 	this._btn_assist.classList.add("action_btn");
 	this._btn_assist.classList.add("scaled_text");
 	this._btn_assist.setAttribute("action_id", 2);
@@ -318,7 +318,7 @@ Window_BeforebattleTwin.prototype.createComponents = function() {
 	
 	this._btn_action = document.createElement("div");
 	this._btn_action.id = this.createId("btn_action");
-	this._btn_action.innerHTML = "Select Action";
+	this._btn_action.innerHTML = APPSTRINGS.BEFORE_BATTLE.label_select_action;
 	this._btn_action.classList.add("action_btn");
 	this._btn_action.classList.add("scaled_text");
 	this._btn_action.setAttribute("action_id", 3);
@@ -335,7 +335,7 @@ Window_BeforebattleTwin.prototype.createComponents = function() {
 	
 	this._btn_spirit = document.createElement("div");
 	this._btn_spirit.id = this.createId("btn_spirit");
-	this._btn_spirit.innerHTML = "Spirits";
+	this._btn_spirit.innerHTML = APPSTRINGS.BEFORE_BATTLE.label_sprits;
 	this._btn_spirit.classList.add("action_btn");
 	this._btn_spirit.classList.add("scaled_text");
 	this._btn_spirit.setAttribute("action_id", 4);
@@ -382,22 +382,22 @@ Window_BeforebattleTwin.prototype.createComponents = function() {
 	
 	this._targeting_arrows_1 = document.createElement("img");
 	this._targeting_arrows_1.id = this.createId("targeting_arrows_1");
-	this._targeting_arrows_1.setAttribute("src", "img/system/targeting1.png");
+	this._targeting_arrows_1.setAttribute("data-img", "img/system/targeting1.png");
 	windowNode.appendChild(this._targeting_arrows_1);	
 	
 	this._targeting_arrows_2 = document.createElement("img");
 	this._targeting_arrows_2.id = this.createId("targeting_arrows_2");
-	this._targeting_arrows_2.setAttribute("src", "img/system/targeting1.png");
+	this._targeting_arrows_2.setAttribute("data-img", "img/system/targeting1.png");
 	windowNode.appendChild(this._targeting_arrows_2);	
 	
 	this._targeting_arrows_enemy_1 = document.createElement("img");
 	this._targeting_arrows_enemy_1.id = this.createId("targeting_arrows_enemy_1");
-	this._targeting_arrows_enemy_1.setAttribute("src", "img/system/targeting1.png");
+	this._targeting_arrows_enemy_1.setAttribute("data-img", "img/system/targeting1.png");
 	windowNode.appendChild(this._targeting_arrows_enemy_1);	
 	
 	this._targeting_arrows_enemy_2 = document.createElement("img");
 	this._targeting_arrows_enemy_2.id = this.createId("targeting_arrows_enemy_2");
-	this._targeting_arrows_enemy_2.setAttribute("src", "img/system/targeting1.png");
+	this._targeting_arrows_enemy_2.setAttribute("data-img", "img/system/targeting1.png");
 	windowNode.appendChild(this._targeting_arrows_enemy_2);	
 	
 	this.new_attack_inidicator = document.createElement("div");
@@ -1114,24 +1114,24 @@ Window_BeforebattleTwin.prototype.createPercentIndicator = function(allyOrEnemy,
 	
 	if(targetType == "all"){		
 		if(realIdx > 1){//if there are actually two targets
-			content+="<img class='target_arrow main' src='img/system/targeting1.png'>";
-			content+="<img class='target_arrow twin' src='img/system/targeting2.png'>";
+			content+="<img class='target_arrow main' data-img='img/system/targeting1.png'>";
+			content+="<img class='target_arrow twin' data-img='img/system/targeting2.png'>";
 		} else if(ref.isSubTwin){
-			content+="<img class='target_arrow twin' src='img/system/targeting2.png'>";
+			content+="<img class='target_arrow twin' data-img='img/system/targeting2.png'>";
 		} else {
-			content+="<img class='target_arrow main' src='img/system/targeting1.png'>";
+			content+="<img class='target_arrow main' data-img='img/system/targeting1.png'>";
 		}		
 	} else if(targetType == "main"){
 		if(ref.isSubTwin){
-			content+="<img class='target_arrow main' src='img/system/targeting2.png'>";
+			content+="<img class='target_arrow main' data-img='img/system/targeting2.png'>";
 		} else {
-			content+="<img class='target_arrow main' src='img/system/targeting1.png'>";
+			content+="<img class='target_arrow main' data-img='img/system/targeting1.png'>";
 		}		
 	} else{		
 		if(ref.isSubTwin){
-			content+="<img class='target_arrow main' src='img/system/targeting1.png'>";
+			content+="<img class='target_arrow main' data-img='img/system/targeting1.png'>";
 		} else {
-			content+="<img class='target_arrow twin' src='img/system/targeting2.png'>";
+			content+="<img class='target_arrow twin' data-img='img/system/targeting2.png'>";
 		}	
 	}
 	
@@ -1185,6 +1185,7 @@ Window_BeforebattleTwin.prototype.createPercentIndicator = function(allyOrEnemy,
 }
 
 Window_BeforebattleTwin.prototype.createParticipantBlock = function(ref, action, isSupport, allyOrEnemy, participantId) {
+	const _this = this;
 	var content = "";
 	content+="<div class='participant_block "+allyOrEnemy+"'>";
 	
@@ -1220,26 +1221,26 @@ Window_BeforebattleTwin.prototype.createParticipantBlock = function(ref, action,
 	} else {
 		if(!isSupport){
 			if(action.type == "attack"){
-				content+="Attack";
+				content+=APPSTRINGS.BEFORE_BATTLE.label_attack;
 			}
 			if(action.type == "evade"){
-				content+="Evade";
+				content+=APPSTRINGS.BEFORE_BATTLE.label_evade;
 			}
 			if(action.type == "defend"){
-				content+="Defend";
+				content+=APPSTRINGS.BEFORE_BATTLE.label_defend;
 			}
 			if(action.type == "none"){
 				content+="---";
 			}
 		} else {
 			if(action.type == "attack"){
-				content+="Attack";
+				content+=APPSTRINGS.BEFORE_BATTLE.label_attack;
 			}
 			if(action.type == "evade"){
 				content+="---";
 			}
 			if(action.type == "defend"){
-				content+="Defend";
+				content+=APPSTRINGS.BEFORE_BATTLE.label_defend;
 			}
 			if(action.type == "none"){
 				content+="---";
@@ -1256,6 +1257,8 @@ Window_BeforebattleTwin.prototype.createParticipantBlock = function(ref, action,
 		content+=createMainContent();
 		content+=this.createPercentIndicator(allyOrEnemy, action, ref);		
 	}
+	
+	content+=this.createAttributeEffectivenessBlock(ref, "attribute1");
 	
 	
 	function createMainContent(){
@@ -1278,7 +1281,7 @@ Window_BeforebattleTwin.prototype.createParticipantBlock = function(ref, action,
 		content+="<div class='pilot_stats scaled_text'>";	
 		content+="<div class='level scaled_width'>";
 		content+="<div class='label'>";
-		content+="Lv";
+		content+=APPSTRINGS.GENERAL.label_level;
 		content+="</div>";
 		content+="<div class='value'>";
 		content+=$statCalc.getCurrentLevel(ref);
@@ -1286,7 +1289,7 @@ Window_BeforebattleTwin.prototype.createParticipantBlock = function(ref, action,
 		content+="</div>";
 		content+="<div class='will scaled_width'>";
 		content+="<div class='label'>";
-		content+="Will";
+		content+=APPSTRINGS.GENERAL.label_will;
 		content+="</div>";
 		content+="<div class='value'>";
 		content+=$statCalc.getCurrentWill(ref);
@@ -1297,8 +1300,8 @@ Window_BeforebattleTwin.prototype.createParticipantBlock = function(ref, action,
 		var calculatedStats = $statCalc.getCalculatedMechStats(ref);
 		
 		content+="<div class='mech_hp_en_container scaled_text'>";
-		content+="<div class='hp_label scaled_text'>HP</div>";
-		content+="<div class='en_label scaled_text'>EN</div>";
+		content+="<div class='hp_label scaled_text'>"+APPSTRINGS.GENERAL.label_HP+"</div>";
+		content+="<div class='en_label scaled_text'>"+APPSTRINGS.GENERAL.label_EN+"</div>";
 
 		content+="<div class='hp_display'>";
 		content+="<div class='current_hp scaled_text'>"+$statCalc.getCurrentHPDisplay(ref)+"</div>";
@@ -1321,7 +1324,7 @@ Window_BeforebattleTwin.prototype.createParticipantBlock = function(ref, action,
 		content+="<div class='en_bar'><div style='width: "+enPercent+"%;' class='en_bar_fill'></div></div>";
 		content+="</div>";
 		
-		content+="<div class='attack_name scaled_text fitted_text'>";	
+		content+="<div class='attack_name scaled_text fitted_text "+(ENGINE_SETTINGS.ENABLE_ATTRIBUTE_SYSTEM ? "with_attributes" : "")+"'>";	
 		var attack = action.attack;
 		if(attack && action.type == "attack"){	
 			if(attack.type == "M"){
@@ -1329,6 +1332,10 @@ Window_BeforebattleTwin.prototype.createParticipantBlock = function(ref, action,
 			} else {
 				content+="<img class='attack_list_type scaled_width' src='svg/crosshair.svg'>";
 			}
+			if(ENGINE_SETTINGS.ENABLE_ATTRIBUTE_SYSTEM){
+				content+=_this.createAttributeEffectivenessBlock(ref, "attribute1", attack, $gameTemp.battleEffectCache[effectRef].attacked.ref);
+			}
+			
 			content+="<div class=''>"+attack.name+"</div>";
 		} else {
 			content+="<div class=''>------</div>";
@@ -1355,10 +1362,11 @@ Window_BeforebattleTwin.prototype.createParticipantBlock = function(ref, action,
 
 
 Window_BeforebattleTwin.prototype.createSmallParticipantBlock = function(ref, action, allyOrEnemy, participantId) {
+	const _this = this;
 	var content = "";
-	content+="<div class='participant_block participant_block_small "+allyOrEnemy+"'>";
+	content+="<div class='participant_block participant_block_small "+allyOrEnemy+" "+participantId+"'>";
 	
-	
+	var effectRef = ref._cacheReference || ref._supportCacheReference;
 	
 	content+="<div class='scaled_text action_row'>";
 	
@@ -1372,7 +1380,7 @@ Window_BeforebattleTwin.prototype.createSmallParticipantBlock = function(ref, ac
 	} 
 	
 	if(action.type == "attack"){
-		content+="<div class='attack_name scaled_text fitted_text'>";	
+		content+="<div class='attack_name scaled_text fitted_text "+(ENGINE_SETTINGS.ENABLE_ATTRIBUTE_SYSTEM ? "with_attributes" : "")+"'>";	
 		var attack = action.attack;
 		if(attack && action.type == "attack"){	
 			if(attack.type == "M"){
@@ -1380,6 +1388,17 @@ Window_BeforebattleTwin.prototype.createSmallParticipantBlock = function(ref, ac
 			} else {
 				content+="<img class='attack_list_type scaled_width' src='svg/crosshair.svg'>";
 			}
+			if(ENGINE_SETTINGS.ENABLE_ATTRIBUTE_SYSTEM){		
+				let attacked;
+				if(ref._supportCacheReference){
+					let mainAttacker = $gameTemp.battleEffectCache[ref._supportCacheReference].mainAttacker;
+					if(mainAttacker){				
+						attacked = mainAttacker.attacked.ref;								
+					}				
+				}
+				content+=_this.createAttributeEffectivenessBlock(ref, "attribute1", attack, attacked);
+			}
+			
 			content+="<div class=''>"+attack.name+"</div>";
 		} else {
 			content+="<div class=''>------</div>";
@@ -1389,10 +1408,21 @@ Window_BeforebattleTwin.prototype.createSmallParticipantBlock = function(ref, ac
 	/*if(action.type == "evade"){
 		content+="---";
 	}*/
-	if(action.type == "defend"){
+	if(action.type == "defend"){		
 		content+="<div class='attack_name fitted_text'>";	
 		content+="Support Defend";
 		content+="</div>";
+		
+		if(ENGINE_SETTINGS.ENABLE_ATTRIBUTE_SYSTEM){		
+			let attacked;
+			if(ref._supportCacheReference){
+				let mainAttacker = $gameTemp.battleEffectCache[ref._supportCacheReference].mainAttacker;
+				if(mainAttacker){				
+					attacked = mainAttacker.attacked.ref;								
+				}				
+			}
+			content+=_this.createAttributeEffectivenessBlock(ref, "attribute1", attack, attacked);
+		}
 	}
 	/*if(action.type == "none"){
 		content+="---";
@@ -1410,95 +1440,6 @@ Window_BeforebattleTwin.prototype.createSmallParticipantBlock = function(ref, ac
 
 	
 	
-	function createMainContent(){
-		var content = "";
-	
-		content+="<div class='main_content'>";
-	
-		if(ref.isActor()){
-			content+="<div data-pilot='"+ref.SRWStats.pilot.id+"' class='pilot_icon'>";
-			content+="</div>";
-		} else {
-			content+="<div data-pilot='"+ref.SRWStats.pilot.id+"' class='enemy_icon'>";
-			content+="</div>";
-		}		
-		
-		content+="<div class='pilot_name scaled_text scaled_width fitted_text'>";
-		content+=ref.name();
-		content+="</div>";
-		
-		content+="<div class='pilot_stats scaled_text'>";	
-		content+="<div class='level scaled_width'>";
-		content+="<div class='label'>";
-		content+="Lv";
-		content+="</div>";
-		content+="<div class='value'>";
-		content+=$statCalc.getCurrentLevel(ref);
-		content+="</div>";
-		content+="</div>";
-		content+="<div class='will scaled_width'>";
-		content+="<div class='label'>";
-		content+="Will";
-		content+="</div>";
-		content+="<div class='value'>";
-		content+=$statCalc.getCurrentWill(ref);
-		content+="</div>";
-		content+="</div>";
-		content+="</div>";
-		
-		var calculatedStats = $statCalc.getCalculatedMechStats(ref);
-		
-		content+="<div class='mech_hp_en_container scaled_text'>";
-		content+="<div class='hp_label scaled_text'>HP</div>";
-		content+="<div class='en_label scaled_text'>EN</div>";
-
-		content+="<div class='hp_display'>";
-		content+="<div class='current_hp scaled_text'>"+$statCalc.getCurrentHPDisplay(ref)+"</div>";
-		content+="<div class='divider scaled_text'>/</div>";
-		content+="<div class='max_hp scaled_text'>"+$statCalc.getCurrentMaxHPDisplay(ref)+"</div>";
-		
-		content+="</div>";
-		
-		content+="<div class='en_display'>";
-		content+="<div class='current_en scaled_text'>"+$statCalc.getCurrentENDisplay(ref)+"</div>";
-		content+="<div class='divider scaled_text'>/</div>";
-		content+="<div class='max_en scaled_text'>"+$statCalc.getCurrentMaxENDisplay(ref)+"</div>";
-		
-		content+="</div>";
-		
-		var hpPercent = Math.floor(calculatedStats.currentHP / calculatedStats.maxHP * 100);
-		content+="<div class='hp_bar'><div style='width: "+hpPercent+"%;' class='hp_bar_fill'></div></div>";
-		
-		var enPercent = Math.floor(calculatedStats.currentEN / calculatedStats.maxEN * 100);
-		content+="<div class='en_bar'><div style='width: "+enPercent+"%;' class='en_bar_fill'></div></div>";
-		content+="</div>";
-		
-		content+="<div class='attack_name scaled_text fitted_text'>";	
-		var attack = action.attack;
-		if(attack && action.type == "attack"){	
-			if(attack.type == "M"){
-				content+="<img class='attack_list_type scaled_width' src='svg/punch_blast.svg'>";
-			} else {
-				content+="<img class='attack_list_type scaled_width' src='svg/crosshair.svg'>";
-			}
-			content+="<div class=''>"+attack.name+"</div>";
-		} else {
-			content+="<div class=''>------</div>";
-		}
-		content+="</div>";	
-		
-		var spirits = $statCalc.getAvailableSpiritStates();
-		var activeSpirits = $statCalc.getActiveSpirits(ref);
-		content+="<div class='active_spirits scaled_text'>";	
-		for(var i = 0; i < spirits.length; i++){
-			content+="<div class='spirit_entry "+(activeSpirits[spirits[i]] ? "active" : "")+"'>";	
-			content+=spirits[i].substring(0, 3).toUpperCase();	
-			content+="</div>";	
-		}
-		content+="</div>";	
-		content+="</div>";	
-		return content;
-	}
 	
 	//content+="</div>";
 	content+="</div>";
@@ -1720,21 +1661,17 @@ Window_BeforebattleTwin.prototype.redraw = function() {
 	}
 	
 	if(this.isBuffingAttack()){
-		this._enemy_label.innerHTML = "Support";
-		this._ally_label.innerHTML = "Support";
+		this._enemy_label.innerHTML = APPSTRINGS.BEFORE_BATTLE.label_support;
+		this._ally_label.innerHTML = APPSTRINGS.BEFORE_BATTLE.label_support;
 	} else {
 		if(!$gameTemp.isEnemyAttack){
-			this._enemy_label.innerHTML = "Defending";
-			this._ally_label.innerHTML = "Attacking";
+			this._enemy_label.innerHTML = APPSTRINGS.BEFORE_BATTLE.label_defending;
+			this._ally_label.innerHTML = APPSTRINGS.BEFORE_BATTLE.label_attacking;
 		} else {
-			this._enemy_label.innerHTML = "Attacking";
-			this._ally_label.innerHTML = "Defending";
+			this._enemy_label.innerHTML = APPSTRINGS.BEFORE_BATTLE.label_attacking;
+			this._ally_label.innerHTML = APPSTRINGS.BEFORE_BATTLE.label_defending;
 		}
-	}
-	
-	
-	
-	
+	}	
 	
 	var spiritEntries = this.getWindowNode().querySelectorAll(".spirit_entry");
 	spiritEntries.forEach(function(spiritEntry){
@@ -1772,9 +1709,9 @@ Window_BeforebattleTwin.prototype.redraw = function() {
 	});	
 	
 	if($gameSystem.demoSetting){
-		_this._btn_demo.innerHTML = "DEMO: ON";
+		_this._btn_demo.innerHTML = APPSTRINGS.BEFORE_BATTLE.label_demo_on;
 	} else {
-		_this._btn_demo.innerHTML = "DEMO: OFF";
+		_this._btn_demo.innerHTML = APPSTRINGS.BEFORE_BATTLE.label_demo_off;
 	}
 	
 	/*if(!$gameTemp.currentBattleActor.isActor() || $statCalc.isAI($gameTemp.currentBattleActor)){
@@ -2115,7 +2052,7 @@ Window_BeforebattleTwin.prototype.redraw = function() {
 		
 		if(actor){
 			var menuImagePath = $statCalc.getMenuImagePath(actor);
-			icon.innerHTML = "<img src='img/"+menuImagePath+"'>";
+			icon.innerHTML = "<img data-img='img/"+menuImagePath+"'>";
 			icon.display = "";
 		} else {
 			icon.display = "none";
@@ -2142,11 +2079,20 @@ Window_BeforebattleTwin.prototype.redraw = function() {
 		
 		if(actor){
 			var menuImagePath = $statCalc.getMenuImagePath(actor);
-			icon.innerHTML = "<img src='img/"+menuImagePath+"'>";
+			icon.innerHTML = "<img data-img='img/"+menuImagePath+"'>";
 			icon.display = "";
 		} else {
 			icon.display = "none";
 		}		
+	});
+	
+	var icons = windowNode.querySelectorAll(".attribute_effectiveness_block");
+	icons.forEach(function(icon){
+		_this.updateScaledDiv(icon);	
+	});
+	var icons = windowNode.querySelectorAll(".effectiveness_indicator");
+	icons.forEach(function(icon){
+		_this.updateScaledDiv(icon);	
 	});
 	
 	if(ENGINE_SETTINGS.SHOW_NEW_MOVE_INDICATOR){
@@ -2162,6 +2108,6 @@ Window_BeforebattleTwin.prototype.redraw = function() {
 	percentIndicators.forEach(function(percentIndicator){
 		_this.updateScaledDiv(percentIndicator);
 	});
-	
+	this.loadImages();
 	Graphics._updateCanvas();
 }

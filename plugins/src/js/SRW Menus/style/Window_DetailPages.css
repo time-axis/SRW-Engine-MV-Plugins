@@ -493,7 +493,7 @@
 
 
 #detail_pages .upgrade_mech_name_value{
-	width: 80%;
+	width: 55%;
 }
 
 #detail_pages .attribute_display {
@@ -501,7 +501,7 @@
     padding-left: 0.5%;
     padding-right: 0.5%;
 	position: absolute;
-	height: 10%;
+	height: fit-content;
 	right: 0;
 	background-color: var(--section-bg-color);
 	border-bottom-left-radius: 2vw;
@@ -509,6 +509,14 @@
 	display: none;
 	--fontsize: 2px;
 	color: #FFFFFF;
+}
+
+#detail_pages .attribute_display.effects {
+	
+}
+
+#detail_pages .attribute_display .value.effect_desc{
+	--fontsize: 1.4px;
 }
 
 #detail_pages .attribute_display .label{
@@ -519,6 +527,19 @@
 #detail_pages .attribute_display .value{
 	width: 100%;
 	text-align: center;
+}
+
+#detail_pages .attribute_display .value.primary{
+	color: var(--text-color-highlight2);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+#detail_pages .attribute_display .value.primary img{
+	width: 14%;
+    margin: 2%;
+	/*image-rendering: pixelated;*/
 }
 
 #detail_pages .attribute_display.primary {
@@ -549,3 +570,18 @@
 #detail_pages_map_preview.active {
 	display: block;
 }
+#detail_pages .attribute_indicator{
+    color: var(--text-color-highlight2);
+    display: flex;
+    align-items: center;
+	position: absolute;
+	top: 8%;
+    width: 17%;
+    left: 74%;
+}
+
+#detail_pages .attribute_indicator img {
+	width: 21%;
+    margin: 2%;
+}
+

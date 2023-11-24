@@ -51,10 +51,23 @@
 				
 				if (command === 'assignUnit') {
 					const actor = $gameActors.actor(args[0]);
+					if(!actor){
+						throw "Invalid actor "+args[0]+" for assignUnit command.";
+					}
+					if(isNaN(args[1] * 1) || args[1] * 1 < 0){
+						throw "Invalid mech "+args[1]+" for assignUnit command.";
+					}
 					actor._classId = args[1] * 1;
-					actor.isSubPilot = false;
+					actor.isSubPilot = !!(args[2] * 1);
 					//actor._intermissionClassId = args[1] * 1; 
-					$gameSystem.overwritePilotFallbackInfo(actor);
+					if(actor.isSubPilot){
+						$gameSystem.overwritePilotFallbackInfo(actor);
+					} else {
+						let actionsResult = $statCalc.applyDeployActions(args[0], args[1], true);
+						if(!actionsResult){
+							$gameSystem.overwritePilotFallbackInfo(actor);
+						}
+					}					
 				}
 				
 				if (command === 'UnlockUnit') {
@@ -107,6 +120,17 @@
 				if (command === 'removeItemFromHolder') {
 					$inventoryManager.removeItemHolder(args[0], args[1]);
 				}
+				
+				if (command === 'addEquipable') {
+					$equipablesManager.addItem(args[0]);
+				}			
+				if (command === 'addEquipableToHolder') {
+					$equipablesManager.addItemHolder(args[0], args[1], args[2]);
+				}
+				if (command === 'removeEquipableFromHolder') {
+					$equipablesManager.removeItemHolder(args[0], args[1]);
+				}
+				
 				if (command === 'setFreeEventCam') {
 					$gameTemp.freeEventCam = true;
 				}
@@ -349,7 +373,11 @@
 				}
 				
 				if (command === 'setSkyBattleEnv') {
-					$gameSystem.skyBattleEnv = args[0];
+					$gameSystem.superStateBattleEnv[1] = args[0];
+				}
+				
+				if (command === 'setSuperStateBattleEnv') {
+					$gameSystem.superStateBattleEnv[args[0]] = args[1];
 				}
 				
 				if (command === 'setRegionBattleEnv') {
@@ -357,7 +385,17 @@
 				}
 				
 				if (command === 'setRegionSkyBattleEnv') {
-					$gameSystem.regionSkyBattleEnv[args[0]] = args[1];
+					if(!$gameSystem.regionSuperStateBattleEnv[1]){
+						$gameSystem.regionSuperStateBattleEnv[1] = {};
+					}
+					$gameSystem.regionSuperStateBattleEnv[1][args[0]] = args[1];
+				}
+				
+				if (command === 'setRegionSuperStateBattleEnv') {
+					if(!$gameSystem.regionSuperStateBattleEnv[args[0]]){
+						$gameSystem.regionSuperStateBattleEnv[args[0]] = {};
+					}
+					$gameSystem.regionSuperStateBattleEnv[args[0]][args[1]] = args[2];
 				}
 				
 				if (command === 'resetRegionAttributes') {			
@@ -527,7 +565,7 @@
 				
 				if (command === 'deployMech') {
 					var mechId = args[0];
-					var actor_unit = $statCalc.getCurrentPilot(mechId);
+					var actor_unit = $statCalc.getCurrentPilot(mechId, true);
 					var event = $gameMap.event(args[1]);
 					if(actor_unit && event){
 						var type;
@@ -704,14 +742,14 @@
 				
 				if (command === 'setEventFlying') {
 					var actor = $gameSystem.EventToUnit(args[0])[1];
-					if($statCalc.canFly(actor)){
-						$statCalc.setFlying(actor, true, (args[1] || 0) * 1);
+					if($statCalc.canBeOnTerrain(actor, 1)){
+						$statCalc.setSuperState(actor, 1, (args[1] || 0) * 1);
 					}			
 				}
 				
 				if (command === 'setEventLanded') {
 					var actor = $gameSystem.EventToUnit(args[0])[1];		
-					$statCalc.setFlying(actor, false,(args[1] || 0) * 1);						
+					$statCalc.setSuperState(actor, -1,(args[1] || 0) * 1);						
 				}
 				
 				if (command === 'enableFaction') {
@@ -1212,6 +1250,11 @@
 					var targetMech = $statCalc.getMechData($dataClasses[args[0] * 1], true);
 					targetMech.subPilots[args[1] * 1] = args[2] * 1;
 					$statCalc.storeMechData(targetMech);
+					$gameSystem.overwriteMechFallbackInfo(args[0] * 1, targetMech.subPilots);
+					let actor = $gameActors.actor(args[2] * 1)
+					actor.isSubPilot = true;
+					//actor._intermissionClassId = args[1] * 1; 
+					$gameSystem.overwritePilotFallbackInfo(actor);
 				}	
 				
 				if (command === 'setPortraitOverlay') {		
@@ -1270,6 +1313,36 @@
 				
 				if (command === 'awardFavPoints') {					
 					$gameSystem.awardFavPoints(args[0]);
+				}
+				
+				if (command === 'deployItemBox') {					
+					$gameSystem.deployItemBox($gameMap.event(args[0] * 1), JSON.parse(args[1] || "[]"))
+				}
+				
+				if (command === 'collectItemsBoxes') {		
+					let targetId = args[0];
+					if(targetId == null){
+						targetId = -1;
+					}
+					let items = [];
+					for(let event of $gameMap.events()){
+						if(event.isDropBox && (targetId == -1 || event.eventId() == targetId)){
+							items = items.concat(event.dropBoxItems);
+							event.isDropBox = false;
+							event.erase();
+						}
+					}
+					if(items.length){
+						$gameMessage.setFaceImage("", "");
+						$gameMessage.setBackground(1);
+						$gameMessage.setPositionType(1);
+						let names = items.map((itemId) => $itemEffectManager.getAbilityDisplayInfo(itemId).name);
+						$gameMessage.add("\\TA[1]\n" + APPSTRINGS.GENERAL.label_box_pickup_scripted.replace("{ITEMS}", names.join(", ")));
+						
+						for(let item of items){
+							$inventoryManager.addItem(item);
+						}
+					}
 				}
 							
 			} catch(e){

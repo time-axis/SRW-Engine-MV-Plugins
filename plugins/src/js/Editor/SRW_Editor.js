@@ -184,7 +184,7 @@ SRWEditor.prototype.init = function(){
 		},
 		rotate_to: {
 			hasTarget: true,
-			params: ["rotation"],
+			params: ["aroundPivot", "rotation"],
 			desc: "Immediately set to rotation of an object."
 		},
 		translate: {
@@ -194,7 +194,7 @@ SRWEditor.prototype.init = function(){
 		},
 		rotate: {
 			hasTarget: true,
-			params: ["startRotation", "rotation", "duration", "easingFunction", "easingMode"],
+			params: ["aroundPivot", "startRotation", "rotation", "duration", "easingFunction", "easingMode"],
 			desc: "Rotate an object from the start rotation to the end rotation."
 		},
 		resize: {
@@ -325,9 +325,25 @@ SRWEditor.prototype.init = function(){
 			params: ["r", "g", "b", "duration", "easingFunction", "easingMode"],
 			desc: "Set the groundColor and diffuse color of specified light. scene_light is the global hemispheric light"
 		},
+		create_point_light: {
+			hasTarget: true,
+			params: ["parent", "position", "lightIntensity", "r", "g", "b", "includeOnly"],
+			desc: "Create a point light"
+		},
+		create_hemi_light: {
+			hasTarget: true,
+			params: ["parent", "position", "r", "g", "b", "includeOnly"],
+			desc: "Create a hemispheric light"
+		},
+		exclude_from_light: {
+			isLightCommand: true,
+			hasTarget: true,
+			params: ["excludedObj"],
+			desc: "Excluded a specific object form receiving light from the target light"
+		},
 		create_bg: {
 			hasTarget: true,
-			params: ["isPilotCutin", "path", "parent", "position", "size", "alpha", "billboardMode", "rotation", "frameSize", "lineCount", "columnCount", "animationLoop", "animationFrames", "animationDelay", "holdFrame", "scrollSpeed", "clamp"],
+			params: ["isPilotCutin", "path", "parent", "position", "size", "alpha", "billboardMode", "rotation", "frameSize", "lineCount", "columnCount", "animationLoop", "animationFrames", "animationDelay", "holdFrame", "scrollSpeed", "clamp", "uScale", "vScale", "uOffset", "vOffset"],//, "unlit"
 			aliases: {"animationLoop": "loopFromFrame", "animationFrames": "loopToFrame"},
 			desc: "Create a new background."
 		},
@@ -374,7 +390,7 @@ SRWEditor.prototype.init = function(){
 		},
 		create_model: {
 			hasTarget: true,
-			params: ["path", "parent", "moveOriginToParent", "position", "rotation", "size"],//"animGroup",  "animName", 
+			params: ["path", "parent", "moveOriginToParent", "position", "rotation", "size"],//"animGroup",  "animName", , "unlit"
 			aliases: {"moveOriginToParent": "syncOrigin"},
 			desc: "Create a new model."
 		},	
@@ -632,6 +648,11 @@ SRWEditor.prototype.init = function(){
 			hasTarget: false,
 			params: [],
 			desc: "Invert the current background scroll direction."
+		},
+		include_animation: {
+			hasTarget: false,
+			params: ["battleAnimId"],
+			desc: "Include the main track of the animation with id battleAnimId starting at the current tick +1."
 		}
 	};
 	
@@ -662,12 +683,16 @@ SRWEditor.prototype.init = function(){
 		shaderParam8: "A parameter for the custom shader. Defined as <param type>:<param name>=<param value>",
 		shaderParam9: "A parameter for the custom shader. Defined as <param type>:<param name>=<param value>",
 		shockwave_intensity: "The intensity of the shockwave effect.",
+		lightIntensity: "The intensity of the light",
+		excludedObj: "The object that will be excluded from the target light source",
+		includeOnly: "Specifiy one target object that will be the sole recipient of this light source",
 		immediate: "If 1 the change will be instant.",
 		position: "A position defined by an x, y and z coordinate.",
 		armatureName: "The name of Armature that will be shown", 
 		animGroup: "The name of the group of the model's animations",
 		animName: "The name of the animation that will be shown",
 		moveOriginToParent: "If 1 set the origin of the object to the parent's absolute position",
+		unlit: "If 1 the target will not receive influence from lights",
 		canvasWidth: "The width of the rendering surface for the external renderer", 
 		canvasHeight: "The height of the rendering surface for the external renderer",
 		parent: "The id of the object that will be the parent of this object.",
@@ -681,6 +706,7 @@ SRWEditor.prototype.init = function(){
 		hide: "Hide the target object after the command has finished.",
 		catmullRom: "Describes two addtional points for a Catmull-Rom spline.",
 		startRotation: "A rotation defined by an x, y and z component. The rotations are described with radian values.",
+		aroundPivot: "If 1 the rotation will be done around the pivot helper instead of the element origin. Only avaialable for unit sprites.",
 		startSize: "The initial size of the target object.",
 		endSize: "The final size of the target object.",
 		x: "If 1 the object will be flipped along its x-axis.",
@@ -708,6 +734,10 @@ SRWEditor.prototype.init = function(){
 		attachId: "The name/id of the attachment",
 		holdFrame: "If 1 the sprite will hold the final frame of the animation, ignored if animation looping is enabled.",
 		scrollSpeed: "Sets the horizontal scroll speed of the background, use negative values to change the scroll direction",
+		uScale: "Sets the horizontal scale of the UV(default 1)",
+		vScale: "Sets the vertical scale of the UV(default 1)",
+		uOffset: "Sets the horizontal offset of the UV(default 1)",
+		vOffset: "Sets the vertical offset of the UV(default 1)",
 		clamp: "If 1 U Wrap will be set to clamp.",
 		noWait: "If 1 the engine will not wait for the destruction animation to complete.",
 		noDamage: "If 1 the damage number will not be shown",
@@ -736,6 +766,7 @@ SRWEditor.prototype.init = function(){
 		volume: "The volume to play the sound effect at.",
 		ratio: "The factor by which the scroll speed is multiplied.",
 		smooth: "If set to 1 the ratio change will be smoothed out over the specified duration.",
+		battleAnimId: "The id of the battle animation",
 		animId: "The id of the RMMV animation.",
 		loop: "If set to 1 the animation will continue looping.",
 		noFlash: "If set to 1 the flashing effects of the RMMV animation are not shown.",
@@ -802,6 +833,16 @@ SRWEditor.prototype.init = function(){
 		shockwave_intensity: function(value){
 			
 		},
+		lightIntensity: function(value){
+			
+		},	
+		excludedObj: function(value){
+			
+		},	
+		includeOnly: function(value){
+			
+		},		
+		
 		immediate: function(value){
 			
 		}, 
@@ -820,6 +861,9 @@ SRWEditor.prototype.init = function(){
 		canvasWidth: function(value){
 			
 		}, 
+		unlit: function(value){
+			
+		},
 		canvasHeight: function(value){
 			
 		},
@@ -938,6 +982,9 @@ SRWEditor.prototype.init = function(){
 		startRotation: function(value){
 			return _this._paramDisplayHandlers.rotation(value);
 		},
+		aroundPivot: function(value){
+		
+		},
 		startSize: function(value){
 		
 		},
@@ -1043,6 +1090,18 @@ SRWEditor.prototype.init = function(){
 		to: function(value){
 			
 		},
+		uScale: function(value){
+			
+		},
+		vScale: function(value){
+			
+		},
+		uOffset: function(value){
+			
+		},
+		vOffset: function(value){
+			
+		},
 		animationLoop: function(value){
 		
 		},
@@ -1131,6 +1190,9 @@ SRWEditor.prototype.init = function(){
 			
 		},
 		smooth: function(value){
+			
+		},
+		battleAnimId: function(value){
 			
 		},
 		animId: function(value){
@@ -1224,14 +1286,27 @@ SRWEditor.prototype.show = function(){
 	
 	
 	function finalize(){	
+	
+		
+	
 		$battleSceneManager.toggleTextBox(true);
 	
 		if(!_this._preferences){
 			_this._preferences = {};
 		}
+		if(_this._preferences.font_scale != null){
+			nw.Window.get(window).zoomLevel = Math.log(_this._preferences.font_scale/100.0) / Math.log(1.2);
+		}
+		
 		var currentEditorInfo = _this._editorData[_this._currentEditor];
 		content+="<div class='header'>";
 		content+=_this._title + " - " + currentEditorInfo.title;
+		
+		content+="<div id='scale_controls'>";	
+		content+="<div class='label'>Editor Zoom</div>";	
+		content+="<div class='value' id='scale_label'>"+(_this._preferences.font_scale || 100)+"%</div>";	
+		content+="<input type='range' min='50' max='200' value='"+(_this._preferences.font_scale || 100)+"' step=5 id='font_scaler_slider'>";
+		content+="</div>";
 		
 		content+="<select id='editor_selector'>";	
 		
@@ -1274,7 +1349,15 @@ SRWEditor.prototype.show = function(){
 				return false;
 			}			
 		});
+		_this._contentDiv.querySelector("#font_scaler_slider").addEventListener("change", function(){
+			nw.Window.get(window).zoomLevel = Math.log(this.value/100.0) / Math.log(1.2);
+			_this._preferences["font_scale"] = this.value;
+			_this.savePreferences();
+		});
 		
+		_this._contentDiv.querySelector("#font_scaler_slider").addEventListener("input", function(){
+			_this._contentDiv.querySelector("#scale_label").innerHTML = this.value + "%";
+		});
 		currentEditorInfo.func.call(_this);
 		Graphics.updatePreviewWindowWidth()
 	}
@@ -1896,6 +1979,8 @@ SRWEditor.prototype.showBattleTextEditorControls = function(){
 				faceIndex: elem.closest(".quote_line").querySelector(".quote_face_index").value,
 				displayName: elem.closest(".quote_line").querySelector(".quote_display_name").value,
 				duration: elem.closest(".quote_line").querySelector(".quote_duration").value,
+				variable: elem.closest(".quote_line").querySelector(".quote_variable").value,
+				variableValue: elem.closest(".quote_line").querySelector(".quote_variable_value").value,
 			}
 			var params = getLocatorInfo(elem);
 			if(params.type == "attacks"){
@@ -1931,9 +2016,15 @@ SRWEditor.prototype.showBattleTextEditorControls = function(){
 			input.addEventListener("change", updateQuote);
 		});
 		
-		
+		var inputs = containerNode.querySelectorAll(".quote_variable");
+		inputs.forEach(function(input){
+			input.addEventListener("change", updateQuote);
+		});
 					
-		
+		var inputs = containerNode.querySelectorAll(".quote_variable_value");
+		inputs.forEach(function(input){
+			input.addEventListener("change", updateQuote);
+		});
 		
 		var inputs = containerNode.querySelectorAll(".quote_id");
 		inputs.forEach(function(input){
@@ -2127,6 +2218,17 @@ SRWEditor.prototype.createQuoteContent = function(type, idx, quote, unitBaseInfo
 		content+="<div data-lineidx='"+(lineCounter)+"'  data-targetunit='"+(quote.unitId)+"'  class='quote_line'>";
 		
 		content+="<div class='line_title'>"+EDITORSTRINGS.TEXT.label_line+" "+(lineCounter+1)+"</div>";		
+		
+		if(lineCounter == 0){	
+			content+="<div class='var_controls'>";
+			content+="<div class='command_label variable'>"+EDITORSTRINGS.TEXT.label_variable+":</div>";
+			content+="<input class='quote_variable' value='"+(quote.variable || "")+"'></input>";
+			
+			content+="<div class='command_label variable_value'>"+EDITORSTRINGS.TEXT.label_value+":</div>";
+			content+="<input class='quote_variable_value' value='"+(quote.variableValue ||  "")+"'></input>";
+			content+="</div>";
+		}		
+		
 		content+="<div class='quote_config'>";
 		
 		
@@ -2155,6 +2257,9 @@ SRWEditor.prototype.createQuoteContent = function(type, idx, quote, unitBaseInfo
 		content+="<div title='"+EDITORSTRINGS.TEXT.hint_delete+"' class='delete_text_btn'><img src='"+_this._svgPath+"close-line.svg'></div>"
 		content+="</div>";
 		content+="</div>";
+
+		
+		
 		
 		content+="<div>";
 		content+="<div class='command_label name'>"+EDITORSTRINGS.TEXT.label_name+":</div>";
@@ -2612,6 +2717,8 @@ SRWEditor.prototype.applyPreferences = function(){
 		if(_this._preferences.enemy_twin_mech_select != null){
 			_this._currentEnemyTwinMech = _this._preferences.enemy_twin_mech_select;
 		}
+		
+		
 	}
 }
 
@@ -2647,6 +2754,9 @@ SRWEditor.prototype.showPatternEditor = function(){
 
 SRWEditor.prototype.showAttackEditor = function(){
 	var _this = this;
+	
+	
+	
 	var containerNode = _this._contentDiv.querySelector(".content");
 	var content = "";
 	content+="<div id='attack_editor'>";
@@ -2732,7 +2842,13 @@ SRWEditor.prototype.showAttackEditor = function(){
 	//content+="<input id='chk_barriers' type='checkbox'></input>";	
 	content+="</div>";	
 	
+	content+="<div class='extra_control'>";
+	content+="<div class='editor_label'>"+EDITORSTRINGS.ATTACKS.label_toggle_pivots+"</div>";
+	content+="<input id='chk_pivots' type='checkbox'></input>";	
+	content+="</div>";	
 	content+="</div>";
+	
+	
 	
 	content+="<div class='preview_extra_controls'>";
 	
@@ -2966,6 +3082,10 @@ SRWEditor.prototype.showAttackEditor = function(){
 		_this._previewAttackDestroys = this.checked;
 	});
 	
+	document.querySelector("#chk_pivots").addEventListener("change", function(){
+		$battleSceneManager.toggleUnitPivots(this.checked);
+	});
+	
 	document.querySelector("#barriers_select").addEventListener("change", function(){
 		_this._previewShowsBarriers = this.value * 1;
 	});	
@@ -3048,6 +3168,7 @@ SRWEditor.prototype.showCameraState = function(){
 		const name = document.querySelector("#helper_target").value;
 		let targetObj = $battleSceneManager.getTargetObject(name);
 		if(targetObj) {
+			let pivotHelper = targetObj.pivothelper;
 			if(targetObj.parent_handle){
 				targetObj = targetObj.parent_handle;
 			}
@@ -3082,18 +3203,38 @@ SRWEditor.prototype.showCameraState = function(){
 				}
 				
 			}
-			content+="<div>"
-			content+="<b>Rotation</b>"
-			content+="</div>"
-			content+="<div>"
-			content+="x: <input data-type='rotation' data-prop='x' value='"+rotation.x.toFixed(3)+"'></input>";
-			content+="</div>"
-			content+="<div>"
-			content+="y: <input data-type='rotation' data-prop='y' value='"+rotation.y.toFixed(3)+"'></input>";
-			content+="</div>"
-			content+="<div>"
-			content+="z: <input data-type='rotation' data-prop='z' value='"+rotation.z.toFixed(3)+"'></input>";
-			content+="</div>"
+			if(rotation){
+				content+="<div>"
+				content+="<b>Rotation</b>"
+				content+="</div>"
+				content+="<div>"
+				content+="x: <input data-type='rotation' data-prop='x' value='"+rotation.x.toFixed(3)+"'></input>";
+				content+="</div>"
+				content+="<div>"
+				content+="y: <input data-type='rotation' data-prop='y' value='"+rotation.y.toFixed(3)+"'></input>";
+				content+="</div>"
+				content+="<div>"
+				content+="z: <input data-type='rotation' data-prop='z' value='"+rotation.z.toFixed(3)+"'></input>";
+				content+="</div>"
+			}	
+
+			if(pivotHelper){
+				var rotation = pivotHelper.rotation;
+				if(rotation){
+					content+="<div>"
+					content+="<b>Pivot Rotation</b>"
+					content+="</div>"
+					content+="<div>"
+					content+="x: <input data-type='pivot_rotation' data-prop='x' value='"+rotation.x.toFixed(3)+"'></input>";
+					content+="</div>"
+					content+="<div>"
+					content+="y: <input data-type='pivot_rotation' data-prop='y' value='"+rotation.y.toFixed(3)+"'></input>";
+					content+="</div>"
+					content+="<div>"
+					content+="z: <input data-type='pivot_rotation' data-prop='z' value='"+rotation.z.toFixed(3)+"'></input>";
+					content+="</div>"
+				}
+			}	
 			
 			cameraInfoContainer.innerHTML = content;
 			
@@ -3102,7 +3243,7 @@ SRWEditor.prototype.showCameraState = function(){
 				var prop = input.getAttribute("data-prop");
 				var value = input.value;
 				if(!isNaN(value)){					
-					if(targetObj.handle){					
+					if(targetObj.handle){
 						if(type == "rotation"){
 							var newVector;
 							if(targetObj.parent){
@@ -3166,9 +3307,15 @@ SRWEditor.prototype.showCameraState = function(){
 						targetObj.context.update();
 						targetObj.context.draw();
 					} else {
-						var newVector = new BABYLON.Vector3().copyFrom(targetObj[type]);
-						newVector[prop] = value * 1;
-						targetObj[type] = newVector;
+						if(type == "pivot_rotation"){
+							var newVector = new BABYLON.Vector3().copyFrom(pivotHelper.rotation);
+							newVector[prop] = value * 1;
+							pivotHelper.rotation = newVector;
+						} else {
+							var newVector = new BABYLON.Vector3().copyFrom(targetObj[type]);
+							newVector[prop] = value * 1;
+							targetObj[type] = newVector;
+						}						
 					}					
 				}
 			}

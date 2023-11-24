@@ -360,7 +360,7 @@
 						if(_this._actor.battleMode() != "fixed"){
 							_this.addMoveCommand();
 						}
-						if(hasTarget || hasMapWeapon){
+						if((hasTarget || hasMapWeapon) && $statCalc.canAttackOnCurrentTerrain(_this._actor)){
 							_this.addCommand(APPSTRINGS.MAPMENU.cmd_attack, 'attack');
 						}
 						if($statCalc.isShip(_this._actor) && $statCalc.hasBoardedUnits(_this._actor)){
@@ -379,15 +379,12 @@
 						if($statCalc.getAbilityCommands(_this._actor).length){
 							 _this.addCommand(APPSTRINGS.MAPMENU.cmd_ability, 'ability');
 						}
-						if($statCalc.canFly(_this._actor) && $statCalc.getCurrentTerrain(_this._actor) != "space"){
-							if($statCalc.isFlying(_this._actor)){
-								if(($statCalc.getTileType(_this._actor) == "land" && $statCalc.canBeOnLand(_this._actor)) || ($statCalc.getTileType(_this._actor) == "water" && $statCalc.canBeOnWater(_this._actor))){
-									_this.addCommand(APPSTRINGS.MAPMENU.cmd_land, 'land');
-								}
-							} else {
-								_this.addCommand(APPSTRINGS.MAPMENU.cmd_fly, 'fly');
-							}
-						}		
+
+						let terrainCmds = $statCalc.getAvailableSuperStateTransitionsForCurrentPosition(_this._actor);	
+						for(let i = 0; i < Math.min(4, terrainCmds.length); i++){
+							_this.addCommand(terrainCmds[i].cmdName, 'change_super_state_'+i);
+						}
+						
 						if($gameSystem.getPersuadeOption(_this._actor)){
 							_this.addCommand(APPSTRINGS.MAPMENU.cmd_persuade, 'persuade');
 						}	
@@ -465,18 +462,19 @@
 								_this.addCommand(APPSTRINGS.MAPMENU.cmd_join, 'join');
 							}	
 						}
+						if($statCalc.canSwapPilot(_this._actor)){
+							_this.addCommand(APPSTRINGS.MAPMENU.cmd_swap_pilot, 'swap_pilot');
+						}	
+						
 						_this.addWaitCommand();
 					}
 					
 					function deployMenu(){
 						_this.addMoveCommand();					
 						_this.addCommand(APPSTRINGS.MAPMENU.cmd_spirit, 'spirit');
-						if($statCalc.canFly(_this._actor) && $statCalc.getCurrentTerrain(_this._actor) != "space"){
-							if($statCalc.isFlying(_this._actor)){
-								_this.addCommand(APPSTRINGS.MAPMENU.cmd_land, 'land');
-							} else {
-								_this.addCommand(APPSTRINGS.MAPMENU.cmd_fly, 'fly');
-							}
+						let terrainCmds = $statCalc.getAvailableSuperStateTransitionsForCurrentPosition(_this._actor);	
+						for(let i = 0; i < Math.min(4, terrainCmds.length); i++){
+							_this.addCommand(terrainCmds[i].cmdName, 'change_super_state_'+i);
 						}
 						if($statCalc.getConsumables(_this._actor).length){
 							 _this.addCommand(APPSTRINGS.MAPMENU.cmd_item, 'item');
@@ -669,6 +667,78 @@
     };
 	
 	
+	Window_Base.prototype.standardFontSize = function() {
+		return ENGINE_SETTINGS.FONT_SIZE || 28;
+	};
+	
+	Window_Base.prototype.lineHeight = function() {
+		return ENGINE_SETTINGS.LINE_HEIGHT || 36;
+	};
+	
+	Window_Base.prototype.calcTextHeight = function(textState, all) {
+		var lastFontSize = this.contents.fontSize;
+		var textHeight = 0;
+		var lines = textState.text.slice(textState.index).split('\n');
+		var maxLines = all ? lines.length : 1;
+
+		for (var i = 0; i < maxLines; i++) {
+			var maxFontSize = this.contents.fontSize;
+			var regExp = /\x1b[\{\}]/g;
+			for (;;) {
+				var array = regExp.exec(lines[i]);
+				if (array) {
+					if (array[0] === '\x1b{') {
+						this.makeFontBigger();
+					}
+					if (array[0] === '\x1b}') {
+						this.makeFontSmaller();
+					}
+					if (maxFontSize < this.contents.fontSize) {
+						maxFontSize = this.contents.fontSize;
+					}
+				} else {
+					break;
+				}
+			}
+			textHeight += maxFontSize + 8;
+		}
+
+		this.contents.fontSize = lastFontSize;
+		return textHeight * (ENGINE_SETTINGS.MSG_LINE_HEIGHT_SCALE);
+	};
+	
+	
+	Window_Base.prototype.drawText = function(text, x, y, maxWidth, align) {
+		this.contents.drawText(text, x, y + (ENGINE_SETTINGS.LINE_OFFSET || 0), maxWidth, this.lineHeight(), align);
+	};
+	
+	Window_Base.prototype.processNormalCharacter = function(textState) {
+		var c = textState.text[textState.index++];
+		var w = this.textWidth(c);
+		this.contents.drawText(c, textState.x, textState.y + (ENGINE_SETTINGS.LINE_OFFSET || 0), w * 2, textState.height);
+		textState.x += w;
+	};
+	
+	var _Window_Base_ResetFontSettings = Window_Base.prototype.resetFontSettings;
+	Window_Base.prototype.resetFontSettings = function() {
+		_Window_Base_ResetFontSettings.call( this );
+		if(ENGINE_SETTINGS.NO_TEXT_SHADOW){
+			this.contents.outlineWidth = 0;
+		}		
+	};
+	
+	Window_Base.prototype.standardBackOpacity = function() {
+		return ENGINE_SETTINGS.BACK_OPACITY || 192;
+	};
+	
+	var _Window_updateCursor = Window.prototype._updateCursor;
+	Window.prototype._updateCursor = function() {
+		_Window_updateCursor.call( this );
+		if(ENGINE_SETTINGS.NO_CURSOR_BLINK){
+			this._windowCursorSprite.alpha = 1;
+		}
+	}
+
 	
 	function Window_SRWItemBattle() {
 		this._parent = Window_BattleItem.prototype;
@@ -946,14 +1016,18 @@
 		}        
     };
 	
-	Window_SRWPilotSelection.prototype.refresh = function(){
-		this._parent.refresh.call(this);
+	
+	Window_SRWPilotSelection.prototype.refresh = function(){		
+		this.makeItemList();
+		this.height = this.windowHeight();
+		this.createContents();
+		this.drawAllItems();
 	}
 	
 	Window_SRWPilotSelection.prototype.drawItem = function(index) {
 		var item = this._data[index];
 		if (item != null) {
-			item = $dataActors[item];
+			item = $gameActors.actor(item);
 			var numberWidth = 0;//this.numberWidth();
 			var rect = this.itemRect(index);
 			//rect.width -= this.textPadding();
@@ -962,10 +1036,19 @@
 	};
 	
 	Window_SRWPilotSelection.prototype.drawItemName = function(item, x, y, width) {
+		const _this = this;
 		width = width || 312;
 		if (item) {
 			this.resetTextColor();
-			this.drawText(item.name, x + 10, y, width - 20);
+			this.drawText(item.name(), x + 10, y, width - 60);
+			let attr1 = $statCalc.getParticipantAttribute(item, "attribute1");
+			if(attr1){
+				let attrInfo = ENGINE_SETTINGS.ATTRIBUTE_DISPLAY_NAMES[attr1] || {};
+				var bitmap = ImageManager.loadSystem("attribute_"+attr1);
+				bitmap.addLoadListener(function(){
+					_this.contents.blt(bitmap, 0, 0, 32, 32, x + width - 42, y+2);
+				});				
+			}
 		}
 	};
 	

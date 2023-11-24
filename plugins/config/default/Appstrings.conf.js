@@ -35,6 +35,9 @@ APPSTRINGS.GENERAL = {
 	label_mastery_locked: "Unobtainable after Game Over on this stage.",
 	label_mastery_completed: "Completed!",
 	label_mastery_completed_message: "Mastery Condition completed!",
+	label_box_pickup: "Collected: {ITEMS}!",
+	label_box_pickup_scripted: "Collected all remaining boxes and obtained:\n{ITEMS}!",
+	label_box_stolen: "The item box was taken!",
 	label_enemy_phase: "Enemy Phase",
 	label_ally_phase: "Ally Phase",
 	label_yes: "YES",
@@ -54,6 +57,10 @@ APPSTRINGS.GENERAL = {
 	label_SPC: "SPC",
 	label_MP: "MP",
 	label_EN: "EN",
+	label_will: "Will",
+	label_level: "Lv",
+	label_HP: "HP",
+	label_EN: "EN"
 }
 
 APPSTRINGS.MAINMENU = {
@@ -139,6 +146,8 @@ APPSTRINGS.INTERMISSION = {
 	upgrade_label: "Upgrade",
 	equip_parts: "Equip Parts",
 	sell_parts: "Sell Parts",
+	equip_weapons: "Equip Weapons",
+	upgrade_equip_weapon: "Upgrade Equips",
 	pilot_label: "Pilot",
 	next_map: "Next Map",
 	tool_tips: {
@@ -272,12 +281,17 @@ APPSTRINGS.PILOTUPGRADES = {
 APPSTRINGS.MECHEQUIPS = {
 	select_title: "Select Unit",
 	title: "Equip Items",
+	weapon_title: "Equip Weapons",
+	weapon_upgrade_title: "Upgrade Equips",
 	label_balance: "Balance",
 	label_price: "Worth",
 	label_sell: "To Sell",
 	label_total: "Total",
 	label_available: "Available",
 	label_transfer_hint: "Select a unit to take the item from.",
+	label_weight: "Weight",
+	label_upgrades: "Upgrades",
+	label_holder: "Mech",
 }
 
 APPSTRINGS.SELLITEMS = {
@@ -323,10 +337,12 @@ APPSTRINGS.ATTACKLIST = {
 	label_no_combo_support: "Combo attack unavailable!",
 	label_counter_only: "Can only be used to counter attack!",
 	label_no_MP: "Out of MP!",
+	label_invalid_tags: "This weapon doesn't work against this enemy!",
 	
 	label_target_both: "All",
 	label_target_enemies: "Enemy",
 	label_target_allies: "Ally",
+	title: "Select Attack",
 }
 
 APPSTRINGS.REWARDS = {
@@ -429,7 +445,20 @@ APPSTRINGS.BASIC_BATTLE = {
 }
 
 APPSTRINGS.BEFORE_BATTLE = {
-	label_new_move: "NEW"
+	label_new_move: "NEW",
+	label_support: "Support",
+	label_defending: "Defending",
+	label_attacking: "Attacking",
+	label_attack: "Attack",
+	label_defend: "Defend",
+	label_evade: "Evade",
+	
+	label_start_battle: "Start Battle",
+	label_demo_off: "DEMO: OFF",
+	label_demo_on: "DEMO:  ON",
+	label_select_assist: "Select Assist",
+	label_select_action: "Select Action",
+	label_sprits: "Spirits",
 }
 
 APPSTRINGS.ZONE_STATUS = {
@@ -492,6 +521,8 @@ EDITORSTRINGS.GENERAL = {
 	hint_copy: "Copy this entry",
 	hint_erase: "Erase this entry",
 	
+	hint_animating: "An animation is playing",
+	
 	confirm_remove_entries: "Reducing the entry count to this number will discard existing entries. This cannot be undone! Continue?",
 	
 	label_general: "General",
@@ -513,6 +544,7 @@ EDITORSTRINGS.ATTACKS = {
 	label_enemy_side: "Enemy Side",
 	label_hits: "Attack Hits",
 	label_destroys: "Attack Destroys",
+	label_toggle_pivots: "Show Pivots",
 	label_show_barrier: "Show Barrier",
 	label_break: "Break",
 	label_environment: "Environment",
@@ -574,6 +606,8 @@ EDITORSTRINGS.TEXT = {
 	label_add: "Add",
 	label_name: "Name",
 	label_duration: "Duration",
+	label_variable: "Variable",
+	label_value: "Value",
 	label_copy_face: "Copy Face",
 	label_paste_face: "Paste Face",
 	label_face_name: "Face Name",
@@ -613,6 +647,13 @@ EDITORSTRINGS.WEAPON = {
 	hint_no_cost: "-1 means no cost or requirement",
 	label_effects: "Effects",
 	label_combo_attack: "Combo Attack",
+	label_equipable: "Equipable Properties",
+	label_cost_type: "Cost Type",
+	label_upgrade_amount: "Upgrade Amount",
+	label_weight: "Weight",
+	
+	label_banned_mechs: "Banned on ids",
+	label_allowed_mechs: "Allowed on ids",
 	
 	label_type: "Type",
 	
@@ -639,6 +680,7 @@ EDITORSTRINGS.WEAPON = {
 	label_ALL: "ALL Weapon",
 	label_animation: "Animation",
 	label_animation_ally: "Animation(Ally)",
+	label_invalid_target_tags: "Invalid Target Tags",
 	
 	hint_effects: "Only the first two effects are shown in the UI",
 	
@@ -699,10 +741,13 @@ EDITORSTRINGS.MECH = {
 	label_animations: "Animations",
 	
 	
+	
+	
 	hint_fallback: "Falling back to Battle Scene sprite because no Menu Sprite is defined!",
 	label_warn_fallback: "Using fallback!",
 	label_stats_label: "Stats Label",
 	label_is_ship: "Is Ship",
+	label_can_equip: "Can Equip",
 	label_can_hover: "Can Hover",
 	label_sync_parts: "Sync Parts With",
 	label_sync_upgrades: "Sync Upgrades With",
@@ -716,6 +761,7 @@ EDITORSTRINGS.MECH = {
 	label_tags: "Tags",
 	label_attribute1: "Attribute 1",
 	label_attribute2: "Attribute 2",
+	label_carrying_capacity: "Carrying Capacity",
 	
 	title_FUB: "Full Upgrade Bonus",
 	label_FUB: "FUB",
@@ -830,6 +876,7 @@ EDITORSTRINGS.PILOT = {
 	label_name: "Name",
 	label_use_mech_name: "Use Mech Name",
 	label_stats_label: "Stats Label",
+	
 
 	label_default_mech: "Default Mech",
 	

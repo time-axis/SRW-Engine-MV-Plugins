@@ -194,10 +194,10 @@ MechUI.prototype.initPropertyHandlers = function(){
 					content+=terrains[i].type;
 					content+="</div>";
 					var value = _this.getMetaValue(terrains[i].prop);
-					if(terrains[i].type == "SEA"){
+					if($terrainTypeManager.getTerrainDefinition(i+1).moveCostMod > 1){
 						content+="<div >";
 						//content+="<input data-terrainidx='"+i+"' class='terrain_enabled_select' type=checkbox "+(value >= 1 ? "checked" : "")+"></input>";
-						content+="<select id='terrain_enabled_select'>";
+						content+="<select data-terrainidx='"+i+"' class='terrain_enabled_select'>";
 						var options = [
 							EDITORSTRINGS.GENERAL.label_no,
 							EDITORSTRINGS.MECH.label_move_penalty,
@@ -227,14 +227,14 @@ MechUI.prototype.initPropertyHandlers = function(){
 				content+="<div class='row'>";	
 				content+=_this.createTerrainControls("mechTerrain", EDITORSTRINGS.MECH.label_terrain_rank);
 				content+="</div>";
-				content+="<div class='row'>";
+				/*content+="<div class='row'>";
 				content+="<div class='cell'>";
 				content+=EDITORSTRINGS.MECH.label_can_hover;
 				content+="</div>";
 				content+="<div class='cell'>";
 				content+="<input id='can_hover' type=checkbox "+(_this.getMetaValue("mechHoverEnabled")*1 ? "checked" : "")+"></input>";
 				content+="</div>";
-				content+="</div>";
+				content+="</div>";*/
 				return content;
 			},
 			hook(){
@@ -260,17 +260,17 @@ MechUI.prototype.initPropertyHandlers = function(){
 					});
 				});
 				
-				containerNode.querySelector("#terrain_enabled_select").addEventListener("change", function(){
-					_this.setMetaValue(terrains[2].prop, this.value);
+				containerNode.querySelector(".terrain_enabled_select").addEventListener("change", function(){
+					_this.setMetaValue(terrains[this.getAttribute("data-terrainidx")].prop, this.value);
 					_this.show();
 					_this._mainUIHandler.setModified();
 				});
 				
-				containerNode.querySelector("#can_hover").addEventListener("change", function(){
+				/*containerNode.querySelector("#can_hover").addEventListener("change", function(){
 					_this.setMetaValue("mechHoverEnabled", this.checked ? 1 : 0);
 					_this.show();
 					_this._mainUIHandler.setModified();
-				});
+				});*/
 			}
 		},
 		exp_yield: handleDefaultProp("mechExpYield",  EDITORSTRINGS.MECH.label_exp_yield),
@@ -279,6 +279,7 @@ MechUI.prototype.initPropertyHandlers = function(){
 		tags: handleDefaultProp("mechTags",  EDITORSTRINGS.MECH.label_tags),
 		attribute1: handleDefaultProp("mechAttribute1",  EDITORSTRINGS.MECH.label_attribute1),
 		attribute2: handleDefaultProp("mechAttribute2",  EDITORSTRINGS.MECH.label_attribute2),
+		carryingCapacity: handleDefaultProp("mechCarryingCapacity",  EDITORSTRINGS.MECH.label_carrying_capacity),
 		fub: {
 			createControls(){		
 				var abilityDefs = $mechAbilityManager.getDefinitions()
@@ -471,7 +472,7 @@ MechUI.prototype.initPropertyHandlers = function(){
 				if(value == "1S"){
 					value = "S";
 				}
-				var options = ["S", "M", "1L", "2L"];
+				var options = ENGINE_SETTINGS.MECH_SIZES || ["S", "M", "1L", "2L"];
 				content+="<select id='prop_mechSize'>";
 				for(var i = 0; i < options.length; i++){					
 					content+="<option "+(options[i] == value ? "selected" : "")+" value='"+options[i]+"'>"+options[i]+"</option>";										
@@ -651,6 +652,28 @@ MechUI.prototype.initPropertyHandlers = function(){
 				}
 			}
 		}, 	
+		no_equips: {
+			createControls(entry){
+				var content = "";
+				content+="<div class='row'>";
+				content+="<div class='cell'>";
+				content+=EDITORSTRINGS.MECH.label_can_equip;
+				content+="</div>";
+				content+="<div class='cell'>";
+				content+="<input id='can_equip' type=checkbox "+(!(_this.getMetaValue("mechNoEquips")) ? "checked" : "")+"></input>";
+				content+="</div>";
+				content+="</div>";
+				return content;
+			},
+			hook(entry){
+				entry = _this.getCurrentEntry();
+				containerNode.querySelector("#can_equip").addEventListener("change", function(){
+					_this.setMetaValue("mechNoEquips", this.checked ? 0 : 1);
+					_this.show();
+					_this._mainUIHandler.setModified();
+				});
+			}
+		},
 		transformation: {
 			createControls(){	
 				var content = "";
@@ -1993,6 +2016,11 @@ MechUI.prototype.show = async function(){
 	content+="<div class='row'>";
 	content+=_this._propertyHandlers.item_slots.createControls();
 	content+="</div>";
+	content+="<div class='row numeric'>";
+	content+=_this._propertyHandlers.carryingCapacity.createControls();
+	content+="</div>";
+	
+	
 	content+="<div class='row'>";
 	content+=_this._propertyHandlers.fub.createControls();
 	content+="</div>";
@@ -2067,8 +2095,9 @@ MechUI.prototype.show = async function(){
 	
 	
 	
+	content+="<div>";
+	content+=_this._propertyHandlers.no_equips.createControls();
 	content+=_this._propertyHandlers.weapons.createControls();
-	content+="<div class='table'>";
 	content+="</div>";
 	content+="</div>";
 	content+="</div>";

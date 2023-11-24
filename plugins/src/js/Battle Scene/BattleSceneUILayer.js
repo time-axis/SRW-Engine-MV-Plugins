@@ -305,8 +305,9 @@ BattleSceneUILayer.prototype.animateStat = function(slot, elems, maxValue, oldPe
 	var ticks = duration / 10;
 	var oldValue = maxValue / 100 * oldPercent;
 	var newValue = maxValue / 100 * newPercent;
+	var totalDelta = newValue - oldValue;
 	var direction = Math.sign(newValue - oldValue);		
-	var tickValue = Math.abs((oldValue - newValue) / ticks);
+	//var tickValue = Math.abs((oldValue - newValue) / ticks);
 	var currentTick = 0;
 	var animIntervalKey;
 	if(slot == "twin"){
@@ -317,9 +318,14 @@ BattleSceneUILayer.prototype.animateStat = function(slot, elems, maxValue, oldPe
 	if(_this[animIntervalKey]){
 		clearInterval(_this[animIntervalKey]);
 	}
-	_this[animIntervalKey] = setInterval(function(){		
-		var currentVal = oldValue+Math.floor(tickValue * currentTick * direction)
-		if(((oldValue < newValue) && currentVal <= newValue) || ((oldValue > newValue) && currentVal >= newValue)){		
+	let startTime = Date.now();
+	_this[animIntervalKey] = setInterval(function(){	
+		let t = (Date.now() - startTime) / duration;
+		if(t > 1){
+			t = 1;
+		}
+		var currentVal = oldValue+Math.floor(totalDelta * t);//Math.floor(tickValue * currentTick * direction)
+		if(t < 1){		
 			if(type == "HP" && newValue <= 100000){ 
 				isHidden = false;
 				if(target == "actor"){
@@ -424,9 +430,11 @@ BattleSceneUILayer.prototype.setStat = function(effect, type) {
 	if(type == "HP"){
 		maxValue = stats.maxHP;
 		value = effect.currentAnimHP;
+		console.log("Setting stat "+type+" to "+effect.currentAnimHP);
 	} else {
 		maxValue = stats.maxEN;
 		value = effect.currentAnimEN;
+		console.log("Setting stat "+type+" to "+effect.currentAnimEN);
 	}
 	isHidden = !$statCalc.isRevealed(effect.ref);
 	var elems = _this.getStatElements(target, slot, type);	
@@ -463,11 +471,11 @@ BattleSceneUILayer.prototype.resetTextBox = function(){
 	this.showTextBox();
 }
 
-BattleSceneUILayer.prototype.setTextBox = function(entityType, entityId, displayName, textInfo, showNoise){
+BattleSceneUILayer.prototype.setTextBox = function(entityType, entityId, displayName, textInfo, showNoise, immediate){
 	var _this = this;
 	return new Promise(function(resolve, reject){
 		var time = Date.now();
-		if(!_this._lastTextTime || time - _this._lastTextTime > 1000){
+		if(!_this._lastTextTime || time - _this._lastTextTime > 1000 || immediate){
 
 			_this._lastTextTime = time;
 			_this._currentEntityType = entityType;
@@ -649,7 +657,7 @@ BattleSceneUILayer.prototype.showTextLines = function(lines, callback) {
 		textDisplayContent+="</div>";
 		textDisplayContent+="<div id='text_container' class='text_container scaled_text'>";	
 		if(line.text){
-			textDisplayContent+="\u300C "+(line.text || "")+" \u300D";
+			textDisplayContent+=(line.text || "");//"\u300C "+(line.text || "")+" \u300D";
 		} else {
 			textDisplayContent+="";
 		}		
@@ -738,31 +746,32 @@ BattleSceneUILayer.prototype.updateUnitIcons = function(){
 	var _this = this;
 	if(_this._currentActor){
 		var menuImagePath = $statCalc.getMenuImagePath(_this._currentActor.ref);
-		this._container.querySelector("#actor_icon").innerHTML = "<img src='img/"+menuImagePath+"'>";
+		this._container.querySelector("#actor_icon").innerHTML = "<img data-img='img/"+menuImagePath+"'>";
 	} else {		
 		this._container.querySelector("#actor_icon").innerHTML = "";
 	}
 	
 	if(_this._currentTwinActor){
 		var menuImagePath = $statCalc.getMenuImagePath(_this._currentTwinActor.ref);
-		this._container.querySelector("#actor_icon_twin").innerHTML = "<img src='img/"+menuImagePath+"'>";
+		this._container.querySelector("#actor_icon_twin").innerHTML = "<img data-img='img/"+menuImagePath+"'>";
 	} else {		
 		this._container.querySelector("#actor_icon_twin").innerHTML = "";
 	}
 	
 	if(_this._currentEnemy){
 		var menuImagePath = $statCalc.getMenuImagePath(_this._currentEnemy.ref);
-		this._container.querySelector("#enemy_icon").innerHTML = "<img src='img/"+menuImagePath+"'>";
+		this._container.querySelector("#enemy_icon").innerHTML = "<img data-img='img/"+menuImagePath+"'>";
 	} else {		
 		this._container.querySelector("#enemy_icon").innerHTML = "";
 	}
 	
 	if(_this._currentTwinEnemy){
 		var menuImagePath = $statCalc.getMenuImagePath(_this._currentTwinEnemy.ref);
-		this._container.querySelector("#enemy_icon_twin").innerHTML = "<img src='img/"+menuImagePath+"'>";
+		this._container.querySelector("#enemy_icon_twin").innerHTML = "<img data-img='img/"+menuImagePath+"'>";
 	} else {		
 		this._container.querySelector("#enemy_icon_twin").innerHTML = "";
 	}
+	this.loadImages();
 }
 
 BattleSceneUILayer.prototype.hideNoise = function() {

@@ -78,7 +78,7 @@ Window_UnitSummary.prototype.redraw = function() {
 			content+="<div class='pilot_stats scaled_text'>";	
 			content+="<div class='level scaled_width'>";
 			content+="<div class='label'>";
-			content+="Lv";
+			content+=APPSTRINGS.GENERAL.label_level;
 			content+="</div>";
 			content+="<div class='value'>";
 			content+=$statCalc.getCurrentLevel(actor);
@@ -86,7 +86,7 @@ Window_UnitSummary.prototype.redraw = function() {
 			content+="</div>";
 			content+="<div class='will scaled_width'>";
 			content+="<div class='label'>";
-			content+="Will";
+			content+=APPSTRINGS.GENERAL.label_will;
 			content+="</div>";
 			content+="<div class='value'>";
 			content+=$statCalc.getCurrentWill(actor);
@@ -210,7 +210,7 @@ Window_UnitSummary.prototype.redraw = function() {
 			var actor = actors[icon.getAttribute("data-idx")];
 			
 			var menuImagePath = $statCalc.getMenuImagePath(actor);
-			icon.innerHTML = "<img src='img/"+menuImagePath+"'>";
+			icon.innerHTML = "<img data-img='img/"+menuImagePath+"'>";
 		});
 		
 		var summaries = _this._bgFadeContainer.querySelectorAll(".summary_mech");
@@ -246,7 +246,7 @@ Window_UnitSummary.prototype.redraw = function() {
 		//_this.assignFactionColorClass(_this._bgFadeContainer.querySelector(".background"), actors[0]);
 		//_this.updateScaledDiv(_this._bgFadeContainer.querySelector(".background"));
 	}
-	
+	this.loadImages();
 	Graphics._updateCanvas(this._layoutId);
 }
 

@@ -693,7 +693,7 @@ Window_DeploymentTwin.prototype.redraw = function() {
 		if(actorId != null && !listedUnits[actorId] && $statCalc.isValidForDeploy($gameActors.actor(actorId))){
 			listedUnits[actorId] = true;
 			var menuImagePath = $statCalc.getMenuImagePath($gameActors.actor(actorId));
-			content+="<img class='actor_img' src='img/"+menuImagePath+"'>";
+			content+="<img class='actor_img' data-img='img/"+menuImagePath+"'>";
 			
 
 				
@@ -741,7 +741,7 @@ Window_DeploymentTwin.prototype.redraw = function() {
 		if(subActorId != null && !listedUnits[subActorId] && $statCalc.isValidForDeploy($gameActors.actor(subActorId))){
 			listedUnits[subActorId] = true;
 			var menuImagePath = $statCalc.getMenuImagePath($gameActors.actor(subActorId));
-			content+="<img class='actor_img sub' src='img/"+menuImagePath+"'>";
+			content+="<img class='actor_img sub' data-img='img/"+menuImagePath+"'>";
 		}
 		content+="</div>";	 
 		
@@ -853,7 +853,7 @@ Window_DeploymentTwin.prototype.redraw = function() {
 	pilotInfoContent+="</div>";	
 	pilotInfoContent+="<div class='value'>";
 	if(pilotData){
-		pilotInfoContent+=$statCalc.getCurrentSP(pilotData);
+		pilotInfoContent+=$statCalc.getMaxSP(pilotData);
 	} else {
 		pilotInfoContent+="---";
 	}
@@ -863,7 +863,25 @@ Window_DeploymentTwin.prototype.redraw = function() {
 	pilotInfoContent+="</div>";
 	pilotInfoContent+="</div>";
 	
+	
+	pilotInfoContent+="<div class='sub_pilot_list'>";
+	const subPilots = $statCalc.getSubPilots(pilotData);
+	for(let i = 0; i < Math.min(subPilots.length, 5); i++){
+		if(subPilots[i] != -1 && subPilots[i] != null && subPilots[i] != ""){	
+			pilotInfoContent+="<div data-pilotid="+subPilots[i]+" data-type=twin class='left twin selection_icon'></div>";//icon 	
+		}
+	}
+	
+	pilotInfoContent+="</div>";
+	
 	_this._pilotInfoDisplay.innerHTML = pilotInfoContent;
+	
+	var selectionIcons =  this._pilotInfoDisplay.querySelectorAll(".selection_icon")
+	selectionIcons.forEach(function(selectionIcon){
+		_this.updateScaledDiv(selectionIcon);		
+		const pilotId = selectionIcon.getAttribute("data-pilotid");					
+		_this.loadActorFace(pilotId, selectionIcon);						
+	});
 	
 	if(pilotData && $statCalc.isValidForDeploy(pilotData)){
 		var actorIcon = this._container.querySelector("#deploy_pilot_icon");
@@ -909,7 +927,7 @@ Window_DeploymentTwin.prototype.redraw = function() {
 			_this._touchMenu = true;
 		});
 	}
-	
+	this.loadImages();
 	Graphics._updateCanvas();
 	
 	if(activeElem){

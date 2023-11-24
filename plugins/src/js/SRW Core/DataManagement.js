@@ -13,6 +13,7 @@
 		// Save Management
 		//====================================================================	
 		
+
 		
 		Scene_Boot.prototype.create = function() {
 			Scene_Base.prototype.create.call(this);
@@ -170,7 +171,7 @@
 			var _this = this;
 			//const fs = require('fs');		
 			
-		
+			
 			
 			function loadConfigFromFile(url){
 				return new Promise(function(resolve, reject){
@@ -277,8 +278,11 @@
 				//"DeployActions",
 				"RelationshipBonuses",
 				"Constants",
-				"AbilityZones"
+				"AbilityZones",
+				"TerrainTypes"
 			];
+			
+			
 			
 			var defs = [];
 			configs.forEach(function(config){
@@ -354,6 +358,12 @@
 					//$mapAttackManager.initDefinitions();
 					$SRWStageInfoManager.initDefinitions();
 					$abilityZoneManager.initDefinitions();
+					$terrainTypeManager.initDefinitions();
+					
+					if(ENGINE_SETTINGS.CUSTOM_TITLE_SCREEN){
+						 await loadConfigFile('js/plugins/'+ENGINE_SETTINGS.CUSTOM_TITLE_SCREEN+".js");
+					}
+					
 					_this._configLoaded = true;
 				}
 			});
@@ -492,11 +502,14 @@
 		StorageManager.localFileDirectoryPath = function() {
 			var path = require('path');
 
-			var base = path.dirname(process.mainModule.filename);
+		
 			if(process.versions["nw-flavor"] === "sdk"){
+				var base = path.dirname(process.mainModule.filename);	
 				return path.join(base, 'save/');
 			} else {
+				var base = path.dirname(process.execPath);
 				return path.join(base, '/../save/');
+				
 			}			
 		};
 		
@@ -537,6 +550,9 @@
 				removeItem: true,
 				addItemToHolder: true,
 				removeItemFromHolder: true,
+				addEquipable: true,
+				addEquipableToHolder: true,
+				removeEquipableFromHolder: true,
 				focusActor: true,
 				focusEvent: true,
 				clearDeployInfo: true,
@@ -565,8 +581,10 @@
 				setSRWDefaultBattleEnv: true,
 				setDefaultBattleEnv: true,
 				setSkyBattleEnv: true,
+				setSuperStateBattleEnv: true,
 				setRegionBattleEnv: true,
 				setRegionSkyBattleEnv: true,
+				setRegionSuperStateBattleEnv: true,
 				resetRegionAttributes: true,
 				addRegionAttributes: true,
 				addMapHighlight: true,
@@ -687,7 +705,9 @@
 				deployMech: true,
 				setCustomSpirit: true, 
 				clearCustomSpirit: true,
-				awardFavPoints: true
+				awardFavPoints: true,
+				deployItemBox: true,
+				collectItemsBoxes: true
 			}
 			var scriptCommands = {
 				fadeIn: function(eventList, indent, params){

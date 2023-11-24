@@ -470,6 +470,15 @@ Window_DetailPages.prototype.drawPilotStats1 = function() {
 	var currentLevel = $statCalc.getCurrentLevel(actor);
 	
 	detailContent+="<div class='bar_pilot_stats details'>";
+	let attr1 = $statCalc.getParticipantAttribute(this.getCurrentSelection().actor, "attribute1");
+	if(attr1){
+		let attrInfo = ENGINE_SETTINGS.ATTRIBUTE_DISPLAY_NAMES[attr1] || {};
+		detailContent+="<div class='attribute_indicator scaled_text fitted_text'>";		
+		detailContent+="<img data-img='img/system/attribute_"+attr1+".png'>";		
+		detailContent+=attrInfo.name || attr1;
+		detailContent+="</div>";
+	}
+	
 	detailContent+="<div class='twin_type scaled_text fitted_text type_indicator'>";
 	var referenceActor = actor;
 	if(actor.isSubPilot){
@@ -732,7 +741,8 @@ Window_DetailPages.prototype.drawPilotStats1 = function() {
 			if(idx == list.length){
 				idx = 0;
 			}
-			if(list.length > 1 && list[idx]){
+			//prevent the left icon from being filled in if there's only one two total pilots(main + 1 sub)
+			if(list.length > 1 && list[idx] && (offset != -1 || list.length > 2)){
 				_this.loadActorFace(list[idx], selectionIcon);
 			}
 			
@@ -959,8 +969,12 @@ Window_DetailPages.prototype.drawPilotStats2 = function() {
 	detailContent+="</div>";
 	
 	detailContent+="<div class='ability_block_row scaled_height'>";
+	if($gameTemp.currentMenuUnit.actor.isActor()){
+		abilityList = ENGINE_SETTINGS.FAV_POINT_ABILITIES[$gameTemp.currentMenuUnit.actor.actorId()] || ENGINE_SETTINGS.FAV_POINT_ABILITIES[-1];
+	} else {
+		abilityList = [];
+	}
 	
-	abilityList = ENGINE_SETTINGS.FAV_POINT_ABILITIES[$gameTemp.currentMenuUnit.actor.actorId()] || ENGINE_SETTINGS.FAV_POINT_ABILITIES[-1];
 	if(abilityList){
 		let pointCount = $statCalc.getFavPoints($gameTemp.currentMenuUnit.actor);
 		let unlocked = {};
@@ -1096,7 +1110,7 @@ Window_DetailPages.prototype.redraw = function() {
 	
 	if(this.getCurrentSelection().mech.id != -1){	
 		var menuImagePath = $statCalc.getMenuImagePath(this.getCurrentSelection().actor);
-		this._actorBattleImg.innerHTML = "<img src='img/"+menuImagePath+"'>";	
+		this._actorBattleImg.innerHTML = "<img data-img='img/"+menuImagePath+"'>";	
 	}
 	
 	
@@ -1138,30 +1152,46 @@ Window_DetailPages.prototype.redraw = function() {
 	}
 	
 	this._attribute1Display.style.display = "none";
+	this._attribute1Display.classList.remove("effects");
 	this._attribute2Display.style.display = "none";
-	if(this.getCurrentSelection().mech.attribute1){
+	let attr1 = $statCalc.getParticipantAttribute(this.getCurrentSelection().actor, "attribute1");
+	if(attr1){
+		let attrInfo = ENGINE_SETTINGS.ATTRIBUTE_DISPLAY_NAMES[attr1] || {};
+		if(attrInfo.effects){
+			this._attribute1Display.classList.add("effects");
+		}
 		var content = "";
 		content+="<div class='label scaled_text fitted_text'>";
 		content+=APPSTRINGS.DETAILPAGES.label_attribute_1;
+		content+="</div>";		
+		content+="<div class='value scaled_text fitted_text primary'>";		
+		content+="<img data-img='img/system/attribute_"+attr1+".png'>";		
+		content+=attrInfo.name || attr1;
 		content+="</div>";
-		content+="<div class='value scaled_text fitted_text'>";
-		content+=this.getCurrentSelection().mech.attribute1;
-		content+="</div>";
+		if(attrInfo.effects){
+			for(let effectDesc of attrInfo.effects){
+				content+="<div class='value scaled_text fitted_text effect_desc'>";		
+				content+=effectDesc;
+				content+="</div>";
+			}
+		}		
+		
 		this._attribute1Display.innerHTML = content;
 		this._attribute1Display.style.display = "block";		
 	}
-	
-	if(this.getCurrentSelection().mech.attribute2){
+	let attr2 = $statCalc.getParticipantAttribute(this.getCurrentSelection().actor, "attribute2");
+	if(attr2){
 		var content = "";
 		content+="<div class='label scaled_text fitted_text'>";
 		content+=APPSTRINGS.DETAILPAGES.label_attribute_2;
 		content+="</div>";
 		content+="<div class='value scaled_text fitted_text'>";
-		content+=this.getCurrentSelection().mech.attribute2;
+		let attrInfo = ENGINE_SETTINGS.ATTRIBUTE_DISPLAY_NAMES[attr2];
+		content+=attrInfo.name || attr2;
 		content+="</div>";
 		this._attribute2Display.innerHTML = content;
 		this._attribute2Display.style.display = "block";		
 	}
-	
+	this.loadImages();
 	Graphics._updateCanvas();
 }

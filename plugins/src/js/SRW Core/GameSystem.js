@@ -24,6 +24,7 @@
 			this._SrpgActorCommandStatusWindowRefreshFlag = [false, null];
 			this._srpgAllActors = []; //SRPGモードに参加する全てのアクターの配列
 			this._searchedItemList = [];
+			this._pilotFallbackInfo = {};
 			this.initOptions();
 			
 			
@@ -355,8 +356,8 @@
 				}
 			}	
 			
-			_this._pilotFallbackInfo = {};
-			_this._mechFallbackInfo = {};
+			//_this._pilotFallbackInfo = {};
+			//_this._mechFallbackInfo = {};
 		}
 		
 		Game_System.prototype.startIntermission = function(){
@@ -435,8 +436,10 @@
 			$gameTemp.eventToDeploySlot = null;
 			$gameSystem.defaultBattleEnv = null;
 			$gameSystem.skyBattleEnv = null;
+			$gameSystem.superStateBattleEnv = {};
 			$gameSystem.regionBattleEnv = {};
 			$gameSystem.regionSkyBattleEnv = {};
+			$gameSystem.regionSuperStateBattleEnv = {};
 			$gameSystem.stageTextId = null;
 			
 			if($gameSystem.foregroundSpriteToggleState == null){
@@ -648,7 +651,7 @@
 				var battlerArray = _this.EventToUnit(event.eventId());
 				if(!event.isErased() && battlerArray){
 					var actor = battlerArray[1];
-					if(actor.isActor() && !actor.srpgTurnEnd()){
+					if(actor.isActor() && !actor.srpgTurnEnd() && !$statCalc.isAI(actor)){
 						result.push(actor);
 					}
 				}
@@ -708,7 +711,18 @@
 					subPilots: subPilots
 				};
 			}
-		}		
+		}	
+
+		Game_System.prototype.overwriteMechFallbackInfo = function(mechId, subPilots) {
+			const _this = this;
+			if(!_this._mechFallbackInfo){
+				_this._mechFallbackInfo = {};
+			}
+			
+			_this._mechFallbackInfo[mechId] = {
+				subPilots: subPilots
+			};			
+		}			
 		
 		Game_System.prototype.getPilotFallbackInfo = function(actor) {
 			const _this = this;
@@ -754,23 +768,7 @@
 						actor_unit = $gameActors.actor(actorId);
 					}
 					if (actor_unit) {
-						actor_unit.event = event;
-						_this.pushSrpgAllActors(event.eventId());
-						event.isDeployed = true;
-						var bitmap = ImageManager.loadFace(actor_unit.faceName()); //顔グラフィックをプリロードする
-						var oldValue = $gameVariables.value(_existShipVarId);
-						$gameVariables.setValue(_existShipVarId, oldValue + 1);
-						_this.setEventToUnit(event.eventId(), 'actor', actor_unit.actorId());
-						$statCalc.initSRWStats(actor_unit);
-						actor_unit.setSrpgTurnEnd(false);	
-						
-						if(toAnimQueue){				
-							$gameTemp.enemyAppearQueue.push(event);
-							event.erase();
-						} else {
-							event.appear();
-							$gameMap.setEventImages();			
-						}
+						_this.deployActor(actor_unit, event, toAnimQueue);
 					} else {
 						event.erase();
 					}
@@ -784,6 +782,8 @@
 			var _this = this;
 			actor_unit.event = event;
 			event._lastModsPosition = null;
+			event.isDropBox = false;
+			delete event.dropBoxItems;
 			_this.pushSrpgAllActors(event.eventId());
 			event.isDeployed = true;
 			event.isScriptedDeploy = isScriptedDeploy ? true : false;
@@ -837,7 +837,7 @@
 			$statCalc.invalidateAbilityCache(actor_unit);
 			$statCalc.initSRWStats(actor_unit);
 			$statCalc.applyBattleStartWill(actor_unit);
-			$statCalc.updateFlightState(actor_unit, true);
+			$statCalc.updateSuperState(actor_unit, true);
 			//call refresh to clear any lingering states of the actor
 			actor_unit.refresh();
 			
@@ -845,6 +845,26 @@
 			ImageManager.loadCharacter(parts[0]);
 			
 			$statCalc.applyRelativeTransforms();
+			
+			event.isShip = $statCalc.isShip(actor_unit);
+		}
+		
+		Game_System.prototype.deployItemBox = function(event, items) {
+			var _this = this;
+			//
+			event.isDropBox = true;
+			event.setType("");
+			event.dropBoxItems = items;			
+			event.setImage(ENGINE_SETTINGS.ITEM_BOX_SPRITE.characterName, ENGINE_SETTINGS.ITEM_BOX_SPRITE.characterIndex);
+			event.appear();				
+		}
+		
+		Game_System.prototype.finalizeItemBox = function(event){
+			if(event.isDropBox){
+				this.clearEventToUnit(event.eventId());
+				event.visible = true;
+				event.appear();	
+			}
 		}
 		
 		Game_System.prototype.getEventDeploySlot = function(event) {
@@ -1355,6 +1375,7 @@
 			if($gameVariables.value(_turnVarID) != 1){
 				$statCalc.applyTurnStartWill("actor");
 			}
+			$statCalc.applyMPRegen("actor");
 			$statCalc.applyENRegen("actor");
 			$statCalc.applyAmmoRegen("actor");
 			$statCalc.applyHPRegen("actor");
@@ -1446,6 +1467,7 @@
 			$gameSystem.expireAbilityZones();
 			$statCalc.applyTurnStartWill("enemy", factionId);
 			$statCalc.applyENRegen("enemy", factionId);
+			$statCalc.applyMPRegen("enemy", factionId);
 			$statCalc.applyAmmoRegen("enemy", factionId);
 			$statCalc.applyHPRegen("enemy", factionId);
 			$statCalc.resetAllBattleTemp(null, factionId);
@@ -2136,18 +2158,19 @@
 			} else {
 				var event = $statCalc.getReferenceEvent(actor);
 				var region = $gameMap.regionId(event.posX(), event.posY());
-				if($statCalc.isFlying(actor)){
-					if($gameSystem.regionSkyBattleEnv[region] != null){
-						return $gameSystem.regionSkyBattleEnv[region];
+				let superState = $statCalc.getSuperState(actor);
+				if(superState == -1){
+					if($gameSystem.regionBattleEnv[region] != null){
+						return $gameSystem.regionBattleEnv[region];
 					}
-					
-					if($gameSystem.skyBattleEnv){
-						return $gameSystem.skyBattleEnv;
-					} 
-				} 
-				if($gameSystem.regionBattleEnv[region] != null){
-					return $gameSystem.regionBattleEnv[region];
-				}
+				} else {
+					if($gameSystem.regionSuperStateBattleEnv[superState] != null && $gameSystem.regionSuperStateBattleEnv[superState][region] != null){
+						return $gameSystem.regionSuperStateBattleEnv[superState][region];
+					}
+					if($gameSystem.superStateBattleEnv[superState]){
+						return $gameSystem.superStateBattleEnv[superState];
+					}
+				}				
 				return $gameSystem.defaultBattleEnv;						
 			}
 		};
