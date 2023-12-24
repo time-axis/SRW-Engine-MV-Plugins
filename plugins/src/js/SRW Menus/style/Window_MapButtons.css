@@ -19,8 +19,8 @@
 }
 
 .map_button.menu {
-	border-radius: 99999px;
-    border: 0.2vw solid #FFFFFF;
+	border-radius: 15px;
+    border: 0.2vw solid #4ae0fa;
     margin-left: auto;
     margin-right: -1vw;
     height: 4vw;
@@ -29,11 +29,11 @@
     position: relative; 
     cursor: pointer;
     padding: 1%;
-	top: 50%;
+	top: 70%;
 }
 
 .map_button.menu.active {
-	background-color: #FFFFFF;
+	background-color: #4ae0fa;
 }
 
 .map_button.menu img{

@@ -15,10 +15,10 @@ body {
 	--underline-color: rgba(200,200,200,0.5);
 	--selected-color: rgba(255, 255, 255, 0.5);
 	--white-filter: invert(88%) sepia(96%) saturate(0%) hue-rotate(10deg) brightness(105%) contrast(102%);
-	--section-bg-color:  rgba(0,67,99,0.5);
-	--section-bg-color-solid:  rgba(0,67,99,1);
-	--menu-bg-color:  rgba(34,49,73,0.8);
-	--menu-bg-color-solid:  rgba(34,49,73,1);
+	--section-bg-color:  rgba(35,49,95,0.5);
+	--section-bg-color-solid:  rgba(35,49,95,1);
+	--menu-bg-color:  rgba(35,49,95,0.8);
+	--menu-bg-color-solid:  rgba(35,49,95,1);
 	--menu-bg-color-filter: invert(18%) sepia(81%) saturate(1381%) hue-rotate(172deg) brightness(89%) contrast(102%);
 	--color-highlight-filter: invert(91%) sepia(68%) saturate(6239%) hue-rotate(323deg) brightness(111%) contrast(95%);
 }
