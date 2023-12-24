@@ -85,12 +85,12 @@ body {
 
 @-webkit-keyframes backgroundScroll {
 from {background-position: 0 0;}
-to {background-position: -182px -95;}
+to {background-position: -182px -95px;}
 }
 
 @keyframes backgroundScroll {
 from {background-position: 0 0;}
-to {background-position: -182px -95;}
+to {background-position: -182px -95px;}
 }
 
 .menu_header {

@@ -1,13 +1,13 @@
 
 #mech_list_control {
-	border: 0.1vw solid #FFFFFF;
+	border: 0.2vw solid #4ae0fa;
 	border-radius: 1vw;
 	border-top-right-radius: 0px;
 	border-top-left-radius: 0px;
 	width: calc(100% - 2vw);
 	height: calc(100% - 2vw);
 	padding: 1vw;
-	background-color: rgba(0,67,99,0.5);
+	background-color: var(--section-bg-color);
 	position: relative;
 }
 
@@ -15,14 +15,14 @@
 	display: flex;
     align-items: center;
     justify-content: center;
-	border: 0.1vw solid #FFFFFF;
+	border: 0.2vw solid #4ae0fa;
 	border-radius: 999px;
 	height: 5%;
 	width: 10%;
 	position: absolute;
 	right: 0%;
 	top: -6%;
-	background-color: rgba(0,67,99,0.5);
+	background-color: var(--section-bg-color);
 	color: #FFFFFF;
 	--fontsize: 1.6px;
 	text-align: center;
