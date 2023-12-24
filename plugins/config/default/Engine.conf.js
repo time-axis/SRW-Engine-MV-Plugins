@@ -35,7 +35,8 @@ var ENGINE_SETTINGS = {
 		}
 	},	
 	TINT_CURSOR_PER_FACTION: true,
-	USE_TILE_PASSAGE: true,
+	ATTR_LABEL_LENGTH: 2, //The length of the weapon attribute string shown in the attack list. It takes a substring of this length of the attribute string and capitalizes the first letter.
+	USE_TILE_PASSAGE: true, //if true use RPG Maker tile passage setting to restrict movement
 	ENABLE_QUICK_MOVE: true,
 	LEVEL_CAP: 99,
 	SP_CAP: -1,
@@ -381,5 +382,19 @@ var ENGINE_SETTINGS = {
 		
 		AudioManager.loadBgm({name: "SRW_Engine_1"});
 	},
-	
+	GLOBAL_UNIT_MOD: function(actor){//a function that is applied to each unit when applying abilities, can return an array of stat mods like an ability effect handler
+		//you can also use this function to perform hacky mods to the actor that was passed in
+		
+		//tip: to avoid additional overhead or to prevent a mod being applied twice use the actor's stageTemp cache to track whether a mod has been applied already
+		//ex.:
+		/*
+		if(!$statCalc.getStageTemp(actor, "mod_applied")){
+			$statCalc.setStageTemp(actor, "mod_applied", 1);
+			actor.isModded = (actor.isModded || 0) + 1;
+		}
+		*/
+		
+		//example return value, optional. This example makes every unit in the game deal double the regular damage.
+		//return [{type: "final_damage", modType: "mult", value: 2}];
+	}
 }

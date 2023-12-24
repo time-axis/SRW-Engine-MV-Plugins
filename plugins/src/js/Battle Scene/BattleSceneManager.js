@@ -340,7 +340,7 @@ BattleSceneManager.prototype.init = async function(attachControl){
 		
 		this._textureCopier = new BABYLON.CopyTextureToTexture(this._engine);
 		
-		this.initShaders();
+		//this.initShaders();
 		//this.initParticleSystems();
 		
 		this.initScene();
@@ -444,8 +444,8 @@ BattleSceneManager.prototype.initShaders = function(){
 	if (Utils.isNwjs()){
 		const FILESYSTEM = require("fs"); 
 		var path = require('path');
-		var base = path.dirname(process.mainModule.filename);
-		const dir = base+"/shader";
+		var base = getBase();
+		const dir = base+"shader";
 		FILESYSTEM.readdirSync(dir).forEach(function(file) {
 			var name = file.replace(/\.fx$/, "");
 			var parts = name.split("_");
@@ -471,15 +471,10 @@ BattleSceneManager.prototype.initShader = async function(name){
 		var parts = name.split("_");
 		var shaderName = parts[0];
 		var shaderType = parts[1] == "fragment" ? "Fragment" : "Vertex";
-		var base = "";
-		if (Utils.isNwjs()){
-			const FILESYSTEM = require("fs"); 
-			var path = require('path');
-			base = path.dirname(process.mainModule.filename) + "/";
-		}
+		var base = getBase();
 
 		var xhr = new XMLHttpRequest();
-		xhr.open('GET', base+"shader/"+name+".fx");
+		xhr.open('GET', "shader/"+name+".fx");
 		//xhr.overrideMimeType('application/json');
 		xhr.onload = function() {
 			if (xhr.status < 400) {
@@ -1713,8 +1708,9 @@ BattleSceneManager.prototype.hookBeforeRender = function(){
 						} else if(texture.uOffsetAccumulator < 0){
 							texture.uOffsetAccumulator+=1;
 						}
-						texture.uOffset_ = texture.uOffsetAccumulator;
-						bg.material.diffuseTexture.getTextureMatrix().setRowFromFloats(2, texture.uOffset_, 0, 0, 0);
+						//texture.uOffset_ = texture.uOffsetAccumulator;
+						//bg.material.diffuseTexture.getTextureMatrix().setRowFromFloats(2, texture.uOffset_, 0, 0, 0);
+						texture.uOffset = texture.uOffsetAccumulator;
 					}
 					
 				}
@@ -4616,7 +4612,7 @@ BattleSceneManager.prototype.executeAnimation = function(animation, startTick){
 				
 				var imgPath = $statCalc.getBattleSceneImage(battleEffect.ref);
 				
-				targetObj.material.diffuseTexture = new BABYLON.Texture("img/SRWBattleScene/"+imgPath+"/"+params.name+".png", _this._scene, false, true, sampleMode);
+				targetObj.material.diffuseTexture = _this.getCachedTexture("img/SRWBattleScene/"+imgPath+"/"+params.name+".png"); 
 				targetObj.material.diffuseTexture.hasAlpha = true;
 				targetObj.material.useAlphaFromDiffuseTexture  = true;
 				targetObj.material.transparencyMode = BABYLON.Material.MATERIAL_ALPHATEST;
@@ -6247,7 +6243,7 @@ BattleSceneManager.prototype.preloadEffekseerParticles = async function(){
 			if(attack && typeof attack.animId != "undefined" && attack.animId != -1){
 				animId = attack.animId;
 			} else {
-				animId = 0;//default
+				animId = _this.getDefaultAnim(attack);//default
 			}				
 			
 			var animationList = _this._animationBuilder.buildAnimation(animId, _this);
@@ -6413,10 +6409,10 @@ BattleSceneManager.prototype.preloadSceneAssets = function(){
 			}
 			
 			if(animCommand.type == "effect_shockwave"){
-				_this.initShader("shockWave_fragment");
+				promises.push(_this.initShader("shockWave_fragment"));
 			}
 			if(animCommand.type == "effect_screen_shader"){
-				_this.initShader(params.shaderName);
+				promises.push(_this.initShader(params.shaderName));
 			}
 			if(animCommand.type == "play_se"){
 				var se = {};
@@ -6448,7 +6444,7 @@ BattleSceneManager.prototype.preloadSceneAssets = function(){
 				if(attack && typeof attack.animId != "undefined" && attack.animId != -1){
 					animId = attack.animId;
 				} else {
-					animId = 0;//default
+					animId = _this.getDefaultAnim(attack);//default
 				}
 				var preloadCtr = 0;
 				function preloadDefaultFrames(ref){
@@ -6864,6 +6860,27 @@ BattleSceneManager.prototype.endScene = function(force) {
 	}	
 }
 
+BattleSceneManager.prototype.getDefaultAnim = function(attack) {
+	var defaultAnim;
+	if(ENGINE_SETTINGS.BATTLE_SCENE && ENGINE_SETTINGS.BATTLE_SCENE.DEFAULT_ANIMATIONS){
+		if(attack.particleType && ENGINE_SETTINGS.BATTLE_SCENE.DEFAULT_ANIMATIONS[attack.particleType] != null){
+			defaultAnim = ENGINE_SETTINGS.BATTLE_SCENE.DEFAULT_ANIMATIONS[attack.particleType];
+		}
+		if(defaultAnim == null){
+			if(attack.type == "M"){
+				defaultAnim = ENGINE_SETTINGS.BATTLE_SCENE.DEFAULT_ANIMATIONS["melee"];
+			} else {
+				defaultAnim = ENGINE_SETTINGS.BATTLE_SCENE.DEFAULT_ANIMATIONS["ranged"];
+			}
+		}
+	} 
+	if(defaultAnim == null){
+		defaultAnim = 0;
+	}
+	
+	return defaultAnim;
+}
+
 BattleSceneManager.prototype.processActionQueue = function() {
 	var _this = this;
 	if(_this._awaitingText){
@@ -7024,23 +7041,8 @@ BattleSceneManager.prototype.processActionQueue = function() {
 						/*_this.playDefaultAttackAnimation(nextAction).then(function(){
 							_this.processActionQueue();
 						});*/
-						var defaultAnim;
-						if(ENGINE_SETTINGS.BATTLE_SCENE && ENGINE_SETTINGS.BATTLE_SCENE.DEFAULT_ANIMATIONS){
-							if(attack.particleType && ENGINE_SETTINGS.BATTLE_SCENE.DEFAULT_ANIMATIONS[attack.particleType] != null){
-								defaultAnim = ENGINE_SETTINGS.BATTLE_SCENE.DEFAULT_ANIMATIONS[attack.particleType];
-							}
-							if(defaultAnim == null){
-								if(attack.type == "M"){
-									defaultAnim = ENGINE_SETTINGS.BATTLE_SCENE.DEFAULT_ANIMATIONS["melee"];
-								} else {
-									defaultAnim = ENGINE_SETTINGS.BATTLE_SCENE.DEFAULT_ANIMATIONS["ranged"];
-								}
-							}
-						} 
-						if(defaultAnim == null){
-							defaultAnim = 0;
-						}
-						animId = defaultAnim;
+						
+						animId = _this.getDefaultAnim(attack);
 					}
 					_this.lastAnimId = animId;
 					_this._playingIntro = false;	
