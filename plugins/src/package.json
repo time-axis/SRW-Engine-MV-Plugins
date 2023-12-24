@@ -11,16 +11,16 @@
   "license": "ISC",
   "devDependencies": {
     "css-loader": "^3.6.0",
-    "expose-loader": "^3.0.0",
+    "expose-loader": "^3.1.0",
     "raw-loader": "^4.0.2",
-    "style-loader": "^1.2.1",
+    "style-loader": "^1.3.0",
     "webpack": "^5.88.2",
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
-    "@esotericsoftware/spine-canvas": "^4.2.9",
-    "@esotericsoftware/spine-webgl": "^4.2.8",
-    "acorn": "^8.6.0",
+    "@esotericsoftware/spine-canvas": "^4.2.34",
+    "@esotericsoftware/spine-webgl": "^4.2.34",
+    "acorn": "^8.11.2",
     "babylon": "^6.18.0",
     "babylonjs": "^6.20.1",
     "babylonjs-loaders": "^6.20.1",
