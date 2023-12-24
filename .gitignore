@@ -1,6 +1,3 @@
 plugins/src/node_modules
 plugins/src/build.bat
-plugins/SRW_BattleScene.js
-plugins/SRW_Core.js
-plugins/SRW_Editor.js
-plugins/SRW_Menus.js
+plugins/package-lock.json
