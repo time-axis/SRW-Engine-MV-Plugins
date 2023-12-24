@@ -19,6 +19,13 @@
 
 //global reference to the filesystem module to circumvent issues with webpacked sections(battle scene)
 
+
+function getBase(){
+	var base = "./";
+	
+	return base;
+}
+
 //disable touch support
 
 
@@ -507,8 +514,19 @@ SceneManager.isInSaveScene = function(){
 		this._commandWindow.setHandler('unitList',this.commandUnitList.bind(this));   
 		this._commandWindow.setHandler('search',this.commandSearch.bind(this));   		
 		this._commandWindow.setHandler('conditions',this.commandConditions.bind(this)); 		
-		this._commandWindow.setHandler('transform_all', this.transformAllActorMenuCommand.bind(this));		
+		this._commandWindow.setHandler('transform_all', this.transformAllActorMenuCommand.bind(this));	
+
+		this._commandWindow.setHandler('item',      this.commandItemVanilla.bind(this));
+		this._commandWindow.setHandler('skill',     this.commandPersonal.bind(this));
+		this._commandWindow.setHandler('equip',     this.commandPersonal.bind(this));
+		this._commandWindow.setHandler('status',    this.commandPersonal.bind(this));
+		this._commandWindow.setHandler('formation', this.commandFormation.bind(this));
+		
 		this._commandWindow.setHandler('log',this.commandLog.bind(this)); 
+		
+		//hacky way to restore compatibility with plugins that still rely on scene_menu being used for the map menu		
+		Scene_Map.prototype.createCommandWindow.call(this)
+			
 		
 		this._commandWindow.y = 50;
 		this._commandWindow.x = 800;
@@ -523,6 +541,31 @@ SceneManager.isInSaveScene = function(){
 		this._goldWindow.deactivate();
 	}
 	
+	Scene_Map.prototype.createCommandWindow = function(){
+		
+	}
+	
+	
+	Scene_Map.prototype.commandItemVanilla = function() {
+		 SceneManager.push(Scene_Item);
+	};
+
+	
+	Scene_Map.prototype.commandPersonal = function() {
+		this._statusWindow.setFormationMode(false);
+		this._statusWindow.selectLast();
+		this._statusWindow.activate();
+		this._statusWindow.setHandler('ok',     this.onPersonalOk.bind(this));
+		this._statusWindow.setHandler('cancel', this.onPersonalCancel.bind(this));
+	};
+
+	Scene_Map.prototype.commandFormation = function() {
+		this._statusWindow.setFormationMode(true);
+		this._statusWindow.selectLast();
+		this._statusWindow.activate();
+		this._statusWindow.setHandler('ok',     this.onFormationOk.bind(this));
+		this._statusWindow.setHandler('cancel', this.onFormationCancel.bind(this));
+	};
 	Scene_Map.prototype.createConditionsWindow = function() {
 		this._conditionsWindow = new Window_ConditionsInfo(0, 0);
 		this._conditionsWindow.y = 50;
@@ -4654,13 +4697,7 @@ SceneManager.isInSaveScene = function(){
 //====================================================================
     var _SRPG_SceneMenu_createCommandWindow = Scene_Menu.prototype.createCommandWindow;
     Scene_Menu.prototype.createCommandWindow = function() {
-        _SRPG_SceneMenu_createCommandWindow.call(this);
-        if ($gameSystem.isSRPGMode() == true) {
-            this._commandWindow.setHandler('turnEnd',this.commandTurnEnd.bind(this));
-            this._commandWindow.setHandler('autoBattle',this.commandAutoBattle.bind(this));			
-        }
-		this._commandWindow.y = 100;
-		this._commandWindow.x = 800;
+       
     };    
 
     Scene_Menu.prototype.commandAutoBattle = function() {
