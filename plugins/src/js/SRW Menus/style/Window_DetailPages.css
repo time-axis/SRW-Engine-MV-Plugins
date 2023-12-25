@@ -10,8 +10,8 @@
 
 #detail_pages .tab_button.selected {
 	color: #FFFFFF;
-	border: 0.1vw solid #FFFFFF;
-	background-color: rgba(255,255,255,0.2);
+	border: 0.2vw solid #4ae0fa;
+	background-color: var(--section-bg-color);
 }
 
 #detail_pages .pilot_stats_button {
@@ -282,13 +282,13 @@
 #detail_pages .pilot_detail_2 .ability_block {
 	margin-left: 1%;
     margin-top: 1%;
-	border: 0.1vw solid rgba(255,255,255,0.5);
+	border: 0.2vw solid rgba(74,224,250,0.5);
     padding: 0.5%;
 	width: 30.73333333%;
 }
 
 #detail_pages .pilot_detail_2 .ability_block.ace_bonus {
-	border: 0.1vw solid rgba(255,255,255,0.5);
+	border: 0.2vw solid rgba(74,224,250,0.5);
     padding: 0.5%;
 	/*position: absolute;*/
 	--widthscaling: 50;
@@ -435,7 +435,7 @@
     width: 14.5%;
     height: 28.5%;
     background-color: var(--section-bg-color);
-    border: 0.1vw solid #FFFFFF;
+    border: 0.2vw solid #4ae0fa;
     border-radius: 1vw;
     padding: 1%;
 }
@@ -457,7 +457,7 @@
     width: 16.5%;
     height: 28.5%;
     background-color: var(--section-bg-color);
-    border: 0.1vw solid #FFFFFF;
+    border: 0.2vw solid #4ae0fa;
     border-radius: 1vw;
     padding: 1%;
 }
@@ -497,14 +497,14 @@
 }
 
 #detail_pages .attribute_display {
-	border: 0.1vw solid rgba(255,255,255,0.5);
+	border: 0.2vw solid rgba(74,224,250,0.5);
     padding-left: 0.5%;
     padding-right: 0.5%;
 	position: absolute;
 	height: fit-content;
 	right: 0;
 	background-color: var(--section-bg-color);
-	border-bottom-left-radius: 2vw;
+	border-bottom-left-radius: 1vw;
 	border-right: 0;
 	display: none;
 	--fontsize: 2px;
@@ -556,7 +556,7 @@
 	--heightpixels: 140;
 	--widthpixels: 140;
 	background-color: #FFFFFF;
-	border: 0.1vw solid #FFFFFF;
+	border: 0.2vw solid #4ae0fa;
 	border-top: none;
 	position: absolute;
 	top: 0;

@@ -160,10 +160,10 @@
     z-index: 1;
     align-items: flex-end;
     padding-left: 2%;
-    background: -moz-linear-gradient(left,  rgba(148,211,252,1) 45%, rgba(134,198,241,1) 66%, rgba(112,176,224,0) 100%);
-	background: -webkit-linear-gradient(left,  rgba(148,211,252,1) 45%,rgba(134,198,241,1) 66%,rgba(112,176,224,0) 100%);
-	background: linear-gradient(to right,  rgba(148,211,252,1) 45%,rgba(134,198,241,1) 66%,rgba(112,176,224,0) 100%);
-	filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#94d3fc', endColorstr='#0070b0e0',GradientType=1 );
+    background: -moz-linear-gradient(left,  rgba(74,224,250,1) 45%, rgba(60,210,227,1) 66%, rgba(38,188,205,0) 100%);
+	background: -webkit-linear-gradient(left,  rgba(74,224,250,1) 45%, rgba(60,210,227,1) 66%, rgba(38,188,205,0) 100%);
+	background: linear-gradient(to right,  rgba(74,224,250,1) 45%, rgba(60,210,227,1) 66%, rgba(38,188,205,0) 100%);
+	filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#ff4ae0fa', endColorstr='#004ae0fa',GradientType=1 );
 }
 
 #upgrade_name_icon {
