@@ -1876,15 +1876,7 @@ StatCalc.prototype.getMechData = function(mech, forActor, items, previousWeapons
 		result.stats.base.terrain = this.parseTerrainString(mechProperties.mechTerrain);
 		result.stats.base.move = parseInt(mechProperties.mechMove);
 		var sizeString = mechProperties.mechSize || "S";	
-		if(sizeString == "LL"){
-			sizeString = "2L";
-		}
-		if(sizeString == "L"){
-			sizeString = "1L";
-		}
-		if(sizeString == "1S"){
-			sizeString = "S";
-		}
+		
 		result.stats.base.size = sizeString;
 		
 
@@ -3681,6 +3673,8 @@ StatCalc.prototype.isWeaponUnlocked = function(actor, weapon){
 	}
 }
 
+
+
 StatCalc.prototype.getCurrentWeapons = function(actor){
 	if(this.isActorSRWInitialized(actor)){
 		var tmp = [];
@@ -3719,6 +3713,10 @@ StatCalc.prototype.getCurrentWeapons = function(actor){
 	} else {
 		return [];
 	}	
+}
+
+StatCalc.prototype.hasWeapons = function(actor){
+	return this.getCurrentWeapons(actor).length > 0;
 }
 
 StatCalc.prototype.getActiveMapWeapons = function(actor, isPostMove){
