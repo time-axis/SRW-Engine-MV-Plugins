@@ -1047,6 +1047,7 @@ SceneManager.isInSaveScene = function(){
 		this._mapSrpgActorCommandWindow.setHandler('combine', this.combineActorMenuCommand.bind(this));
 		this._mapSrpgActorCommandWindow.setHandler('split', this.splitActorMenuCommand.bind(this));
 		this._mapSrpgActorCommandWindow.setHandler('transform', this.transformActorMenuCommand.bind(this));
+		this._mapSrpgActorCommandWindow.setHandler('eject', this.ejectActorMenuCommand.bind(this));
 		
 		this._mapSrpgActorCommandWindow.setHandler('swap', this.swapActorMenuCommand.bind(this));
 		this._mapSrpgActorCommandWindow.setHandler('separate', this.separateActorMenuCommand.bind(this));
@@ -2603,6 +2604,27 @@ SceneManager.isInSaveScene = function(){
 			this._transformWindow.activate();
 		}		
     };	
+	
+	// Eject Menu Command
+	Scene_Map.prototype.ejectActorMenuCommand = function() {   
+		var actor = $gameSystem.EventToUnit($gameTemp.activeEvent().eventId())[1];
+		var list = $statCalc.getEjectList(actor);
+		if(list.length == 1){
+			$statCalc.transform(actor, null, true, list[0]);
+			$gameSystem.clearSrpgActorCommandWindowNeedRefresh();
+			$gameSystem.setSubBattlePhase('normal');
+			var se = {};
+			se.name = 'SRWTransform';
+			se.pan = 0;
+			se.pitch = 100;
+			se.volume = 80;
+			AudioManager.playSe(se);	
+		} else {
+			this._transformWindow.refresh();
+			this._transformWindow.show();
+			this._transformWindow.activate();
+		}		
+    };
 	
 	Scene_Map.prototype.swapPilotMenuCommand = function() { 
 		this._swapPilotWindow.refresh();

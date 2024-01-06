@@ -410,6 +410,10 @@
 							_this.addCommand($statCalc.getTransformCmdName(_this._actor) || APPSTRINGS.MAPMENU.cmd_transform, 'transform');
 						}
 						
+						if($statCalc.canEject(_this._actor)){
+							_this.addCommand(APPSTRINGS.MAPMENU.cmd_eject, 'eject');
+						}
+						
 						if($statCalc.canSwapPilot(_this._actor)){
 							_this.addCommand(APPSTRINGS.MAPMENU.cmd_swap_pilot, 'swap_pilot');
 						}							

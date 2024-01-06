@@ -1389,6 +1389,7 @@ StatCalc.prototype.createEmptyActor = function(level){
 	result.isEmpty = true;
 	result.SRWInitialized = true;
 	_this.resetStageTemp(result);
+	_this.resetBattleTemp(result);
 	_this.resetSpiritsAndEffects(result);	
 	
 	return result;
@@ -1787,7 +1788,8 @@ StatCalc.prototype.getMechData = function(mech, forActor, items, previousWeapons
 		basicBattleSpriteName: "",
 		allowedPilots: [],
 		items: [],
-		noEquips: false
+		noEquips: false,
+		noEject: false
 	};
 	if(mech && mech.name && mech.meta && Object.keys(mech.meta).length){		
 		var mechProperties = mech.meta;
@@ -2013,7 +2015,8 @@ StatCalc.prototype.getMechData = function(mech, forActor, items, previousWeapons
 		result.abilities = this.getMechAbilityInfo(mechProperties);
 		result.itemSlots = parseInt(mechProperties.mechItemSlots);		
 		
-		result.noEquips = !!(mechProperties.mechNoEquips || 0);
+		result.noEquips = !!(mechProperties.mechNoEquips * 1 || 0);
+		result.noEject = !!(mechProperties.mechNoEject * 1 || 0);
 			
 		if(forActor){
 			if(result.inheritsUpgradesFrom){
@@ -2506,6 +2509,15 @@ StatCalc.prototype.getTransformationList = function(actor){
 	return result;
 }
 
+StatCalc.prototype.getEjectList = function(actor){
+	var result = [];
+	var terrainOK = this.canStandOnTileAfterTransformation(actor, $dataActors[actor.SRWStats.pilot.id].classId);
+	if(terrainOK){
+		result.push($dataActors[actor.SRWStats.pilot.id].classId);
+	}
+	return result;
+}
+
 StatCalc.prototype.applyRelativeTransforms = function(){
 	var _this = this;
 	var deployed = {};
@@ -2538,6 +2550,16 @@ StatCalc.prototype.getTransformCmdName = function(actor){
 StatCalc.prototype.canTransform = function(actor){
 	if(this.isActorSRWInitialized(actor) && actor.isActor()){
 		return this.getTransformationList(actor).length;
+	} 
+	return false;
+}
+
+StatCalc.prototype.canEject = function(actor){
+	if(this.isActorSRWInitialized(actor) && actor.isActor()){
+		if(!actor.SRWStats.mech.noEject){
+			return this.getEjectList(actor).length;
+		}
+		return false;
 	} 
 	return false;
 }
@@ -2757,6 +2779,11 @@ StatCalc.prototype.split = function(actor){
 		calculatedStats.currentHP = Math.round(combinedHPRatio * calculatedStats.maxHP);
 		calculatedStats.currentEN = Math.round(combinedENRatio * calculatedStats.maxEN);*/
 		var combinesFrom = actor.SRWStats.mech.combinesFrom;
+		if(!combineInfo || !combineInfo.participants){
+			combineInfo = {
+				participants: combinesFrom
+			};
+		}
 
 		for(var i = 0; i < combineInfo.participants.length; i++){
 			var actor;
@@ -3785,6 +3812,7 @@ StatCalc.prototype.getWeaponPower = function(actor, weapon){
 StatCalc.prototype.enableWeaponAbilityResolution = function(actor, weapon){
 	//hacky method to get weapon abilities resolved while not before battle(like in the attack list)
 	//set the currentAttack on the attacker
+	
 	const storedBattleTemp = actor.SRWStats.battleTemp.currentAttack;
 	const storedBattleTarget = $gameTemp.currentBattleTarget;	
 	

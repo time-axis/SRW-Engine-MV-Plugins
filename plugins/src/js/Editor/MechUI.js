@@ -668,7 +668,7 @@ MechUI.prototype.initPropertyHandlers = function(){
 				content+=EDITORSTRINGS.MECH.label_can_equip;
 				content+="</div>";
 				content+="<div class='cell'>";
-				content+="<input id='can_equip' type=checkbox "+(!(_this.getMetaValue("mechNoEquips")) ? "checked" : "")+"></input>";
+				content+="<input id='can_equip' type=checkbox "+(!(_this.getMetaValue("mechNoEquips") * 1) ? "checked" : "")+"></input>";
 				content+="</div>";
 				content+="</div>";
 				return content;
@@ -687,9 +687,6 @@ MechUI.prototype.initPropertyHandlers = function(){
 				var content = "";
 				
 				content+="<div class='table'>";
-				
-				
-				
 				content+="<div class='row'>";	
 				content+="<div class='cell'>";
 				content+=EDITORSTRINGS.MECH.label_command_name;
@@ -796,6 +793,14 @@ MechUI.prototype.initPropertyHandlers = function(){
 				content+="<div class='cell'>";
 				content+="<input id='transform_restores_en' type=checkbox "+(restoresEN ? "checked" : "")+"></input>";
 				content+="</div>";
+				content+="<div class='row'>";
+				content+="<div class='cell'>";
+				content+="Can Eject";
+				content+="</div>";
+				content+="<div class='cell'>";
+				content+="<input id='can_eject' type=checkbox "+(!(_this.getMetaValue("mechNoEject") * 1) ? "checked" : "")+"></input>";
+				content+="</div>";
+				content+="</div>";
 				content+="</div>";
 				
 				
@@ -804,6 +809,13 @@ MechUI.prototype.initPropertyHandlers = function(){
 				return content;
 			},			
 			hook(){
+
+				containerNode.querySelector("#can_eject").addEventListener("change", function(){
+					_this.setMetaValue("mechNoEject", this.checked ? 0 : 1);
+					//_this.show();
+					_this._mainUIHandler.setModified();
+				});
+
 				containerNode.querySelector("#destroy_transform_mech_select").addEventListener("change", function(){
 					_this.setMetaValue("mechDestroyTransformInto", this.value);
 					//_this.show();

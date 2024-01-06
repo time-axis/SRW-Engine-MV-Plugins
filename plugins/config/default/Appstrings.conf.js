@@ -90,6 +90,7 @@ APPSTRINGS.MAPMENU = {
 	cmd_combine: "Combine",
 	cmd_split: "Separate",
 	cmd_transform: "Transform",
+	cmd_eject: "Eject",
 	cmd_swap_pilot: "Pilot",
 	cmd_attack: "Attack",
 	cmd_end_turn: "End Turn",
