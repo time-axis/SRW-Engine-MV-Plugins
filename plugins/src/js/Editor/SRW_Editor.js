@@ -343,7 +343,7 @@ SRWEditor.prototype.init = function(){
 		},
 		create_bg: {
 			hasTarget: true,
-			params: ["isPilotCutin", "path", "parent", "position", "size", "alpha", "billboardMode", "rotation", "frameSize", "lineCount", "columnCount", "animationLoop", "animationFrames", "animationDelay", "holdFrame", "scrollSpeed", "clamp", "uScale", "vScale", "uOffset", "vOffset"],//, "unlit"
+			params: ["isPilotCutin", "path", "parent", "position", "size", "alpha", "billboardMode", "rotation", "lineCount", "columnCount", "animationLoop", "animationFrames", "animationDelay", "holdFrame", "scrollSpeed", "clamp", "uScale", "vScale", "uOffset", "vOffset"],//, "unlit", "frameSize", 
 			aliases: {"animationLoop": "loopFromFrame", "animationFrames": "loopToFrame"},
 			desc: "Create a new background."
 		},
@@ -656,11 +656,11 @@ SRWEditor.prototype.init = function(){
 		}
 	};
 	
-	if(ENGINE_SETTINGS.BATTLE_SCENE.USE_RENDER_GROUPS){
+
 		_this._commandDisplayInfo["play_rmmv_anim"].params.push("isFront");
 		_this._commandDisplayInfo["create_bg"].params.push("isFront");
 		_this._commandDisplayInfo["create_movie_bg"].params.push("isFront");
-	}
+	
 		
 	
 	

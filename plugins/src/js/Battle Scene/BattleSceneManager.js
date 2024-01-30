@@ -354,13 +354,20 @@ BattleSceneManager.prototype.init = async function(attachControl){
 	}
 }
 
-BattleSceneManager.prototype.preloadTexture = async function(path){
-	const bitmap = await ImageManager.loadBitmapPromise("", path);
-	//populate the BABYLON cache by instantiating a texture
-	new BABYLON.Texture(bitmap.canvas.toDataURL(), this._scene, false, true, BABYLON.Texture.NEAREST_NEAREST);
-	this._activeTextureCache[path] = {
-		imgData: bitmap.canvas.toDataURL()
-	};
+//TODO: figure out the impact of the use of object urls on Babylon's caching here. 
+//It is possible the babylon cache is bypassed due to mismatching urls, if so verify if this is enough of a problem to try and fix.
+BattleSceneManager.prototype.preloadTexture = async function(path, context){
+	const _this = this;
+	const bitmap = await ImageManager.loadBitmapPromise("", path, true);
+	if(bitmap == -1){
+		alert("Failed to load image from path '" + path + "' "+(context ? " For "+context : "" + "") + "\n\nYou may need to reload the game to get the battlescene to load again after fixing the missing asset.");
+	} else {
+		let objURL = bitmap._image.src; //after loading an image through the manager with asBlob=true, the returned bitmap has an image with an Object URL src
+		new BABYLON.Texture(objURL, _this._scene, false, true, BABYLON.Texture.NEAREST_NEAREST);
+		_this._activeTextureCache[path] = {
+			imgData: objURL
+		};		
+	}	
 }
 
 BattleSceneManager.prototype.getCachedTexture = function(path){
@@ -382,6 +389,17 @@ BattleSceneManager.prototype.stopEffekContext = function(ctx){
 		ctx.stopAll();
 	}
 }
+
+BattleSceneManager.prototype.disposeTextureCache = function(){
+	if(this._activeTextureCache){
+		for(let cacheKey in this._activeTextureCache){
+			let objURL = this._activeTextureCache[cacheKey].imgData;
+			window.URL.revokeObjectURL(objURL);
+		}
+	}
+	this._activeTextureCache = {};
+}
+
 
 BattleSceneManager.prototype.dispose = function(){
 	function destroyCanvas(canvas){
@@ -412,7 +430,7 @@ BattleSceneManager.prototype.dispose = function(){
 	this.disposeMovieBackgrounds();
 	this.disposeRMMVBackgrounds();
 	this._animationList = [];
-	this._activeTextureCache = {};
+	this.disposeTextureCache();
 }
 
 BattleSceneManager.prototype.initEffekseerParticles = async function(){
@@ -1587,9 +1605,8 @@ BattleSceneManager.prototype.createPlanarSprite = function(name, path, position,
 	
 	material.specularColor = new BABYLON.Color3(0, 0, 0);
 	material.emissiveColor = new BABYLON.Color3(1, 1, 1);
-	//material.ambientColor = new BABYLON.Color3(0, 0, 0);
-	//material.diffuseColor = new BABYLON.Color3(1, 1, 1);
 	material.disableLighting = true;
+	
 	if(typeof alpha != "undefined"){
 		material.alpha = alpha;
 	}	
@@ -3137,7 +3154,7 @@ BattleSceneManager.prototype.executeAnimation = function(animation, startTick){
 		set_opacity_texture: function(target, params){
 			var targetObj = getTargetObject(target);
 			if(targetObj){
-				targetObj.material.opacityTexture = this.getCachedTexture("img/SRWBattleScene/opacityTextures/"+params.path+".png");
+				targetObj.material.opacityTexture = _this.getCachedTexture("img/SRWBattleScene/opacityTextures/"+params.path+".png");
 			}
 		},
 		clear_opacity_texture: function(target, params){
@@ -3162,7 +3179,7 @@ BattleSceneManager.prototype.executeAnimation = function(animation, startTick){
 				}	*/			
 				_this.applyMutator(targetObj, (mesh) => {
 					if(mesh.material){
-						mesh.material.emissiveColor = new BABYLON.Color3(params.r / 255, params.g / 255, params.b / 255);
+						mesh.material.emissiveColor = new BABYLON.Color3(params.r / 255, params.g / 255, params.b / 255); 
 					}
 				});
 			}
@@ -6012,7 +6029,7 @@ BattleSceneManager.prototype.resetScene = function() {
 	_this.disposeLights();
 	_this.disposeMovieBackgrounds();
 	_this.disposeRMMVBackgrounds();
-	_this._activeTextureCache = {};
+	_this.disposeTextureCache();
 	
 	_this._spriteManagers = {};
 	_this.setBgScrollRatio(1);
@@ -6143,7 +6160,7 @@ BattleSceneManager.prototype.createEnvironment = function(ref){
 				bgs.forEach(function(bg){
 					if(!bg.hidden){	
 						if(!bg.isfixed){
-							promises.push(_this.preloadTexture("img/SRWBattlebacks/"+bg.path+".png"));
+							promises.push(_this.preloadTexture("img/SRWBattlebacks/"+bg.path+".png", "Environment Creation"));
 						}
 					}						
 				});
@@ -6154,7 +6171,7 @@ BattleSceneManager.prototype.createEnvironment = function(ref){
 					if(!bg.hidden){		
 						if(bg.isfixed){			
 							_this._bgLayerInfo[bgId] = bg.path;
-							await _this.preloadTexture("img/SRWBattlebacks/"+bg.path+".png");
+							await _this.preloadTexture("img/SRWBattlebacks/"+bg.path+".png", "Environment Creation Fixed BG");
 						} else {
 							_this.createScrollingBg("bg"+ctr, bgId, bg.path, {width: bg.width, height: bg.height}, bg.yoffset, bg.zoffset, maxZOffset - bg.zoffset);
 						}	
@@ -6313,19 +6330,37 @@ BattleSceneManager.prototype.getPreloadedModel = function(target){
 	return obj;
 }
 
+BattleSceneManager.prototype.earlyPreloadSceneAssets = async function(){
+	var _this = this;
+	_this.resetScene();
+	await _this.readBattleCache();
+	_this.preloadSceneAssets();
+}
+
 BattleSceneManager.prototype.preloadSceneAssets = function(){
 	var _this = this;
 	_this._cachedBgs = {};
 	_this._bgLayerInfo = {};
-	return new Promise(function(resolve, reject){
+	
+	if(_this.isPreloading){
+		return this._preloadPromise;
+	}
+	
+	_this.isPreloading = true;
+	
+	this._preloadPromise = new Promise(function(resolve, reject){
 		var promises = [];
 		var dragonBonesResources = {};
 		
 		promises.push(_this.preloadTexture("img/SRWBattlebacks/shadow.png"));
 		
-		function handleAnimCommand(animCommand){
+		function handleAnimCommand(animCommand, animId, animType, tick){
 			var target = animCommand.target;
 			var params = animCommand.params;
+			
+		
+			const imgReportingContext = "preload of " + animCommand.type + " command \nin animation " + animId + "\nin sequence " + animType + "\non tick " + tick;
+			
 			
 			if(animCommand.type == "create_model"){				
 				promises.push(_this.createModel(
@@ -6352,7 +6387,7 @@ BattleSceneManager.prototype.preloadSceneAssets = function(){
 				//var bg = _this.createSceneBg(animCommand.target+"_preload", path, new BABYLON.Vector3(0,0,-1000), 1, 1, 0);
 				//promises.push(_this.getBgPromise(bg));
 				//_this._animationBackgroundsInfo.push(bg);
-				promises.push(_this.preloadTexture("img/SRWBattleScene/"+path+".png"));
+				promises.push(_this.preloadTexture("img/SRWBattleScene/"+path+".png", imgReportingContext));
 			}	
 			if(animCommand.type == "create_movie_bg"){
 				var r = new XMLHttpRequest();			
@@ -6382,15 +6417,15 @@ BattleSceneManager.prototype.preloadSceneAssets = function(){
 							params.name = "main";
 						}
 						
-						promises.push(_this.preloadTexture("img/SRWBattleScene/"+imgPath+"/"+params.name+".png"));
+						promises.push(_this.preloadTexture("img/SRWBattleScene/"+imgPath+"/"+params.name+".png", imgReportingContext));
 					}	
 				}	
 			}
 			if(animCommand.type == "create_sky_box"){				
-				this.preloadTexture("img/skyboxes/"+params.path);
+				this.preloadTexture("img/skyboxes/"+params.path+".png", imgReportingContext);
 			}	
 			if(animCommand.type == "create_layer"){			
-				promises.push(this.preloadTexture("img/SRWBattleScene/"+params.path+".png"));													
+				promises.push(this.preloadTexture("img/SRWBattleScene/"+params.path+".png", imgReportingContext));													
 			}	
 			if(animCommand.type == "create_spriter_bg"){
 				var bgInfo = _this.createSpriterSprite(animCommand.target+"_preload", "spriter/"+params.path+"/",  new BABYLON.Vector3(0, 0, -1000));
@@ -6402,7 +6437,7 @@ BattleSceneManager.prototype.preloadSceneAssets = function(){
 				dragonBonesResources["img/SRWBattleScene/dragonbones/"+params.path+"/tex.png"] = true;	
 			}
 			if(animCommand.type == "set_opacity_texture"){
-				this.preloadTexture("img/SRWBattleScene/opacityTextures/"+params.path);
+				_this.preloadTexture("img/SRWBattleScene/opacityTextures/"+params.path+".png", imgReportingContext);
 			}
 			if(animCommand.type == "play_rmmv_anim"){
 				_this.createRMMVAnimationSprite(target+"_preload", params.animId, new BABYLON.Vector3(0, 0, -1000), {width: 0, height: 0}, true, false, true, true, 0);
@@ -6472,7 +6507,7 @@ BattleSceneManager.prototype.preloadSceneAssets = function(){
 						} else {
 							var imgPath = $statCalc.getBattleSceneImage(ref);
 							defaultFrames.forEach(function(frame){
-								promises.push(_this.preloadTexture("img/SRWBattleScene/"+imgPath+"/"+frame+".png"));												
+								promises.push(_this.preloadTexture("img/SRWBattleScene/"+imgPath+"/"+frame+".png", "Preload of mech asset for mech " + ref.SRWStats.mech.id));												
 							});
 						}					
 					}
@@ -6502,12 +6537,13 @@ BattleSceneManager.prototype.preloadSceneAssets = function(){
 					throw("Animation "+animId+" does not have a definition!");
 				}
 				Object.keys(animationList).forEach(function(animType){
-					animationList[animType].forEach(function(batch){
+					Object.keys(animationList[animType]).forEach(function(tick){
+						const batch = animationList[animType][tick];
 						batch.forEach(function(animCommand){
-							handleAnimCommand(animCommand)	
+							handleAnimCommand(animCommand, animId, animType, tick);
 							if(animCommand.type == "next_phase"){
 								for(let command of animCommand.params.commands){
-									handleAnimCommand(command);	
+									handleAnimCommand(command, animId, animType, tick);	
 								}
 							}	
 						});
@@ -6524,23 +6560,27 @@ BattleSceneManager.prototype.preloadSceneAssets = function(){
 		var animationList = _this._animationBuilder.buildAnimation(animId, _this);
 		
 		Object.keys(animationList).forEach(function(animType){
-			animationList[animType].forEach(function(batch){
+			Object.keys(animationList[animType]).forEach(function(tick){
+				const batch = animationList[animType][tick];
 				batch.forEach(function(animCommand){
-					handleAnimCommand(animCommand);	
+					handleAnimCommand(animCommand, animId, animType, tick);
 					if(animCommand.type == "next_phase"){
 						for(let command of animCommand.params.commands){
-							handleAnimCommand(command);	
+							handleAnimCommand(command, animId, animType, tick);	
 						}
-					}
+					}	
 				});
 			});				
-		});
+		});	
 		
 		
 		Promise.all(promises).then(() => {
+			_this.isPreloading = false;
 			resolve();
 		});	
 	});
+	
+	return this._preloadPromise;
 }
 
 BattleSceneManager.prototype.showScene = async function() {
@@ -6817,7 +6857,7 @@ BattleSceneManager.prototype.endScene = function(force) {
 			_this.disposeMovieBackgrounds();
 			_this.disposeRMMVBackgrounds();
 			_this._animationList = [];
-			_this._activeTextureCache = {};
+			_this.disposeTextureCache();
 			_this._UIcontainer.style.display = "";
 			_this._PIXIContainer.style.display = "";	
 			_this.stopScene();
@@ -6844,7 +6884,7 @@ BattleSceneManager.prototype.endScene = function(force) {
 			_this.disposeRMMVBackgrounds();
 			_this.disposeMovieBackgrounds();
 			_this._animationList = [];
-			_this._activeTextureCache = {};
+			_this.disposeTextureCache();
 			_this._UIcontainer.style.display = "";
 			_this._PIXIContainer.style.display = "";	
 			_this.stopScene();
@@ -6853,7 +6893,7 @@ BattleSceneManager.prototype.endScene = function(force) {
 				sanityCheck = false;
 				$gameSystem.setSubBattlePhase('after_battle');
 				if(!$gameTemp.editMode){
-					//SceneManager.resume();
+					SceneManager.resume();
 				}			
 			});			
 		});
@@ -6915,7 +6955,7 @@ BattleSceneManager.prototype.processActionQueue = function() {
 					_this.systemFadeFromBlack(1000).then(function(){
 						$gameSystem.setSubBattlePhase('after_battle');
 						if(!$gameTemp.editMode){
-							//SceneManager.resume();
+							SceneManager.resume();
 						}
 					});			
 				});		
@@ -7306,7 +7346,7 @@ BattleSceneManager.prototype.playBattleScene = async function(){
 	//_this.stopScene();
 	var promises = [];
 	
-	_this.systemFadeToBlack(200, 1000).then(async function(){		
+	_this.systemFadeToBlack(200, 200).then(async function(){		
 		
 		
 		$gameTemp.popMenu = true;//remove before battle menu

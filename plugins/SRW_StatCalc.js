@@ -1389,6 +1389,7 @@ StatCalc.prototype.createEmptyActor = function(level){
 	result.isEmpty = true;
 	result.SRWInitialized = true;
 	_this.resetStageTemp(result);
+	_this.resetBattleTemp(result);
 	_this.resetSpiritsAndEffects(result);	
 	
 	return result;
@@ -2013,7 +2014,7 @@ StatCalc.prototype.getMechData = function(mech, forActor, items, previousWeapons
 		result.abilities = this.getMechAbilityInfo(mechProperties);
 		result.itemSlots = parseInt(mechProperties.mechItemSlots);		
 		
-		result.noEquips = !!(mechProperties.mechNoEquips || 0);
+		result.noEquips = !!(mechProperties.mechNoEquips * 1 || 0);
 			
 		if(forActor){
 			if(result.inheritsUpgradesFrom){
@@ -2757,12 +2758,55 @@ StatCalc.prototype.split = function(actor){
 		calculatedStats.currentHP = Math.round(combinedHPRatio * calculatedStats.maxHP);
 		calculatedStats.currentEN = Math.round(combinedENRatio * calculatedStats.maxEN);*/
 		var combinesFrom = actor.SRWStats.mech.combinesFrom;
+		if(!combineInfo || !combineInfo.participants){
+			let tmp = [];
+			let assignedPrimaryEvent = false;
+			for(let mechId of combinesFrom){
+				let newActor = this.getCurrentPilot(mechId, true, false, true);
+				//hacky solution to let a precombined unit split 
+				//this resolves the issue where for the main pilot of the combined unit the current mech is set to the combined unit and not to the split part Unit
+				//note that this will cause issues if other pilots in the split also do not have a mech id set!
+				if(!newActor){
+					newActor = actor;
+				}
+				if(newActor){
+					if(!assignedPrimaryEvent && newActor.actorId() == actor.actorId()){
+						assignedPrimaryEvent = true;
+						newActor.event = actor.event;
+						newActor.positionBeforeCombine = {
+							x: actor.event.posX(),
+							y: actor.event.posY()
+						}
+					}
+					
+					
+					if(!newActor.reversalInfo){
+						newActor.reversalInfo = {};
+					}
+					newActor.reversalInfo[startFromMechId] = mechId;
+					tmp.push(newActor.actorId());
+				}
+			}
+			combineInfo = {
+				participants: tmp
+			};
+			if(!assignedPrimaryEvent && tmp.length){
+				const primaryActor = tmp[0];
+				primaryActor.event = actor.event;
+				primaryActor.positionBeforeCombine = {
+					x: actor.event.posX(),
+					y: actor.event.posY()
+				}
+			}
+		}
 
 		for(var i = 0; i < combineInfo.participants.length; i++){
 			var actor;
 			actor = $gameActors.actor(combineInfo.participants[i]);	
 			if(actor && actor.reversalInfo[startFromMechId]){	
-				
+				if(!this.isActorSRWInitialized(actor)){
+					this.initSRWStats(actor);
+				}
 				var actionsResult = this.applyDeployActions(combineInfo.participants[i], actor.reversalInfo[startFromMechId]);
 				if(!actionsResult){//if no deploy actions are assigned to main split target
 					actor.SRWStats.mech = this.getMechDataById(actor.reversalInfo[startFromMechId], true);
@@ -3706,6 +3750,14 @@ StatCalc.prototype.getCurrentWeapons = function(actor){
 			}			
 		}
 		
+		let addedWeaponMods =  $statCalc.getModDefinitions(actor, ["add_weapon"]);
+		for(let mod of addedWeaponMods){			
+			var weaponDefinition = $dataWeapons[mod.value];
+			var weaponProperties = weaponDefinition.meta;
+			let wep = this.parseWeaponDef(actor, false, weaponDefinition, weaponProperties);
+			tmp.push(wep);
+		}
+		
 		tmp = tmp.sort(function(a, b){
 			return a.power - b.power;
 		});
@@ -3785,6 +3837,7 @@ StatCalc.prototype.getWeaponPower = function(actor, weapon){
 StatCalc.prototype.enableWeaponAbilityResolution = function(actor, weapon){
 	//hacky method to get weapon abilities resolved while not before battle(like in the attack list)
 	//set the currentAttack on the attacker
+	
 	const storedBattleTemp = actor.SRWStats.battleTemp.currentAttack;
 	const storedBattleTarget = $gameTemp.currentBattleTarget;	
 	
@@ -3923,12 +3976,12 @@ StatCalc.prototype.getMechTerrain = function(actor, terrain){
 	}
 }
 
-StatCalc.prototype.getCurrentPilot = function(mechId, includeUndeployed, includeEnemies){
+StatCalc.prototype.getCurrentPilot = function(mechId, includeUndeployed, includeEnemies, includeSubPilots){
 	var result;
 	if(includeUndeployed){
 		for(var i = 0; i < $dataActors.length; i++){
 			var actor = $gameActors.actor(i);
-			if(actor && actor._name && actor._classId == mechId && !actor.isSubPilot){
+			if(actor && actor._name && actor._classId == mechId && (includeSubPilots || !actor.isSubPilot)){
 				result = $gameActors.actor(i);
 			}
 		}
