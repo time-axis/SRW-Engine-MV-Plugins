@@ -256,7 +256,6 @@
 	position: absolute;
 	left: 0;
 	top: 0;
-	transform: scaleX(-1);
 }
 
 .participant_block .main_row .main_content .pilot_name{
@@ -751,7 +750,6 @@
 	--heightpixels: 40;
 	--widthpixels: 40;
 	background-color: rgba(85, 164, 255, 0.5);
-	transform: scaleX(-1);
 	flex-shrink: 0;
 }
 
