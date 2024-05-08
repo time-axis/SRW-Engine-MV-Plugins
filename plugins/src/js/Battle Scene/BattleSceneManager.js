@@ -285,13 +285,19 @@ BattleSceneManager.prototype.initContainer = async function(){
 	this._PIXIContainer.id = "battle_scene_pixi_layer";	
 	document.body.appendChild(this._PIXIContainer);
 	
-	let bitmap = await ImageManager.loadBitmapPromise("", "img/SRWBattleScene/battleFade.png");	
-	this._swipeImage.setAttribute("src", bitmap.canvas.toDataURL());
+	
 }
 
-BattleSceneManager.prototype.init = async function(attachControl){
+BattleSceneManager.prototype.loadStaticImages = async function(){
+	let bitmap = await ImageManager.loadBitmapPromise("", "img/SRWBattleScene/battleFade.png");	
+	this._swipeImage.setAttribute("src", bitmap.canvas.toDataURL());
+	
+}
+
+BattleSceneManager.prototype.init = function(attachControl){
 	var _this = this;
-	if(!this._initialized){
+	if(!this._initialized){		
+		this.loadStaticImages();
 		this._initialized = true;
 		BABYLON.RenderingManager.MAX_RENDERINGGROUPS = 8;
 		this._UILayerManager = new BattleSceneUILayer("battle_scene_ui_layer");	
@@ -351,14 +357,23 @@ BattleSceneManager.prototype.init = async function(attachControl){
 		
 		this._UILayerManager.redraw();
 		//await _this.initEffekseerParticles();
+		
+		
 	}
+}
+
+//to be called by external components that load images in the scope of the battle scene so the battle scene can clear the object urls after the scene finishes
+BattleSceneManager.prototype.appendTextureCache = function(path, objURL){
+	this._activeTextureCache[path] = {
+		imgData: objURL
+	};	
 }
 
 //TODO: figure out the impact of the use of object urls on Babylon's caching here. 
 //It is possible the babylon cache is bypassed due to mismatching urls, if so verify if this is enough of a problem to try and fix.
 BattleSceneManager.prototype.preloadTexture = async function(path, context){
 	const _this = this;
-	const bitmap = await ImageManager.loadBitmapPromise("", path, true);
+	const bitmap = await ImageManager.loadBitmapPromise("", path, true, null, null, true);
 	if(bitmap == -1){
 		alert("Failed to load image from path '" + path + "' "+(context ? " For "+context : "" + "") + "\n\nYou may need to reload the game to get the battlescene to load again after fixing the missing asset.");
 	} else {
@@ -372,14 +387,14 @@ BattleSceneManager.prototype.preloadTexture = async function(path, context){
 
 BattleSceneManager.prototype.getCachedTexture = function(path){
 	if(!this._activeTextureCache[path]){
-		throw "An uncached texture was requested, is preloading broken?";
+		throw "An uncached texture was requested("+path+"), is preloading broken?";
 	}
 	return new BABYLON.Texture(this.getCachedImageData(path), this._scene, false, true, BABYLON.Texture.NEAREST_NEAREST);
 }
 
 BattleSceneManager.prototype.getCachedImageData = function(path){
 	if(!this._activeTextureCache[path]){
-		throw "An uncached texture was requested, is preloading broken?";
+		throw "An uncached texture was requested("+path+"), is preloading broken?";
 	}
 	return this._activeTextureCache[path].imgData;
 }
@@ -1172,6 +1187,12 @@ BattleSceneManager.prototype.updateMainSprite = async function(type, name, sprit
 			if(animInfo){
 				animInfo.start(false, 1.0, animInfo.from, animInfo.to, false);
 			}
+			
+			if(spriteConfig.defaultAttachments){
+				for(let defaultAttachment of spriteConfig.defaultAttachments){
+					_this.showAttachment(spriteInfo.sprite, defaultAttachment);
+				}
+			}
 		} 	
 		
 		pivothelper.position.y+=pivotYOffset;
@@ -1747,7 +1768,11 @@ BattleSceneManager.prototype.hookBeforeRender = function(){
 				shadowSprite.scaling.y = scale;
 				shadowSprite.scaling.z = scale;
 				shadowSprite.setEnabled(spriteInfo.sprite.isEnabled());
-				shadowSprite.visibility = spriteInfo.sprite.visibility;
+				
+				if(shadowSprite.animatedVisiblity){
+					shadowSprite.visibility = spriteInfo.sprite.visibility * shadowSprite.animatedVisiblity;
+				}
+				
 			}
 			
 			/*if(spriteInfo.sprite.isEnabled()){
@@ -2200,11 +2225,13 @@ BattleSceneManager.prototype.hookBeforeRender = function(){
 					
 					_this.applyMutator(targetObj, (mesh) => {
 						mesh.visibility = interpVector.x;
+						mesh.animatedVisiblity = interpVector.x;				
 					});
 					
 				} else {					
 					_this.applyMutator(targetObj, (mesh) => {
 						mesh.visibility = animation.endFade * 1;
+						mesh.animatedVisiblity = animation.endFade * 1;
 					});
 					delete _this._fadeAnimations[animationId];
 				}
@@ -3539,6 +3566,25 @@ BattleSceneManager.prototype.executeAnimation = function(animation, startTick){
 			if(targetObj){
 				_this.registerFadeAnimation(targetObj, params.startFade, params.endFade, startTick, params.duration, params.easingFunction, params.easingMode);
 			}
+		},	
+		fade_in_shadows: function(target, params){
+			var targetObj = getTargetObject(target);
+			
+			let targets = [
+				_this._actorShadow,
+				_this._actorTwinShadow,
+				_this._enemyShadow,
+				_this._enemyTwinShadow,
+				_this._actorSupporterShadow,
+				_this._actorTwinSupporterShadow,
+				_this._enemySupporterShadow,
+				_this._enemyTwinSupporterShadow
+			];
+			for(let target of targets){
+				if(target){
+					_this.registerFadeAnimation(target, params.startFade, params.endFade, startTick, params.duration, params.easingFunction, params.easingMode);
+				}
+			}			
 		},		
 		fade_swipe: function(target, params){
 			var swipeTime = params.time;
@@ -4793,33 +4839,7 @@ BattleSceneManager.prototype.executeAnimation = function(animation, startTick){
 					m.isVisible = true;
 				}
 			});*/		
-			let stack = [];
-			stack.push(targetObj);
-			let attNodes = [];
-			while(stack.length){
-				let current = stack.shift();
-				if(current.id.indexOf(params.attachId) == 0){
-					attNodes.push(current);
-				}
-				
-				let children = current.getChildren();
-				
-				let materialLeaves = {};
-				for(let child of children){		
-					stack.push(child);		
-				}
-			}
-			
-			stack = attNodes;
-			while(stack.length){
-				let current = stack.shift();
-				current.isVisible = true;
-				let children = current.getChildren();
-				for(let child of children){		
-					stack.push(child);		
-				}
-			}
-				
+			_this.showAttachment(targetObj, params.attachId);				
 		},
 		hide_attachment: function(target, params){
 			const targetObj = getTargetObject(target);		
@@ -5126,7 +5146,7 @@ BattleSceneManager.prototype.executeAnimation = function(animation, startTick){
 			});
 			
 			var animId = $statCalc.getBattleSceneInfo(action.ref).deathAnimId;
-			if(animId == null){
+			if(animId == null || animId == ''){
 				animId = ENGINE_SETTINGS.BATTLE_SCENE.DEFAULT_ANIM.DESTROY;
 			}
 			var animData = _this._animationBuilder.buildAnimation(animId, _this).mainAnimation;
@@ -5387,9 +5407,40 @@ BattleSceneManager.prototype.getTargetAction = function(target){
 	return this._currentAnimatedAction.attacked_all_sub;
 }
 
+BattleSceneManager.prototype.showAttachment = function(targetObj, attachId){
+	let stack = [];
+	stack.push(targetObj);
+	let attNodes = [];
+	while(stack.length){
+		let current = stack.shift();
+		if(current.id.indexOf(attachId) == 0){
+			attNodes.push(current);
+		}
+		
+		let children = current.getChildren();
+		
+		let materialLeaves = {};
+		for(let child of children){		
+			stack.push(child);		
+		}
+	}
+
+	stack = attNodes;
+	while(stack.length){
+		let current = stack.shift();
+		current.isVisible = true;
+		let children = current.getChildren();
+		for(let child of children){		
+			stack.push(child);		
+		}
+	}
+}
+
+
 BattleSceneManager.prototype.startAnimation = function(){
 	
 	var _this = this;
+	
 	_this._runningAnimation	= true;
 	_this._lastAnimationTickTime = new Date().getTime();
 	_this._animationStartTickTime = _this._lastAnimationTickTime;
@@ -5523,7 +5574,7 @@ BattleSceneManager.prototype.playAttackAnimation = function(cacheRef, attackDef)
 		if(attackDef.onHitOverwrite){
 			overwriteAnimList(attackDef.onHitOverwrite);
 		}
-		if(cacheRef.attacked && cacheRef.attacked.isDestroyed && cacheRef.attacked.destroyer == cacheRef.ref){
+		if(cacheRef.attacked && cacheRef.attacked.isDestroyed && cacheRef.attacked.destroyer == cacheRef.ref && cacheRef.attacked.destroyedOrderIdx == cacheRef.actionOrder){
 			_this.mergeAnimList(attackDef.onDestroy);
 			if(attackDef.onDestroyOverwrite){
 				overwriteAnimList(attackDef.onDestroyOverwrite);
@@ -5650,6 +5701,14 @@ BattleSceneManager.prototype.readBattleCache = async function() {
 	_this._participantInfo.enemy_twin.participating = false;
 	_this._participantInfo.enemy_supporter.participating = false;
 	_this._participantInfo.enemy_twin_supporter.participating = false;
+	
+	_this._actorSupporterSprite = null;
+	_this._enemySupporterSprite = null;
+	_this._actorTwinSprite = null;
+	_this._actorTwinSupporterSprite = null;
+	_this._enemyTwinSprite = null;
+	_this._enemyTwinSupporterSprite = null;
+	
 	const keys = Object.keys($gameTemp.battleEffectCache);
 	for(let i = 0; i < keys.length; i++){
 		const cacheRef = keys[i];
@@ -5701,6 +5760,7 @@ BattleSceneManager.prototype.readBattleCache = async function() {
 		spriteInfo.canvasDims = battleSceneInfo.canvasDims;
 		spriteInfo.armatureName = battleSceneInfo.armatureName;
 		spriteInfo.BBHack = battleSceneInfo.BBHack;
+		spriteInfo.defaultAttachments = battleSceneInfo.defaultAttachments;
 		if(battleEffect.side == "actor"){
 			if(battleEffect.type == "initiator" || battleEffect.type == "defender"){
 				 
@@ -6287,30 +6347,46 @@ BattleSceneManager.prototype.preloadEffekseerParticles = async function(){
 				});				
 			});	
 			
-			
-			var animId = $statCalc.getBattleSceneInfo(nextAction.action.ref).deathAnimId;
-			if(animId == null){
-				animId = ENGINE_SETTINGS.BATTLE_SCENE.DEFAULT_ANIM.DESTROY;
+			let animIdsToPreload = {};
+			if(nextAction.isDestroyed){
+				var animId = $statCalc.getBattleSceneInfo(nextAction.action.ref).deathAnimId;
+				if(animId == null || animId == ''){
+					animId = ENGINE_SETTINGS.BATTLE_SCENE.DEFAULT_ANIM.DESTROY;
+				}
+				animIdsToPreload[animId] = true;
 			}
-			var animationList = _this._animationBuilder.buildAnimation(animId, _this);
 			
-			Object.keys(animationList).forEach(function(animType){
-				animationList[animType].forEach(function(batch){
-					batch.forEach(function(animCommand){
-						var params = animCommand.params;
-						if(animCommand.type == "play_effekseer"){
-							
-							promises.push(new Promise(function(resolve, reject){
-								_this._effksContext.loadEffect("effekseer/"+params.path+".efk", 1.0, resolve);	
-								_this._effksContextMirror.loadEffect("effekseer/"+params.path+".efk", 1.0, resolve);	
-								_this._effksContextBg.loadEffect("effekseer/"+params.path+".efk", 1.0, resolve);	
-								_this._effksContextBgMirror.loadEffect("effekseer/"+params.path+".efk", 1.0, resolve);	
-								_this._effksContextAttached.loadEffect("effekseer/"+params.path+".efk", 1.0, resolve);	
-							}));
-						}								
-					});
-				});				
-			});	
+			
+			if(nextAction.attacked && nextAction.attacked.isDestroyed){
+				var animId = $statCalc.getBattleSceneInfo(nextAction.attacked.ref).deathAnimId;
+				if(animId == null || animId == ''){
+					animId = ENGINE_SETTINGS.BATTLE_SCENE.DEFAULT_ANIM.DESTROY;
+				}
+				animIdsToPreload[animId] = true;
+			}	
+			
+			for(let animId in animIdsToPreload){
+				var animationList = _this._animationBuilder.buildAnimation(animId, _this);
+			
+				Object.keys(animationList).forEach(function(animType){
+					animationList[animType].forEach(function(batch){
+						batch.forEach(function(animCommand){
+							var params = animCommand.params;
+							if(animCommand.type == "play_effekseer"){
+								
+								promises.push(new Promise(function(resolve, reject){
+									_this._effksContext.loadEffect("effekseer/"+params.path+".efk", 1.0, resolve);	
+									_this._effksContextMirror.loadEffect("effekseer/"+params.path+".efk", 1.0, resolve);	
+									_this._effksContextBg.loadEffect("effekseer/"+params.path+".efk", 1.0, resolve);	
+									_this._effksContextBgMirror.loadEffect("effekseer/"+params.path+".efk", 1.0, resolve);	
+									_this._effksContextAttached.loadEffect("effekseer/"+params.path+".efk", 1.0, resolve);	
+								}));
+							}								
+						});
+					});				
+				});	
+			}
+			
 			
 			await Promise.all(promises);	
 		}	
@@ -6475,12 +6551,15 @@ BattleSceneManager.prototype.preloadSceneAssets = function(){
 			if(nextAction){			
 				var attack = nextAction.action.attack;
 				
+				const animIdsToPreload = {};
+				
 				var animId;
 				if(attack && typeof attack.animId != "undefined" && attack.animId != -1){
 					animId = attack.animId;
 				} else {
 					animId = _this.getDefaultAnim(attack);//default
 				}
+				animIdsToPreload[animId] = true;
 				var preloadCtr = 0;
 				function preloadDefaultFrames(ref){
 					var defaultFrames = ["main", "in", "out", "hurt", "dodge", "block"];
@@ -6514,12 +6593,19 @@ BattleSceneManager.prototype.preloadSceneAssets = function(){
 				}
 				
 				preloadDefaultFrames(nextAction.ref);
+				if(nextAction.ref.subTwin){
+					preloadDefaultFrames(nextAction.ref.subTwin);
+				}
 				if(nextAction.originalTarget){
 					preloadDefaultFrames(nextAction.originalTarget.ref);
 				}
 				if(nextAction.attacked){
 					preloadDefaultFrames(nextAction.attacked.ref);
+					if(nextAction.attacked.ref.subTwin){
+						preloadDefaultFrames(nextAction.attacked.ref.subTwin);
+					}
 				}
+				
 				
 
 			
@@ -6531,48 +6617,50 @@ BattleSceneManager.prototype.preloadSceneAssets = function(){
 					promises.push(_this.createEnvironment(nextAction.attacked.ref));
 				}
 				
-				var animationList = _this._animationBuilder.buildAnimation(animId, _this);
-				if(!animationList){
-					alert("Animation "+animId+" does not have a definition!");
-					throw("Animation "+animId+" does not have a definition!");
+				if(nextAction.isDestroyed){
+					var animId = $statCalc.getBattleSceneInfo(nextAction.action.ref).deathAnimId;
+					if(animId == null || animId == ''){
+						animId = ENGINE_SETTINGS.BATTLE_SCENE.DEFAULT_ANIM.DESTROY;
+					}
+					animIdsToPreload[animId] = true;
 				}
-				Object.keys(animationList).forEach(function(animType){
-					Object.keys(animationList[animType]).forEach(function(tick){
-						const batch = animationList[animType][tick];
-						batch.forEach(function(animCommand){
-							handleAnimCommand(animCommand, animId, animType, tick);
-							if(animCommand.type == "next_phase"){
-								for(let command of animCommand.params.commands){
-									handleAnimCommand(command, animId, animType, tick);	
-								}
-							}	
-						});
-					});				
-				});		
-			}	
-		}	
-		promises.push(DragonBonesManager.load(Object.keys(dragonBonesResources)));
-		
-		var animId = $statCalc.getBattleSceneInfo(nextAction.action.ref).deathAnimId;
-		if(animId == null){
-			animId = ENGINE_SETTINGS.BATTLE_SCENE.DEFAULT_ANIM.DESTROY;
+				
+				
+				if(nextAction.attacked && nextAction.attacked.isDestroyed){
+					var animId = $statCalc.getBattleSceneInfo(nextAction.attacked.ref).deathAnimId;
+					if(animId == null || animId == ''){
+						animId = ENGINE_SETTINGS.BATTLE_SCENE.DEFAULT_ANIM.DESTROY;
+					}
+					animIdsToPreload[animId] = true;
+				}			
+				
+				
+				for(let animId in animIdsToPreload){
+					var animationList = _this._animationBuilder.buildAnimation(animId, _this);
+					if(!animationList){
+						alert("Animation "+animId+" does not have a definition!");
+						throw("Animation "+animId+" does not have a definition!");
+					}
+					Object.keys(animationList).forEach(function(animType){
+						Object.keys(animationList[animType]).forEach(function(tick){
+							const batch = animationList[animType][tick];
+							batch.forEach(function(animCommand){
+								handleAnimCommand(animCommand, animId, animType, tick);
+								if(animCommand.type == "next_phase"){
+									for(let command of animCommand.params.commands){
+										handleAnimCommand(command, animId, animType, tick);	
+									}
+								}	
+							});
+						});				
+					});	
+				}
+				
+					
+			}	 
+			
+			promises.push(DragonBonesManager.load(Object.keys(dragonBonesResources)));
 		}
-		var animationList = _this._animationBuilder.buildAnimation(animId, _this);
-		
-		Object.keys(animationList).forEach(function(animType){
-			Object.keys(animationList[animType]).forEach(function(tick){
-				const batch = animationList[animType][tick];
-				batch.forEach(function(animCommand){
-					handleAnimCommand(animCommand, animId, animType, tick);
-					if(animCommand.type == "next_phase"){
-						for(let command of animCommand.params.commands){
-							handleAnimCommand(command, animId, animType, tick);	
-						}
-					}	
-				});
-			});				
-		});	
-		
 		
 		Promise.all(promises).then(() => {
 			_this.isPreloading = false;
@@ -6715,6 +6803,7 @@ BattleSceneManager.prototype.setUpActionSceneState = function(action) {
 		_this._bgsHidden = false;
 		_this.setBgMode($statCalc.isBattleShadowHiddenOnCurrentTerrain(action.ref) ? "sky" : "land");
 		_this._actorSprite.sprite.visibility = 1;
+		
 		if(_this._actorSprite.sprite.material){
 			_this._actorSprite.sprite.material.diffuseTexture.uScale = 1;
 			_this._actorSprite.sprite.material.diffuseTexture.vScale = 1;
@@ -6735,7 +6824,7 @@ BattleSceneManager.prototype.setUpActionSceneState = function(action) {
 		_this._actorSupporterSprite.sprite.visibility = 1;
 		if(_this._actorSupporterSprite.sprite.material){
 			_this._actorSupporterSprite.sprite.material.diffuseTexture.uScale = 1;
-			_this._actorSupporterSprite.sprite.material.diffuseTexture.vScale = 1;
+			_this._actorSupporterSprite.sprite.material.diffuseTexture.vScale = 1;  
 		}
 		_this._actorTwinSupporterSprite.sprite.visibility = 1;
 		if(_this._actorTwinSupporterSprite.sprite.material){
@@ -6972,6 +7061,7 @@ BattleSceneManager.prototype.processActionQueue = function() {
 		if(nextAction && nextAction.action.type != "defend" && nextAction.action.type != "evade" && nextAction.action.type != "none"){
 			_this._UILayerManager.resetTextBox();
 			_this._UILayerManager.hideNoise();
+			_this._battleTextManager.clearAttackGroupId();
 			
 			_this.doingFadeTransition = false;
 			var direction;

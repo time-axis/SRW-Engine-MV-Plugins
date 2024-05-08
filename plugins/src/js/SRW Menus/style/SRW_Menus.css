@@ -43,6 +43,16 @@ body {
 	width: 100%;
 }
 
+.face_pic_container canvas{
+	width: 100%;
+	/*image-rendering: pixelated; image-rendering: crisp-edges;*/
+}
+
+.mech_pic_container canvas{
+	width: 100%;
+	/*image-rendering: pixelated; image-rendering: crisp-edges;*/
+}
+
 #custom_UI_positioning {
 	position: relative;
 	width: 100%;
@@ -306,7 +316,7 @@ to {background-position: -182px -95px;}
 
 #detail_list_icon_pilot {
 	width: 5%;
-	margin-left: 1%;
+	margin-left: 8%;
 }
 
 .actor_name {
@@ -352,8 +362,8 @@ to {background-position: -182px -95px;}
 .detail_bar_upgrades .upgrade_block {
 	border-bottom: 0.1vw solid var(--underline-color);
 	position: absolute;	
-	width: 18px;
-	height: 2.5px;
+	--widthscaling: 18px;
+	--heightscaling: 2.5px;
 	display: flex;
 	align-items: flex-end;
 }
@@ -449,7 +459,7 @@ to {background-position: -182px -95px;}
 }
 
 .chevron_right {
-	width: 1.5px;
+	--widthscaling: 1.5px;
     margin-top: 0.5%;
 	margin-left: 5%;
 }
@@ -523,4 +533,17 @@ to {background-position: -182px -95px;}
 	align-items: center;
 	padding-left: 2%;
 	padding-right: 2%;
+}
+
+.img_wrapper {
+	
+}
+
+.img_wrapper canvas{
+	width: 100%;
+	image-rendering: pixelated; image-rendering: crisp-edges;
+}
+
+.unique_skill_mark {
+	--widthscaling: 1px;
 }

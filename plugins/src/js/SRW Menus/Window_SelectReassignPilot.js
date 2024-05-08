@@ -260,10 +260,12 @@ Window_SelectReassignPilot.prototype.update = function() {
 				
 				if(this.getCurrentSelection().mech.forcePilots){
 					$statCalc.applyDeployActions(this.getCurrentSelection().actor.actorId(), mechId, true);
+					$statCalc.initSRWStats(this.getCurrentSelection().actor);
 				} else {
 					$statCalc.unbindLinkedDeploySlots(this.getCurrentSelection().actor.actorId(), mechId, target.type, $gameTemp.reassignTargetMech.slot);
 				}			
-				$gameSystem.updateAvailableUnits(false, true);
+				
+				//$gameSystem.updateAvailableUnits(false, true);
 			} else {
 				SoundManager.playBuzzer();
 			}
@@ -288,6 +290,6 @@ Window_SelectReassignPilot.prototype.redraw = function() {
 	
 	this._detailBarMech.show();
 	
-
+	this.loadImages();
 	Graphics._updateCanvas();
 }

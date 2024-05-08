@@ -170,6 +170,15 @@ MechUI.prototype.initPropertyHandlers = function(){
 				content+="</div>";
 				content+="</div>";
 				
+				content+="<div class='row'>";
+				content+="<div class='cell'>";
+				content+=EDITORSTRINGS.MECH.label_fub_transform;
+				content+="</div>";
+				content+="<div class='cell'>";
+				content+=_this.createMechSelect("fub_transform", "", _this.getMetaValue("mechFUBTransform"));
+				content+="</div>";
+				content+="</div>";
+				
 				return content;
 			},
 			hook(entry){
@@ -186,6 +195,11 @@ MechUI.prototype.initPropertyHandlers = function(){
 				});
 				containerNode.querySelector("#sync_upgrades_with").addEventListener("change", function(){
 					_this.setMetaValue("mechInheritsUpgradesFrom", this.value);
+					_this.show();
+					_this._mainUIHandler.setModified();
+				});
+				containerNode.querySelector("#fub_transform").addEventListener("change", function(){
+					_this.setMetaValue("mechFUBTransform", this.value);
 					_this.show();
 					_this._mainUIHandler.setModified();
 				});
@@ -1654,6 +1668,11 @@ MechUI.prototype.initPropertyHandlers = function(){
 				content+="<div title='"+EDITORSTRINGS.MECH.hint_world_size+"' class='row'>";
 				content+=_this.createValueInput("mechBattleReferenceSize", EDITORSTRINGS.MECH.label_world_size, "", EDITORSTRINGS.MECH.label_world_units);
 				content+="</div>";
+				
+				content+="<div title='' class='row'>";
+				content+=_this.createValueInput("mechBattleSceneDefaultAttachments", EDITORSTRINGS.MECH.label_default_attachments, "", "");
+				content+="</div>";
+				
 				content+="<div title='' class='row'>";
 				content+="<div class='cell'>";
 				content+=EDITORSTRINGS.MECH.label_death_anim;
@@ -1667,6 +1686,9 @@ MechUI.prototype.initPropertyHandlers = function(){
 				for(var j = 0; j < options.length; j++){					
 					content+="<option "+(options[j] == value ? "selected" : "")+" value='"+options[j]+"'>"+animData[options[j]].name+"</option>";										
 				}
+				
+				
+		
 				
 				content+="</select>";
 				content+="</div>";
@@ -1758,7 +1780,8 @@ MechUI.prototype.initPropertyHandlers = function(){
 					"mechBattleSceneShadowSize",
 					"mechBattleSceneShadowOffsetZ",				
 					"mechBattleSceneShadowOffsetX",					
-					"mechBattleReferenceSize",					
+					"mechBattleReferenceSize",		
+					
 				];
 				
 				if(spriteType == "Default"){
@@ -1795,7 +1818,8 @@ MechUI.prototype.initPropertyHandlers = function(){
 				});
 				
 				hookedProperties = [			
-					"mechBattleSceneSprite",					
+					"mechBattleSceneSprite",			
+					"mechBattleSceneDefaultAttachments"						
 				];
 				if(spriteType == "DragonBones"){
 					hookedProperties.push("mechBattleSceneArmatureName");
@@ -1954,7 +1978,29 @@ MechUI.prototype.initPropertyHandlers = function(){
 					});
 				});
 			}	
-		}
+		},
+		no_upgrade: {
+			createControls(entry){
+				var content = "";
+				content+="<div class='row'>";
+				content+="<div class='cell'>";
+				content+=EDITORSTRINGS.MECH.label_can_upgrade;
+				content+="</div>";
+				content+="<div class='cell'>";
+				content+="<input id='no_upgrade' type=checkbox "+(_this.getMetaValue("mechNoUpgrade")*1 ? "" : "checked")+"></input>";
+				content+="</div>";
+				content+="</div>";
+				return content;
+			},
+			hook(entry){
+				entry = _this.getCurrentEntry();
+				containerNode.querySelector("#no_upgrade").addEventListener("change", function(){
+					_this.setMetaValue("mechNoUpgrade", this.checked ? 0 : 1);
+					_this.show();
+					_this._mainUIHandler.setModified();
+				});
+			}
+		},
 	};	
 	
 	var terrains = [
@@ -2061,6 +2107,7 @@ MechUI.prototype.show = async function(){
 	
 	
 	content+="<div class='table'>";
+	content+=_this._propertyHandlers.no_upgrade.createControls();	
 	content+=_this._propertyHandlers.stats.createControls();
 	
 	content+="<div class='row'>";

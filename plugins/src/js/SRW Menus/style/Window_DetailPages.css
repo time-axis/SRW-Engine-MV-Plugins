@@ -135,7 +135,7 @@
 
 #detail_pages .pilot_stat_container {
 	border: 0px;
-	max-width: 50%;
+	max-width: 100%;
 }
 
 #label_MP_cost {
@@ -192,6 +192,7 @@
 #detail_pages .right_items .pilot_stat_container {
 	width: 100%;
 	text-align: center;
+	justify-content: center;
 }
 
 #detail_pages .right_items .pilot_stat_container .stat_value{
@@ -446,7 +447,7 @@
 }
 
 #combined_terrain_card .stat_value {
-	margin-left: 35%;
+	margin-left: 34%;
 }
 
 #status_info {

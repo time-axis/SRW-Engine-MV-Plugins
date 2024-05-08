@@ -27,7 +27,21 @@ Window_MechListDeployed.prototype.getAvailableUnits = function(){
 }
 
 Window_MechListDeployed.prototype.rowEnabled = function(actor){
-	return !actor.srpgTurnEnd();
+	if($gameTemp.searchInfo && $gameTemp.searchInfo.type == "spirit"){
+		const spirits = $statCalc.getSpiritList(actor);
+		const currentSP = $statCalc.getCurrentSP(actor);
+		let result = false;
+		for(const spirit of spirits){
+			if(spirit.idx == $gameTemp.searchInfo.value){
+				if(spirit.cost <= currentSP){
+					result = true;
+				}
+			}
+		}
+		return result;
+	} else {
+		return !actor.srpgTurnEnd();
+	}	
 }
 
 Window_MechListDeployed.prototype.getCurrentSelection = function(){
@@ -152,14 +166,16 @@ Window_MechListDeployed.prototype.update = function() {
 				$gameTemp.detailPageMode = "menu";
 				$gameTemp.pushMenu = "detail_pages";	
 			}*/			
-			var event = $statCalc.getReferenceEvent(this.getCurrentSelection().actor);
+			const selectedActor = this.getCurrentSelection().actor;
+			var event = $statCalc.getReferenceEvent(selectedActor);
 			$gamePlayer.locate(event.posX(), event.posY(), false);		
 			$gameTemp.popMenu = true;
+			$gameTemp.buttonHintManager.hide();
 			this._mechList.setCurrentSelection(0);
 			Input.clear();
 			
 			if($gameTemp.mechListWindowSearchSelectionCallback){
-				$gameTemp.mechListWindowSearchSelectionCallback(this.getCurrentSelection().actor);
+				$gameTemp.mechListWindowSearchSelectionCallback(selectedActor);
 			}
 			
 			if(this._callbacks["closed"]){
@@ -171,6 +187,7 @@ Window_MechListDeployed.prototype.update = function() {
 		if(Input.isTriggered('cancel') || TouchInput.isCancelled()){		
 			SoundManager.playCancel();		
 			$gameTemp.popMenu = true;
+			$gameTemp.buttonHintManager.hide();
 			this._mechList.setCurrentSelection(0);
 			Input.clear();
 			if(this._callbacks["closed"]){
@@ -189,6 +206,9 @@ Window_MechListDeployed.prototype.redraw = function() {
 	this._detailBarMech.redraw();		
 	this._detailBarPilot.redraw();
 	
+	$gameTemp.buttonHintManager.setHelpButtons([["select_mech", "page_nav"], ["highlight_map"], ["det_page_nav", "det_page_sort"], ["det_sort_order"]]);
+	$gameTemp.buttonHintManager.show();
+	
 	if(this._mechList.getCurrentInfoPage() == 0){
 		this._detailBarPilot.hide();
 		this._detailBarMech.show();
@@ -196,6 +216,6 @@ Window_MechListDeployed.prototype.redraw = function() {
 		this._detailBarPilot.show();
 		this._detailBarMech.hide();
 	}
-
+	this.loadImages();
 	Graphics._updateCanvas();
 }

@@ -1,14 +1,14 @@
 
 #ability_list_control {
-	border: 0.2vw solid #4ae0fa;
-	border-radius: 0.5vw;
+	border: 0.1vw solid #FFFFFF;
+	border-radius: 1vw;
 	border-top-right-radius: 0px;
 	border-top-left-radius: 0px;
 	width: 98%;
 	height: 98%;
 	padding-left: 1%;
 	padding-right: 1%;
-	background-color: var(--section-bg-color);
+	background-color: rgba(0,67,99,0.5);
 	position: relative;
 }
 
@@ -16,17 +16,17 @@
 	display: flex;
     align-items: center;
     justify-content: center;
-	border: 0.2vw solid #4ae0fa;
-	border-radius: 999px;
-	height: 10%;
-	width: 10%;
-	position: absolute;
-	right: -0.3%;
-	top: -12%;
-	background-color: var(--section-bg-color);
-	color: #FFFFFF;
-	--fontsize: 1.6px;
-	text-align: center;
+    border: 0.1vw solid #FFFFFF;
+    border-radius: 999px;
+    height: 7%;
+    width: 10%;
+    position: absolute;
+    right: -0.3%;
+    top: -9%;
+    background-color: rgba(0,67,99,0.5);
+    color: #FFFFFF;
+    --fontsize: 1.6px;
+    text-align: center;
 }
 
 #ability_list_control_top_border {

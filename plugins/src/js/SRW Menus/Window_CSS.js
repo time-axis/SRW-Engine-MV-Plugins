@@ -49,8 +49,16 @@ Window_CSS.prototype.show = function() {
 	this._redrawRequested = true;
 	this._visibility = "";
 	this.refresh();	
+	this.triggerCustomBgCreate();
+	
 	Graphics._updateCanvas();
 };
+
+Window_CSS.prototype.triggerCustomBgCreate = function() {
+	if(ENGINE_SETTINGS.CUSTOM_MENU_ON_SHOW){
+		ENGINE_SETTINGS.CUSTOM_MENU_ON_SHOW(this._container);
+	}
+}
 
 Window_CSS.prototype.requestRedraw = function() {	
 	this._redrawRequested = true;
@@ -80,14 +88,23 @@ Window_CSS.prototype.createComponents = function() {
 	this._bgFadeContainer.classList.add("bg_fade_container");
 	this._bgTextureContainer = document.createElement("div");
 	this._bgTextureContainer.classList.add("bg_container");
-	this._bgFadeContainer.appendChild(this._bgTextureContainer);
+	this._bgFadeContainer.appendChild(this._bgTextureContainer);	
+	
 	windowNode.appendChild(this._bgFadeContainer);
+	
+	if(ENGINE_SETTINGS.CUSTOM_MENU_BG_CREATOR){
+		this._customMenuBg = ENGINE_SETTINGS.CUSTOM_MENU_BG_CREATOR();
+		if(this._customMenuBg){
+			windowNode.appendChild(this._customMenuBg);
+		}
+	}
 }
 
 Window_CSS.prototype.loadImages = async function() {	
 	const windowNode = this.getWindowNode();
 	
-	let images = windowNode.querySelectorAll("img");
+	let images = Array.from(windowNode.querySelectorAll("img"));
+	images = images.concat(Array.from(windowNode.querySelectorAll(".img_bg")))
 	
 	let promises = [];
 	let imgNameLookup = {};
@@ -97,7 +114,7 @@ Window_CSS.prototype.loadImages = async function() {
 		if(imgPath){
 			if(imgNameLookup[imgPath] == null){
 				imgNameLookup[imgPath] = ctr++;
-				promises.push(ImageManager.loadBitmapPromise("", imgPath));
+				promises.push(ImageManager.loadBitmapPromise("", imgPath, true));
 			}	
 		}				
 	}
@@ -112,7 +129,12 @@ Window_CSS.prototype.loadImages = async function() {
 	for(let img of images){
 		let imgPath = img.getAttribute("data-img");
 		if(imgNameLookup[imgPath] != null){
-			img.setAttribute("src", bitmaps[imgNameLookup[imgPath]].canvas.toDataURL());
+			if(img.nodeName == "IMG"){
+				img.setAttribute("src", bitmaps[imgNameLookup[imgPath]]._image.src);
+			} else {
+				img.style.background = "url('" + bitmaps[imgNameLookup[imgPath]]._image.src + "')";
+			}
+			
 		}	
 	}	
 }
@@ -187,10 +209,10 @@ Window_CSS.prototype.loadFaceByParams = function(faceName, faceIndex, elem, noTr
 		targetBitmap.blt(bitmap, sx, sy, sw, sh, dx, dy);
 		var facePicContainer = document.createElement("div");
 		facePicContainer.classList.add("face_pic_container");
-		var facePic = document.createElement("img");
-		facePic.style.width = "100%";
-		facePic.setAttribute("src", targetBitmap.canvas.toDataURL());
-		facePicContainer.appendChild(facePic);	
+		//var facePic = document.createElement("img");
+		//facePic.style.width = "100%";
+		//facePic.setAttribute("src", targetBitmap.canvas.toDataURL());
+		facePicContainer.appendChild(targetBitmap.canvas);	
 		elem.appendChild(facePicContainer);	
 	});
 }
@@ -213,16 +235,23 @@ Window_CSS.prototype.loadMechMiniSprite = function(mechClass, elem) {
 			var targetBitmap = new Bitmap(pw, ph);
 			
 			var n = big ? 0: characterIndex;
-			var sx = (n % 4 * 3 + 1) * pw;
+			var sx;
+
+			if(ENGINE_SETTINGS.USE_SINGLE_MAP_SPRITE){
+				sx = (n % 4 * 3) * pw;
+			} else {
+				sx = (n % 4 * 3 + 1) * pw;
+			}
+			
 			var sy = (Math.floor(n / 4) * 4) * ph;
 			
 			targetBitmap.blt(bitmap, sx, sy, pw, ph, 0, 0); 
 			var mechPicContainer = document.createElement("div");
 			mechPicContainer.classList.add("mech_pic_container");
-			var mechPic = document.createElement("img");
-			mechPic.style.width = "100%";
-			mechPic.setAttribute("src", targetBitmap.canvas.toDataURL());
-			mechPicContainer.appendChild(mechPic);	
+			//var mechPic = document.createElement("img");
+			//mechPic.style.width = "100%";
+			//mechPic.setAttribute("src", targetBitmap.canvas.toDataURL());
+			mechPicContainer.appendChild(targetBitmap.canvas);	
 			elem.appendChild(mechPicContainer);	
 		});	
 	}
@@ -320,7 +349,7 @@ Window_CSS.prototype.getAvailableUnits = function(unitMode, deployableOnly){
 	var tmp = [];
 	if(this._availableUnits){
 		this._availableUnits.forEach(function(unit){
-			if($statCalc.isActorSRWInitialized(unit) && (!deployableOnly || !unit.SRWStats.mech.notDeployable)){
+			if($statCalc.isActorSRWInitialized(unit) && (!deployableOnly || !unit.SRWStats.mech.notDeployable) && !$SRWSaveManager.isEvolvedMech(unit.SRWStats.mech.id)){
 				tmp.push(unit);
 			}
 		});
@@ -446,6 +475,16 @@ Window_CSS.prototype.updateScaledImage = function(img) {
 
 Window_CSS.prototype.updateScaledDiv = function(div, noWidth, noHeight, ignoreOriginalDimensions) {
 	if(div){
+		const scaleCacheKey = Array.from(div.classList).join("__");
+		if(this.scaleCache && this.scaleCache[scaleCacheKey]){
+			if(!noWidth){
+				div.style.width = this.scaleCache[scaleCacheKey].width;
+			}
+			if(!noHeight){
+				div.style.height = this.scaleCache[scaleCacheKey].height;
+			}	
+			return;
+		}
 		var computedStyle = getComputedStyle(div);
 		var originalWidth = div.getAttribute("original-width");
 		if(!originalWidth || ignoreOriginalDimensions){
@@ -469,6 +508,14 @@ Window_CSS.prototype.updateScaledDiv = function(div, noWidth, noHeight, ignoreOr
 		if(!noHeight){
 			div.style.height = (originalHeight * Graphics.getScale()) + "px";
 		}	
+		if(this.scaleCache){//only if the decending class initialized the property
+			if(this._scaleCacheAll || div.classList.contains("scale_cache")){
+				this.scaleCache[scaleCacheKey] = {
+					width: div.style.width,
+					height: div.style.height
+				};	
+			}					
+		}
 	}
 }
 
@@ -681,4 +728,94 @@ Window_CSS.prototype.createAttributeBlock = function(attack) {
 	
 	content+="</div>";
 	return content;
+}
+
+
+Window_CSS.prototype.populatHintContainer = function(elem, list) {
+	let content = "";
+	let iconInfo = [];
+	let iconCtr = 0;
+	for(let entry of list){
+		content+="<div class='hint_block'>";
+		for(let row of entry){
+			let hintDef = APPSTRINGS.BUTTON_HINTS[row];
+			if(hintDef){
+				content+="<div class='hint'>";
+				content+="<div class='hint_text scaled_text'>";
+				content+=hintDef.text;
+				content+="</div>"
+				content+="<div class='action_icon_container'>";
+				let icons = $gameSystem.getActionGlyphs(hintDef.action);
+				for(let icon of icons){
+					if(icon){
+						content+="<div class='action_icon' data-icon='"+iconCtr+"'>";
+						content+="</div>"
+						iconInfo[iconCtr] = icon;						
+					}
+					iconCtr++;
+				}				
+				content+="</div>"
+				content+="</div>"
+			}
+		}
+		content+="</div>"
+	}
+	elem.innerHTML = content;
+	return iconInfo;
+}
+
+
+Window_CSS.prototype.constructButtonIcon = function(iconCtr, iconDef) {	
+	const _this = this;
+	const parentElem = this._centerContainer.querySelector(".action_icon[data-icon='"+iconCtr+"']");
+	
+	
+	//elem.appendChild(this._iconsBitmap.canvas);	
+	const initialMultiplier = ENGINE_SETTINGS.MAP_BUTTON_CONFIG.BUTTON_SCALE * 1;	
+	const tileSize = ENGINE_SETTINGS.MAP_BUTTON_CONFIG.SPRITE_SHEET.TILE_SIZE * 1;
+	const bgWidth = ENGINE_SETTINGS.MAP_BUTTON_CONFIG.SPRITE_SHEET.WIDTH * 1;
+	const bgHeight = ENGINE_SETTINGS.MAP_BUTTON_CONFIG.SPRITE_SHEET.HEIGHT * 1;
+	
+	let offsetX = 0;
+	let offsetY = 0;
+	
+	let width = 0;
+	let height = 0;
+	
+	for(let i = 0; i < 4; i++){
+		let suffix = "";
+		if(i > 0){//compat with original format
+			suffix = i;
+		}
+		let tiles = iconDef["tiles"+suffix];
+		if(tiles){
+			const elem = document.createElement("div");
+			parentElem.appendChild(elem);
+			
+			height = tiles.length;
+			
+			for(let y = 0; y < tiles.length; y ++){
+				width = tiles[y].length;
+				for(let x = 0; x < tiles[y].length; x ++){
+					if(x == 0 && y == 0){
+						offsetX = tiles[y][x][0];
+						offsetY = tiles[y][x][1];
+					}			
+				}
+			}
+			
+			const mutiplier = initialMultiplier * Graphics.getScale();
+			const size = tileSize * mutiplier;
+			
+			offsetX = offsetX * size;
+			offsetY = offsetY * size;
+			
+			elem.style.height = size * height + "px";
+			elem.style.width = size * width + "px";
+			elem.style.backgroundSize = bgWidth * mutiplier + "px " + bgHeight * mutiplier + "px";
+			elem.style.backgroundImage = "url(" + _this._iconsBitmap._image.src + ")";
+			elem.style.backgroundPosition =  offsetX * -1 + "px " + offsetY * -1 + "px"
+		}
+	}
+	
 }

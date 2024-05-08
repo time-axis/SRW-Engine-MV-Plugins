@@ -10,6 +10,7 @@ Window_UpgradePilot.prototype = Object.create(Window_CSS.prototype);
 Window_UpgradePilot.prototype.constructor = Window_UpgradePilot;
 
 Window_UpgradePilot.prototype.initialize = function() {	
+	const _this = this;
 	this._layoutId = "upgrade_pilot";	
 	this._unitMode == "actor";
 	this.resetDeltas();
@@ -45,6 +46,9 @@ Window_UpgradePilot.prototype.initialize = function() {
 	this._currentFavSkillsPending = {};
 	
 	Window_CSS.prototype.initialize.call(this, 0, 0, 0, 0);	
+	window.addEventListener("resize", function(){
+		_this.requestRedraw();
+	});	
 }
 
 Window_UpgradePilot.prototype.resetDeltas = function() {
@@ -439,7 +443,7 @@ Window_UpgradePilot.prototype.update = function() {
 			} else if(this._currentUIState == "upgrading_pilot_stats"){			
 				var cost = this.currentCost();		
 				var pilotData = this.getCurrentSelection();
-				if(cost <= $statCalc.getCurrentPP(pilotData)){
+				if(cost <= $statCalc.getCurrentPP(pilotData) || $gameSystem.optionInfinitePP){
 					SoundManager.playOk();
 					$statCalc.applyPilotUpgradeDeltas(pilotData, this._currentUpgradeDeltas);
 					$statCalc.subtractPP(pilotData, cost);
@@ -462,7 +466,7 @@ Window_UpgradePilot.prototype.update = function() {
 						level = learnedAbilities[current.idx].level;
 					}
 					var cost = current.info.cost[level];
-					if(!Number.isNaN(cost) && (cost <= $statCalc.getCurrentPP(pilotData))){
+					if(!Number.isNaN(cost) && (cost <= $statCalc.getCurrentPP(pilotData) || $gameSystem.optionInfinitePP)){
 						SoundManager.playOk();
 						this._currentUIState = "ability_purchase_selection";
 					} else {
@@ -560,6 +564,7 @@ Window_UpgradePilot.prototype.update = function() {
 				this._currentSelection = 0;
 				this.resetDeltas();	
 				$gameTemp.popMenu = true;	
+				$gameTemp.buttonHintManager.hide();
 			} else if(this._currentUIState == "upgrading_pilot_stats" || this._currentUIState == "ability_selection" || this._currentUIState == "fav_point_selection"){			
 				this._currentUIState = "tab_selection";							
 				this._currentFavSkillsPending = {};	
@@ -631,6 +636,22 @@ Window_UpgradePilot.prototype.currentPointCost = function() {
 
 Window_UpgradePilot.prototype.redraw = function() {
 	var _this = this;
+	
+	if(this._currentUIState == "tab_selection"){
+		$gameTemp.buttonHintManager.setHelpButtons([["tab_nav"], ["tab_selection"]]);
+	} else if(this._currentUIState == "upgrading_pilot_stats"){			
+		$gameTemp.buttonHintManager.setHelpButtons([["select_pilot_stat"], ["select_pilot_stat_upgrade"], ["confirm_pilot_upgrade"]]);
+	} else if(this._currentUIState == "ability_selection"){					
+		$gameTemp.buttonHintManager.setHelpButtons([["select_ability"], ["page_nav"], ["confirm_ability_selection"]]);			
+	} else if(this._currentUIState == "ability_purchase_selection"){	
+		$gameTemp.buttonHintManager.setHelpButtons([["select_slot"], ["confirm_ability_purchase"]]);			
+	} else if(this._currentUIState == "ability_equip_selection"){		
+		$gameTemp.buttonHintManager.setHelpButtons([["select_slot"], ["confirm_ability_equip"]]);	
+	} else if(this._currentUIState == "fav_point_selection"){				
+		$gameTemp.buttonHintManager.setHelpButtons([["select_fav"], ["togle_fav"], ["confirm_pilot_upgrade"]]);							
+	}
+	$gameTemp.buttonHintManager.show();
+	
 	var pilotData = this.getCurrentSelection();
 	var abilityList = $statCalc.getPilotAbilityList(pilotData);
 	var currentLevel = $statCalc.getCurrentLevel(pilotData);
@@ -683,6 +704,9 @@ Window_UpgradePilot.prototype.redraw = function() {
 	fundDisplayContent+="<div class='fund_entry'>";
 	fundDisplayContent+="<div class='fund_entry_label scaled_text'>"+APPSTRINGS.PILOTUPGRADES.label_remaining_PP+"</div>";
 	var remaining = $statCalc.getCurrentPP(pilotData) - this.currentCost();
+	if($gameSystem.optionInfinitePP){
+		remaining = 999;
+	}
 	fundDisplayContent+="<div class='fund_entry_value scaled_text "+(remaining < 0 ? "underflow" : "")+"'>"+remaining+"</div>";
 	fundDisplayContent+="</div>";
 	
@@ -708,6 +732,9 @@ Window_UpgradePilot.prototype.redraw = function() {
 	pointsDisplayContent+="<div class='fund_entry'>";
 	pointsDisplayContent+="<div class='fund_entry_label scaled_text'>"+APPSTRINGS.PILOTUPGRADES.label_remaining_points+"</div>";
 	var remaining = $gameSystem.getCurrentFavPoints() - this.currentPointCost();
+	if($gameSystem.optionInfinitePP){
+		remaining = 999;
+	}
 	pointsDisplayContent+="<div class='fund_entry_value scaled_text "+(remaining < 0 ? "underflow" : "")+"'>"+remaining+"</div>";
 	pointsDisplayContent+="</div>";
 	
@@ -1041,7 +1068,7 @@ Window_UpgradePilot.prototype.redraw = function() {
 	});
 	var cost = this.currentCost();					
 	var pilotData = this.getCurrentSelection();
-	if(cost > 0 && cost <= $statCalc.getCurrentPP(pilotData)){
+	if(cost > 0 && (cost <= $statCalc.getCurrentPP(pilotData) || $gameSystem.optionInfinitePP)){
 		windowNode.querySelector("#btn_apply").classList.remove("disabled");		
 	} else {
 		windowNode.querySelector("#btn_apply").classList.add("disabled");
@@ -1062,6 +1089,6 @@ Window_UpgradePilot.prototype.redraw = function() {
 	
 	
 	
-	
+	this.loadImages();
 	Graphics._updateCanvas();
 }

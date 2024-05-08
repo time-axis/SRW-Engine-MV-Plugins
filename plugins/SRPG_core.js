@@ -169,23 +169,124 @@ var _defaultPlayerSpeed = parameters['defaultPlayerSpeed'] || 4;
 		return false;
 	};
 	
-	/*Input._pollGamepads = function() {
-		if (navigator.getGamepads) {
-			var gamepads = navigator.getGamepads();
-			if (gamepads) {
-				for (var i = 0; i < gamepads.length; i++) {
-					var gamepad = gamepads[i];
-					if (gamepad && gamepad.connected && gamepad.id == "Xbox 360 Controller (XInput STANDARD GAMEPAD)") {
-						this._updateGamepadState(gamepad);
-					}
+	Input.getActionKey = function(action){
+		let result = [];
+		for(let key in this.keyMapper){
+			if(this.keyMapper[key] == action){
+				result.push(key);
+			}
+		}
+		return result;
+	}
+	
+	Input.getActionGlyphs = function(action){
+		return this.getActionKey(action).map(x => this.keyToGlyph[x]);
+	}
+	
+	Input.getActionPadInput = function(action){		
+		let result = [];
+		for(let key in this.gamepadMapper){
+			if(this.gamepadMapper[key] == action){
+				result.push(key);
+			}
+		}
+		return result;
+	}
+	
+	Input.getPadGlyphs = function(action){
+		return this.getActionPadInput(action).map(x => this.padToGlyph[x]);
+	}
+	
+	Input.getGlyphDefinition = function(set, glyphs){
+		let result = [];
+		for(let glyph of glyphs){
+			result.push(this.glyphDefintions[set][glyph]);
+		}
+		return result;
+	}
+	
+	/**
+	 * @static
+	 * @method _updateGamepadState
+	 * @param {Gamepad} gamepad
+	 * @param {Number} index
+	 * @private
+	 */
+	Input._updateGamepadState = function(gamepad) {
+		var lastState = this._gamepadStates[gamepad.index] || [];
+		var newState = [];
+		var buttons = gamepad.buttons;
+		var axes = gamepad.axes;
+		var threshold = 0.5;
+		newState[12] = false;
+		newState[13] = false;
+		newState[14] = false;
+		newState[15] = false;
+		for (var i = 0; i < buttons.length; i++) {
+			newState[i] = buttons[i].pressed;
+		}
+		if (axes[1] < -threshold) {
+			newState[12] = true;    // up
+		} else if (axes[1] > threshold) {
+			newState[13] = true;    // down
+		}
+		if (axes[0] < -threshold) {
+			newState[14] = true;    // left
+		} else if (axes[0] > threshold) {
+			newState[15] = true;    // right
+		}
+		for (var j = 0; j < newState.length; j++) {
+			if (newState[j] !== lastState[j]) {
+				var buttonName = this.gamepadMapper[j];
+				if (buttonName) {
+					this._currentState[buttonName] = newState[j];
+					this._wasKeyboardUpdate = true;
 				}
 			}
 		}
-	};*/
+		this._gamepadStates[gamepad.index] = newState;
+	};
+	
+	/**
+	 * Updates the input data.
+	 *
+	 * @static
+	 * @method update
+	 */
+	Input.update = function() {
+		this._wasKeyboardUpdate = false;
+		this._pollGamepads();
+		if (this._currentState[this._latestButton]) {
+			this._pressedTime++;
+		} else {
+			this._latestButton = null;
+		}
+		for (var name in this._currentState) {
+			if (this._currentState[name] && !this._previousState[name]) {
+				if($gameSystem){
+					if(this._wasKeyboardUpdate){
+						$gameSystem.setControlSet("controller");
+					} else {
+						$gameSystem.setControlSet("mkb");
+					}
+				}				
+				this._latestButton = name;
+				this._pressedTime = 0;
+				this._date = Date.now();
+			}
+			this._previousState[name] = this._currentState[name];
+		}
+		this._updateDirection();
+	};
 	
 	TouchInput._onWheel = function(event) {
 		
 	}
+	
+	Graphics._onWindowResize = function() {
+		CSSUIManager.bumpScaleCache();
+		this._updateAllElements();
+	};
 	
 	Graphics._createAllElements = function() {
 		this._createErrorPrinter();
@@ -313,10 +414,15 @@ var _defaultPlayerSpeed = parameters['defaultPlayerSpeed'] || 4;
 		return this.reserveBitmap('img/faces/', filename, hue, true, reservationId);
 	};
 	
-	ImageManager.loadNormalBitmap = function(path, hue, asBlob) {
+	//noCache is used by the battle scene as it manages revoking the object urls itself upon completing a scene.
+	ImageManager.loadNormalBitmap = function(path, hue, asBlob, noCache) {
 		var key = this._generateCacheKey(path, hue);
+		//hacky method to differentiate between regular and blob entries in the cache
+		if(asBlob){
+			key = "__blob__"+key;
+		}
 		var bitmap = this._imageCache.get(key);
-		if (!bitmap || asBlob) {
+		if (!bitmap || noCache) {
 			bitmap = Bitmap.load(decodeURIComponent(path));
 			//if the bitmap is set to asBlob the blob for the associated object url is not cleared after creation of the internal canvas
 			//this mode is required when loading battle scene resources as the associated blob is used to create the texture
@@ -324,19 +430,72 @@ var _defaultPlayerSpeed = parameters['defaultPlayerSpeed'] || 4;
 			bitmap.addLoadListener(function() {
 				bitmap.rotateHue(hue);
 			});
-			this._imageCache.add(key, bitmap);
+			if(!noCache){
+				this._imageCache.add(key, bitmap);
+			}			
 		}else if(!bitmap.isReady()){
 			bitmap.decode();
 		}
 
 		return bitmap;
 	};
+	
+	ImageCache.prototype.removeBlobs = function(key, value){
+		let tmp = {};
+		for(let key in this._items){
+			if(!key.match(/__blob__.*/)){
+				tmp[key] = this._items[key];
+			}
+		}
+		this._items = tmp;
+		this._truncateCache();
+	};
+	
+	ImageManager.resetBlobCache = async function() {
+		this._imageCache.removeBlobs();
+	}
+		
+	ImageCache.prototype._truncateCache = function(force){
+		var items = this._items;
+		var sizeLeft = ImageCache.limit;
 
-	ImageManager.loadBitmapPromise = async function(folder, filename, asBlob, hue, smooth) {
+		Object.keys(items).map(function(key){
+			return items[key];
+		}).sort(function(a, b){
+			return b.touch - a.touch;
+		}).forEach(function(item){
+			var bitmap = item.bitmap;				
+			let usedSize = bitmap.width * bitmap.height;			
+			
+			if(!force && (sizeLeft > 0 || this._mustBeHeld(item))){
+				sizeLeft -= usedSize;
+			} else {
+				if(item.key.match(/__blob__.*/)){
+					window.URL.revokeObjectURL(item.bitmap._image.src);
+					console.log("Revoked blob url");
+				}
+				delete items[item.key];
+			}
+		}.bind(this));
+	};
+	
+	ImageCache.prototype._mustBeHeld = function(item){
+		// request only is weak so It's purgeable
+		if(item.bitmap.isRequestOnly()) return false;
+		// reserved item must be held
+		if(item.reservationId) return true;
+		// not ready bitmap must be held (because of checking isReady())
+		if(!item.bitmap.isReady()) return true;
+		// then the item may purgeable
+		return false;
+	};
+	
+
+	ImageManager.loadBitmapPromise = async function(folder, filename, asBlob, hue, smooth, noCache) {
 		return new Promise((resolve, reject) => {
 			if (filename) {
 				var path = folder + encodeURIComponent(filename);
-				var bitmap = this.loadNormalBitmap(path, hue || 0, asBlob);
+				var bitmap = this.loadNormalBitmap(path, hue || 0, asBlob, noCache);
 				bitmap.smooth = smooth;
 				bitmap.addLoadListener(() => {
 					resolve(bitmap);
@@ -575,6 +734,7 @@ SceneManager.isInSaveScene = function(){
     var _SRPG_SceneMap_createAllWindows = Scene_Map.prototype.createAllWindows;
     Scene_Map.prototype.createAllWindows = function() {
         _SRPG_SceneMap_createAllWindows.call(this);
+		
         this.createSrpgActorCommandWindow();
         this.createHelpWindow();
         
@@ -618,10 +778,12 @@ SceneManager.isInSaveScene = function(){
 		this.createDeploySelectionWindow();
 		this.createSearchWindow();
 		this.createOptionsWindow();
+		this.createGameModesWindow();
 		this.createMapButtonsWindow();
 		this.createOpeningCrawlWindow();
 		this.createTextLogWindow();
 		this.createZoneStatusWindow();
+		this.createButtonHintsWindow();
 		this.createZoneSummaryWindow();
 		$battleSceneManager.init();	
     };
@@ -761,6 +923,10 @@ SceneManager.isInSaveScene = function(){
 			$gameTemp.onMapSaving = true;
 			this._mapButtonsWindow.hide();
 			this._mapButtonsWindow.close();
+			//hacks to hide button prompts in the save window
+			$gameTemp.isPendingSaveMenu = true;
+			$gameTemp.buttonHintManager.hide();
+			
 			$gameSystem.setSubBattlePhase('normal');
 			SceneManager.push(Scene_Save);
 			DataManager.saveContinueSlot();	
@@ -889,6 +1055,18 @@ SceneManager.isInSaveScene = function(){
 		this._zoneStatusWindow.hide();
 		this.idToMenu["zone_status"] = this._zoneStatusWindow;
     };
+	
+	Scene_Map.prototype.createButtonHintsWindow = function() {
+		var _this = this;
+		this._buttonHintsWindow = new Window_ButtonHints(0, 0, Graphics.boxWidth, Graphics.boxHeight);
+		this._buttonHintsWindow.close();
+		this.addWindow(this._buttonHintsWindow);
+	
+		this._buttonHintsWindow.hide();
+		this.idToMenu["button_hints"] = this._buttonHintsWindow;
+		
+		$gameTemp.buttonHintManager = this._buttonHintsWindow;
+    };	
 	
 	Scene_Map.prototype.createMechListDeployedWindow = function() {
 		var _this = this;
@@ -1145,6 +1323,16 @@ SceneManager.isInSaveScene = function(){
 		this.addWindow(this._optionsWindow);
 		this._optionsWindow.hide();
 		this.idToMenu["options"] = this._optionsWindow;
+    };
+	
+	Scene_Map.prototype.createGameModesWindow = function() {
+		var _this = this;
+		this._gameModeWindow = new Window_Game_Modes(0, 0, Graphics.boxWidth, Graphics.boxHeight);
+		
+		this._gameModeWindow.close();
+		this.addWindow(this._gameModeWindow);
+		this._gameModeWindow.hide();
+		this.idToMenu["game_modes"] = this._gameModeWindow;
     };
 
     // アクターコマンドウィンドウを作る
@@ -1419,11 +1607,6 @@ SceneManager.isInSaveScene = function(){
 				caster: caster
 			};
 			$gameTemp.clearMoveTable()
-			/*$gameTemp.initialRangeTable(referenceEvent.posX(), referenceEvent.posY(), 1);
-			referenceEvent.makeRangeTable(referenceEvent.posX(), referenceEvent.posY(), 1, [0], referenceEvent.posX(), referenceEvent.posY(), null);
-			$gameTemp.minRangeAdapt(referenceEvent.posX(), referenceEvent.posY(), 0);
-			$gameTemp.pushRangeListToMoveList();
-			$gameTemp.setResetMoveList(true);*/
 			
 			$gameSystem.highlightedTiles.push({x: referenceEvent.posX() - 1, y: referenceEvent.posY(), color: "#2c57ff"});
 			$gameSystem.highlightedTiles.push({x: referenceEvent.posX() + 1, y: referenceEvent.posY(), color: "#2c57ff"});
@@ -1613,6 +1796,8 @@ SceneManager.isInSaveScene = function(){
 		}		
 		
 		if($gameTemp.killMenus && Object.keys($gameTemp.killMenus).length){
+			
+			$gameTemp.buttonHintManager.hide(); //hacky fix for hiding buttons hint window when a kill menu is executed
 			var tmp = [];
 			for(var i = 0; i < menuStack.length; i++){
 				var menu = menuStack[i];
@@ -1690,13 +1875,28 @@ SceneManager.isInSaveScene = function(){
 		
 			if(TouchInput.isPressed()) {
 				if($gameTemp._ckex == -1 || $gameTemp._ckey == -1){
-					$gameTemp._ckex = TouchInput.x;
-					$gameTemp._ckey = TouchInput.y;
-					$gameTemp.lastDragX = TouchInput.x;
-					$gameTemp.lastDragY = TouchInput.y;
-					$gameTemp.dragTimer = 10;
-					$gameTemp.dragAccelTimer = 0;
-					$gameTemp.isDraggingMap = true;
+					if($gameTemp.dragWindup == null){
+						$gameTemp.dragWindup = 0;
+					}
+					if($gameTemp.lastDragX == null){
+						$gameTemp.lastDragX = TouchInput.x;
+					}
+					if($gameTemp.lastDragY == null){
+						$gameTemp.lastDragY = TouchInput.y;
+					}
+					if(Math.abs($gameTemp.lastDragX - TouchInput.x) > 48 || Math.abs($gameTemp.lastDragY - TouchInput.y) > 48){
+						$gameTemp.dragWindup++;
+						if($gameTemp.dragWindup >= 3){
+							$gameTemp.dragWindup = 0;
+							$gameTemp._ckex = TouchInput.x;
+							$gameTemp._ckey = TouchInput.y;
+							$gameTemp.lastDragX = TouchInput.x;
+							$gameTemp.lastDragY = TouchInput.y;
+							$gameTemp.dragTimer = 10;
+							$gameTemp.dragAccelTimer = 0;
+							$gameTemp.isDraggingMap = true;
+						}						
+					}					
 				} else if($gameTemp.isDraggingMap){
 					if(Math.abs($gameTemp.lastDragX - TouchInput.x) > 50 || Math.abs($gameTemp.lastDragY - TouchInput.y) > 50){
 						$gameTemp.lastDragX = TouchInput.x;
@@ -1728,7 +1928,16 @@ SceneManager.isInSaveScene = function(){
 		}
 		
 		
-		_SRPG_SceneMap_update.call(this);
+		/*_SRPG_SceneMap_update.call(this);*/
+		
+		this.updateDestination();
+		this.updateMainMultiply();
+		if (this.isSceneChangeOk()) {
+			this.updateScene();
+		} else if (SceneManager.isNextScene(Scene_Battle)) {
+			this.updateEncounterEffect();
+		}
+		this.updateWaitCount();
 		
 		this.processMenuStack();
 		
@@ -1747,6 +1956,11 @@ SceneManager.isInSaveScene = function(){
 			var menu = this.idToMenu["intermission_menu"];
 			if(!menu.visible){
 				menu.visible = true;
+			}
+			Scene_Base.prototype.update.call(this);
+			if($gameTemp.scaledTextUpdateRequested){
+				$gameTemp.scaledTextUpdateRequested = false;
+				$CSSUIManager.doUpdateScaledText();
 			}
 			return;			
 		} else {
@@ -1803,7 +2017,17 @@ SceneManager.isInSaveScene = function(){
 			}				
 		}
 		
-		if(!$SRWGameState.update(this)) {
+	
+		let SRWStateResult = $SRWGameState.update(this);
+		
+		//update of scene base updates menus etc.
+		Scene_Base.prototype.update.call(this);
+		if($gameTemp.scaledTextUpdateRequested){
+			$gameTemp.scaledTextUpdateRequested = false;
+			$CSSUIManager.doUpdateScaledText();
+		}
+		
+		if(!SRWStateResult){
 			return;
 		}
 		
@@ -1848,11 +2072,6 @@ SceneManager.isInSaveScene = function(){
         //ターン終了コマンドの実行
         if ($gameTemp.isTurnEndFlag() == true) {
             this.menuActorTurnEnd();
-            return;
-        }
-        //アクターコマンドからの装備変更の後処理
-        if ($gameTemp.isSrpgActorEquipFlag() == true) {
-            this.srpgAfterActorEquip();
             return;
         }
 			
@@ -1976,11 +2195,11 @@ SceneManager.isInSaveScene = function(){
 					$gameTemp.destroyTransformQueue.push({actor: battleEffect.ref, event: battleEffect.ref.event});
 				} else {
 					//battleEffect.ref.event._erased = true;
-					$gameTemp.deathQueue.push({actor: battleEffect.ref, event: $statCalc.getReferenceEvent(battleEffect.ref)});
+					$gameTemp.deathQueue.push({actor: battleEffect.ref, event: $statCalc.getReferenceEvent(battleEffect.ref), destroyer: battleEffect.destroyer});
 					if($statCalc.isShip(battleEffect.ref)){
 						var boardedUnits = $statCalc.getBoardedUnits(battleEffect.ref)
 						for(var i = 0; i < boardedUnits.length; i++){
-							$gameTemp.deathQueue.push({actor: boardedUnits[i], event: boardedUnits[i].event});
+							$gameTemp.deathQueue.push({actor: boardedUnits[i], event: boardedUnits[i].event, destroyer: battleEffect.destroyer});
 						}
 					}
 				}				
@@ -1992,9 +2211,11 @@ SceneManager.isInSaveScene = function(){
 		} else if($gameTemp.deathQueue.length){
 			$gameSystem.setSubBattlePhase("process_death_queue");
 			this.eventBeforeDestruction();
-		} else {
+		} else if($gameTemp.isEnemyAttack){
 			$gameSystem.setSubBattlePhase("enemy_hit_and_away");
-			//this.srpgAfterAction();
+			//
+		} else {
+			this.srpgAfterAction();
 		}
     };
 
@@ -2037,6 +2258,9 @@ SceneManager.isInSaveScene = function(){
 					var gain = $battleCalc.performExpCalculation(entry.actor, gainDonor.ref);
 					if(!gainDonor.isDestroyed){
 						gain = Math.floor(gain/10);
+					}
+					if(battleEffect.isGainBoosted){
+						gain*=2;
 					}
 					entry.expGain+=gain;
 				});
@@ -2385,6 +2609,18 @@ SceneManager.isInSaveScene = function(){
         $gameTemp.clearTargetEvent();
         $gameParty.clearSrpgBattleActors();
         $gameTroop.clearSrpgBattleEnemys();
+		
+		//delete stale battle cache references from previous participants
+		if($gameTemp.battleEffectCache){
+			for(let refKey in $gameTemp.battleEffectCache){
+				const ref = $gameTemp.battleEffectCache[refKey].ref;
+				if(ref){
+					delete ref._cacheReference;
+					delete ref._supportCacheReference;
+				}
+			}
+		}		
+		
 		$gameTemp.battleEffectCache = null;
        
 	   $gameSystem.setSubBattlePhase('check_item_pickup');	
@@ -2562,6 +2798,7 @@ SceneManager.isInSaveScene = function(){
 		var actor = $gameSystem.EventToUnit($gameTemp.activeEvent().eventId())[1];
 		let terrainCmd = $statCalc.getAvailableSuperStateTransitionsForCurrentPosition(actor)[idx];	
 		$statCalc.setSuperState(actor, terrainCmd.endState, false, terrainCmd.se);
+		$gameSystem.setPreferredSuperState(actor, terrainCmd.endState)
 	   
 		$gameTemp.activeEvent().transitioningFloat = true;
 		$gameSystem.setSubBattlePhase('await_actor_float');		
@@ -2601,6 +2838,7 @@ SceneManager.isInSaveScene = function(){
 
 			$statCalc.applyRelativeTransforms();	
 			$gameMap.setEventImages();	
+			$statCalc.invalidateAbilityCache(deployed.actor);
 			
 			$gameTemp.setActiveEvent(event);			
 			var actor = $gameSystem.EventToUnit(event.eventId())[1];
@@ -2645,12 +2883,7 @@ SceneManager.isInSaveScene = function(){
 		var event = $gameTemp.activeEvent();
 		var battler = $gameSystem.EventToUnit($gameTemp.activeEvent().eventId())[1];
 		$gameTemp.supportType = "heal";        
-		/*$gameTemp.clearMoveTable();
-        $gameTemp.initialRangeTable(event.posX(), event.posY(), 1);
-        event.makeRangeTable(event.posX(), event.posY(), 1, [0], event.posX(), event.posY(), null);
-        $gameTemp.minRangeAdapt(event.posX(), event.posY(), 0);
-        $gameTemp.pushRangeListToMoveList();
-        $gameTemp.setResetMoveList(true);*/
+		
 		$gameSystem.highlightedTiles = [];
 		$gameSystem.highlightedActionTiles = [];
 		$gameSystem.highlightsRefreshed = true;
@@ -2673,14 +2906,7 @@ SceneManager.isInSaveScene = function(){
 		var event = $gameTemp.activeEvent();
 		var battler = $gameSystem.EventToUnit($gameTemp.activeEvent().eventId())[1];
 		$gameTemp.supportType = "resupply";        
-		/*$gameTemp.clearMoveTable();
-		if(!$statCalc.applyStatModsToValue(battler, 0, ["all_range_resupply"])){			
-			$gameTemp.initialRangeTable(event.posX(), event.posY(), 1);
-			event.makeRangeTable(event.posX(), event.posY(), 1, [0], event.posX(), event.posY(), null);
-			 $gameTemp.minRangeAdapt(event.posX(), event.posY(), 0);
-			$gameTemp.pushRangeListToMoveList();
-			$gameTemp.setResetMoveList(true);
-		}    */       
+	     
 		
 		if(!$statCalc.applyStatModsToValue(battler, 0, ["all_range_resupply"])){	
 			$gameSystem.highlightedTiles = [];
@@ -2978,6 +3204,7 @@ SceneManager.isInSaveScene = function(){
 		this._swapPilotWindow.hide();
 		
 		actor.onAllActionsEnd();
+		$gameTemp.eraseActorAfterTurn = true; //indicate that hit and away and multi action must be ignored when ending the turn for the unit to prevent a softlock after the pilot swap
 		this.srpgAfterAction();	
     };	
 	
@@ -3204,24 +3431,6 @@ SceneManager.isInSaveScene = function(){
         return;
     };
 
-    //アクターコマンドからの装備変更の後処理
-    Scene_Map.prototype.srpgAfterActorEquip = function() {
-        var event = $gameTemp.activeEvent();
-        var battlerArray = $gameSystem.EventToUnit(event.eventId());
-        $gameTemp.clearMoveTable();
-        $gameTemp.initialMoveTable($gameTemp.originalPos()[0], $gameTemp.originalPos()[1], battlerArray[1].srpgMove());
-        event.makeMoveTable($gameTemp.originalPos()[0], $gameTemp.originalPos()[1], $statCalc.getCurrentMoveRange(battlerArray[1]), [0], battlerArray[1]);
-        var list = $gameTemp.moveList();
-        for (var i = 0; i < list.length; i++) {
-            var pos = list[i];
-            event.makeRangeTable(pos[0], pos[1], battlerArray[1].srpgWeaponRange(), [0], pos[0], pos[1], $dataSkills[battlerArray[1].attackSkillId()]);
-        }
-        $gameTemp.pushRangeListToMoveList();
-        $gameTemp.setResetMoveList(true);
-        $gameTemp.setSrpgActorEquipFlag(false); // 処理終了
-        return;
-    };
-
     //自動行動アクターの行動決定
     Scene_Map.prototype.srpgInvokeAutoActorCommand = function() {
 		
@@ -3268,28 +3477,6 @@ SceneManager.isInSaveScene = function(){
             actor.onAllActionsEnd();
             this.srpgAfterAction();
         }
-    };
-
-    //自動行動アクターの移動先決定と移動実行
-    Scene_Map.prototype.srpgInvokeAutoActorMove = function() {
-        var event = $gameTemp.activeEvent();
-        var type = $gameSystem.EventToUnit(event.eventId())[0];
-        var actor = $gameSystem.EventToUnit(event.eventId())[1];
-        var targetType = this.makeTargetType(actor, type);
-        $gameSystem.srpgMakeMoveTable(event);
-        this.srpgPriorityTarget(actor); //優先ターゲットの設定
-        var canAttackTargets = this.srpgMakeCanAttackTargets(actor, targetType); //行動対象としうるユニットのリストを作成
-        var targetEvent = this.srpgDecideTarget(canAttackTargets, event, targetType); //ターゲットの設定
-        $gameTemp.setTargetEvent(targetEvent);
-        if ($gameTemp.isSrpgBestSearchFlag() == true) {
-            $gameTemp.setSrpgBestSearchFlag(false);
-            $gameSystem.srpgMakeMoveTable(event);
-        }
-        var optimalPos = this.srpgSearchOptimalPos(targetEvent, actor, type);
-        var route = $gameTemp.MoveTable(optimalPos[0], optimalPos[1])[1];
-        $gameSystem.setSrpgWaitMoving(true);
-        event.srpgMoveRouteForce(route);
-        $gameSystem.setSubBattlePhase('auto_actor_action');
     };
 
     //エネミーの行動決定
@@ -3673,7 +3860,6 @@ SceneManager.isInSaveScene = function(){
 				if(optimalPos[0] != event.posX() || optimalPos[1] != event.posY()){
 					$gameSystem.srpgMakeMoveTable(event);
 					$gameTemp.isPostMove = true;
-					var route = $gameTemp.MoveTable(optimalPos[0], optimalPos[1])[1];
 					$gameSystem.setSrpgWaitMoving(true);
 					event.srpgMoveToPoint({x: optimalPos[0], y: optimalPos[1]});
 					$gamePlayer.setTransparent(true);
@@ -3982,7 +4168,7 @@ SceneManager.isInSaveScene = function(){
 				formula = translateTagTokens(formula);
 				var score = eval(formula);
 				
-				if(score > bestScore){
+				if(score > bestScore || bestScore == -1){
 					bestScore = score;
 					bestTarget = targetsByHit[ctr].event;
 					bestWeapon = weaponResult.weapon
@@ -4030,50 +4216,17 @@ SceneManager.isInSaveScene = function(){
 
     // 最適移動位置の探索
     Scene_Map.prototype.srpgSearchOptimalPos = function(targetCoords, battler, type, range, minRange, noTargets) {
+
+		const blockedSpacesLookup = $statCalc.getBlockedSpacesLookup(null);
 		function isValidSpace(pos){
-			return $statCalc.isFreeSpace(pos) || (pos.x == $gameTemp.activeEvent().posX() && pos.y == $gameTemp.activeEvent().posY());
+			return (!blockedSpacesLookup[pos.x] || !blockedSpacesLookup[pos.x][pos.y]) || (pos.x == $gameTemp.activeEvent().posX() && pos.y == $gameTemp.activeEvent().posY());
 		}
 		
 		if(targetCoords.x == battler.event.posX() && targetCoords.y == battler.event.posY()){
 			return [targetCoords.x, targetCoords.y];
 		}
 		
-        if ($gameTemp.isSrpgBestSearchRoute()[0] && 
-            !(battler.battleMode() === 'absRegionUp' || battler.battleMode() === 'absRegionDown')) {
-            var route = $gameTemp.isSrpgBestSearchRoute()[1].slice(1, battler.srpgMove() + 1);
-            for (var i = 0; i < battler.srpgMove() + 1; i++) {
-                var pos = [$gameTemp.activeEvent().posX(), $gameTemp.activeEvent().posY()];
-                for (var j = 0; j < route.length; j++) {
-                    var d = route[j];
-                    if (d == 2) {
-                        pos[1] += 1;
-                    } else if (d == 4) {
-                        pos[0] -= 1;
-                    } else if (d == 6) {
-                        pos[0] += 1;
-                    } else if (d == 8) {
-                        pos[1] -= 1;
-                    }
-                }
-                if (pos[0] < 0) {
-                  pos[0] += $gameMap.width();
-                } else if (pos[0] >= $gameMap.width()) {
-                  pos[0] -= $gameMap.width();
-                }
-                if (pos[1] < 0) {
-                  pos[1] += $gameMap.height();
-                } else if (pos[1] >= $gameMap.height()) {
-                  pos[1] -= $gameMap.height();
-                }
-                if (isValidSpace({x: pos[0], y: pos[1]})) {
-                    break;
-                } else {
-                    route.pop();
-                }
-            }
-            $gameTemp.setSrpgBestSearchRoute([null, []]);
-            return pos;
-        }
+        
         var list = $gameTemp.moveList();
 		list.push([$gameTemp.activeEvent().posX(), $gameTemp.activeEvent().posY(), false]);
 		
@@ -4161,17 +4314,24 @@ SceneManager.isInSaveScene = function(){
 		
 		candidatePaths.push([{x: battler.event.posX(), y: battler.event.posY()}])
 		
+		const ignoresCollision = $statCalc.ignoresTerrainCollision(battler) || $gameSystem.unitsIgnoreCollision;
+		
 		candidatePaths.forEach(function(path){
 			var node = path[path.length-1];
 			
 			var startNode = graph.grid[node.x][node.y];
 			var endNode = graph.grid[targetCoords.x][targetCoords.y];
-			var distPath = astar.search(graph, startNode, endNode, {closest: true});
-			var travelDistToTarget = distPath.length;
+			
 			
 			var deltaX = Math.abs(targetCoords.x - node.x);
 			var deltaY = Math.abs(targetCoords.y - node.y);
 			var dist = deltaX + deltaY;
+			
+			var travelDistToTarget = dist;
+			if(!ignoresCollision){
+				var distPath = astar.search(graph, startNode, endNode, {closest: true});
+				travelDistToTarget = distPath.length;
+			}
 			
 			var srcDeltaX = Math.abs(battler.event.posX() - node.x);
 			var srcDeltaY = Math.abs(battler.event.posY() - node.y);
@@ -4999,10 +5159,12 @@ SceneManager.onKeyDown = function(event) {
 		switch (event.keyCode) {
 		case 116:   // F5
 			if (Utils.isNwjs()) {
-				if($battleSceneManager){
-					$battleSceneManager.dispose();
-				}
-				location.reload();
+				if(process.versions["nw-flavor"] === "sdk"){
+					if($battleSceneManager){
+						$battleSceneManager.dispose();
+					}
+					location.reload();	
+				}				
 			}
 			break;
 		case 119:   // F8

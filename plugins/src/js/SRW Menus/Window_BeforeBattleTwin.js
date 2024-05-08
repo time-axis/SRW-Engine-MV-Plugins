@@ -66,7 +66,7 @@ Window_BeforebattleTwin.prototype.isBuffingAttack = function(){
 }
 
 Window_BeforebattleTwin.prototype.assistIsValid = function(){
-	return !$gameTemp.currentBattleActor.isActor() && (!this.isBuffingAttack());
+	return $gameTemp.currentBattleActor.isActor() && !this.isBuffingAttack() && !$statCalc.isAI($gameTemp.currentBattleActor);
 }
 
 Window_BeforebattleTwin.prototype.counterValid = function(){
@@ -557,7 +557,7 @@ Window_BeforebattleTwin.prototype.update = function() {
 							if(_this._currentActionSelection < 0){
 								_this._currentActionSelection = 2;
 							}
-							if(_this._currentActionSelection == 0 && !$statCalc.hasWeapons($gameTemp.currentBattleActor)){
+							if(_this._currentActionSelection == 0 && !$gameTemp.actorAction.attack){
 								_this._currentActionSelection = 1;
 							}
 							quickUpdateActorAction();
@@ -573,7 +573,7 @@ Window_BeforebattleTwin.prototype.update = function() {
 							if(_this._currentActionSelection > 2){
 								_this._currentActionSelection = 0;
 							}
-							if(_this._currentActionSelection == 0 && !$statCalc.hasWeapons($gameTemp.currentBattleActor)){
+							if(_this._currentActionSelection == 0 && !$gameTemp.actorAction.attack){
 								_this._currentActionSelection = 2;
 							}
 							quickUpdateActorAction();
@@ -755,6 +755,7 @@ Window_BeforebattleTwin.prototype.update = function() {
 							$gameTemp.allAttackSelectionRequired = false;
 						}	
 						$gameTemp.pushMenu = "attack_list";
+						return;
 					}  else {
 						$gameTemp.twinSupportAttack = null;
 					}		
@@ -1208,7 +1209,13 @@ Window_BeforebattleTwin.prototype.createParticipantBlock = function(ref, action,
 	var content = "";
 	content+="<div class='participant_block "+allyOrEnemy+"'>";
 	
-	var effectRef = ref._cacheReference || ref._supportCacheReference;
+	var effectRef;
+
+	if(ref._cacheReference && $gameTemp.battleEffectCache[ref._cacheReference]){
+		effectRef = ref._cacheReference;
+	} else if(ref._supportCacheReference && $gameTemp.battleEffectCache[ref._supportCacheReference]){
+		effectRef = ref._supportCacheReference;
+	}
 	
 	if(allyOrEnemy == "ally"){
 		content+="<div data-participantid='"+participantId+"' class='mech_icon pilot'>";
@@ -1298,19 +1305,19 @@ Window_BeforebattleTwin.prototype.createParticipantBlock = function(ref, action,
 		content+="</div>";
 		
 		content+="<div class='pilot_stats scaled_text'>";	
-		content+="<div class='level scaled_width'>";
-		content+="<div class='label'>";
+		content+="<div class='level scaled_width level_container'>";
+		content+="<div class='label label_level'>";
 		content+=APPSTRINGS.GENERAL.label_level;
 		content+="</div>";
-		content+="<div class='value'>";
+		content+="<div class='value value_level'>";
 		content+=$statCalc.getCurrentLevel(ref);
 		content+="</div>";
 		content+="</div>";
-		content+="<div class='will scaled_width'>";
-		content+="<div class='label'>";
+		content+="<div class='will scaled_width will_container'>";
+		content+="<div class='label label_will'>";
 		content+=APPSTRINGS.GENERAL.label_will;
 		content+="</div>";
-		content+="<div class='value'>";
+		content+="<div class='value value_will'>";
 		content+=$statCalc.getCurrentWill(ref);
 		content+="</div>";
 		content+="</div>";
@@ -1352,7 +1359,13 @@ Window_BeforebattleTwin.prototype.createParticipantBlock = function(ref, action,
 				content+="<img class='attack_list_type scaled_width' src='svg/crosshair.svg'>";
 			}
 			if(ENGINE_SETTINGS.ENABLE_ATTRIBUTE_SYSTEM){
-				content+=_this.createAttributeEffectivenessBlock(ref, "attribute1", attack, $gameTemp.battleEffectCache[effectRef].attacked.ref);
+				const aCache = $gameTemp.battleEffectCache[effectRef];
+				if(aCache){
+					const attacked = aCache.attacked;
+					if(attacked){
+						content+=_this.createAttributeEffectivenessBlock(ref, "attribute1", attack, attacked.ref);
+					}	
+				}								
 			}
 			
 			content+="<div class=''>"+attack.name+"</div>";
@@ -1365,7 +1378,7 @@ Window_BeforebattleTwin.prototype.createParticipantBlock = function(ref, action,
 		var activeSpirits = $statCalc.getActiveSpirits(ref);
 		content+="<div class='active_spirits scaled_text'>";	
 		for(var i = 0; i < spirits.length; i++){
-			content+="<div class='spirit_entry "+(activeSpirits[spirits[i]] ? "active" : "")+"'>";	
+			content+="<div class='spirit_entry "+(activeSpirits[spirits[i]] ? "active" : "")+" fitted_text'>";	
 			content+=spirits[i].substring(0, 3).toUpperCase();	
 			content+="</div>";	
 		}
@@ -1544,6 +1557,9 @@ Window_BeforebattleTwin.prototype.setupHasUnseenMove = function() {
 
 Window_BeforebattleTwin.prototype.redraw = function() {
 	var _this = this;
+	
+	$gameTemp.buttonHintManager.hide();
+	
 	if(this._battleStarting){
 		return;
 	}

@@ -349,6 +349,40 @@
 			}
 			return result;
 		}
+		
+		//warning: this function will only return the count once per requested combination per completed attack sequence
+		//repeated calls like during a map attack will return 0!
+		Game_Interpreter.prototype.getPendingDestructionCount  = function(type, ofFactionId, byFactionId){
+			var result = 0;
+			if($gameTemp.deathQueue && $gameTemp.deathQueue.length){
+				$gameTemp.deathQueue.forEach(function(queuedDeath){
+					if(!queuedDeath.countedKeys){
+						queuedDeath.countedKeys = {};
+					}
+					const lookupKey = type+"_"+ofFactionId+"_"+byFactionId;	
+					
+						
+					if(!queuedDeath.countedKeys[lookupKey]){	//hacky way to make it so a destruction is only counted once per attack. Otherwise they would be counted double for each enemy destroyed in a map attack
+						queuedDeath.countedKeys[lookupKey] = true;
+						
+						let isType;
+						if(type == null){
+							isType = true;
+						} else if(type == "actor"){
+							isType = queuedDeath.actor.isActor();
+						} else {
+							isType = queuedDeath.actor.isEnemy();
+						}
+						const isOwnFaction = $gameSystem.getFactionId(queuedDeath.actor) == ofFactionId || ofFactionId == null;
+						const isDestroyerFaction = $gameSystem.getFactionId(queuedDeath.destroyer) == byFactionId || byFactionId == null;				
+						if(isType && isOwnFaction && isDestroyerFaction){
+							result++;
+						}
+					}					
+				});
+			}
+			return result;
+		}
 
 		Game_Interpreter.prototype.isActorBelowHP  = function(id, hp){
 			return $statCalc.isActorBelowHP(id, hp);
@@ -486,12 +520,74 @@
 				params.attribute1,
 				params.attribute2,
 				params.boxDrop,
-				params.targetBox
+				params.targetBox,
+				params.AIFlags,
+				params.kills
 			);
+		}
+		
+		Game_Interpreter.prototype.parseDeployAssignment = function(assignments) {
+			let unrolledList = {};
+			for(let entry of Object.keys(assignments)){
+				if(entry){
+					let targetValue = assignments[entry];
+					let parts = entry.split("-");
+					let start;
+					let end;
+					if(parts.length == 1){
+						if(parts[0] == "default"){
+							start = end = -1;
+						} else {
+							start = end = parts[0] * 1;
+						}						
+					} else {
+						start = parts[0] * 1;
+						end = parts[1] * 1;
+					}
+					for(let i = start; i <= end; i++){
+						unrolledList[i] = targetValue;
+					}
+				}
+				
+			}
+			return unrolledList;
+		}
+		
+		Game_Interpreter.prototype.addEnemiesFromSettings = function(settings){
+			let unrolledParams = {};
+			for(let paramSetting in settings.params){
+				unrolledParams[paramSetting] = this.parseDeployAssignment(settings.params[paramSetting]);
+			}
+			function getParamSetting(param, eventId){
+				if(!unrolledParams[param]){
+					return null;
+				}
+				if(unrolledParams[param][eventId] != null){
+					return unrolledParams[param][eventId];
+				}
+				return unrolledParams[param][-1];
+			}
+			
+			for (let eventId = settings.events.start; eventId <= settings.events.end; eventId++) {
+				this.addEnemyFromObj({
+					toAnimQueue: getParamSetting("toAnimQueue", eventId),
+					eventId: eventId,
+					enemyId: getParamSetting("enemyId", eventId),
+					mechClass: getParamSetting("mechClass", eventId),
+					level: getParamSetting("level", eventId) || 1,
+					mode: getParamSetting("mode", eventId) || "",
+					attribute1: getParamSetting("attribute1", eventId) || "",
+					items: getParamSetting("items", eventId) || [],
+					squadId: getParamSetting("squadId", eventId),
+					targetRegion: getParamSetting("targetRegion", eventId),
+					AIFlags: getParamSetting("AIFlags", eventId),
+					kills: getParamSetting("kills", eventId) || 0,
+				});
+			}
 		}
 
 		// 新規エネミーを追加する（増援）
-		Game_Interpreter.prototype.addEnemy = function(toAnimQueue, eventId, enemyId, mechClass, level, mode, targetId, items, squadId, targetRegion, factionId, counterBehavior, attackBehavior, noUpdateCount, attribute1, attribute2, boxDrop, targetBox) {
+		Game_Interpreter.prototype.addEnemy = function(toAnimQueue, eventId, enemyId, mechClass, level, mode, targetId, items, squadId, targetRegion, factionId, counterBehavior, attackBehavior, noUpdateCount, attribute1, attribute2, boxDrop, targetBox, AIFlags, kills) {
 			if(!$dataEnemies[enemyId] || !$dataEnemies[enemyId].meta || !Object.keys($dataEnemies[enemyId].meta).length){
 				throw("Attempted to create an enemy pilot with id '"+enemyId+"' which does not have SRW data.");
 			}
@@ -501,6 +597,7 @@
 			}
 			
 			var enemy_unit = new Game_Enemy(enemyId, 0, 0);
+			enemy_unit.AIFlags = AIFlags;
 			var event = $gameMap.event(eventId);
 			
 			event._appearSpriteInitialized = false;
@@ -557,6 +654,7 @@
 					$statCalc.applyBattleStartWill(enemy_unit);
 					$statCalc.updateSuperState(enemy_unit, false, true);
 					
+					enemy_unit.SRWStats.pilot.kills = kills || 0;
 					
 					if(!noUpdateCount){
 						
@@ -1249,23 +1347,38 @@
 			return result;
 		}
 
-		Game_Interpreter.prototype.isActorInBattle = function(actorId) {
+		Game_Interpreter.prototype.isActorInBattle = function(actorId, checkSubPilots) {
 			var result = false;
+			
+			function checkActorSubPilots(actor){
+				if(actor && checkSubPilots){
+					const subPilots = $statCalc.getSubPilots(actor);
+					for(let subPilotId of subPilots){
+						if(subPilotId == actorId){
+							result = true;
+						}
+					}	
+				}				
+			}
 			if($gameTemp.currentBattleActor && $gameTemp.currentBattleActor.isActor()){
 				if($gameTemp.currentBattleActor.actorId() == actorId){
 					result = true;
 				}		
+				checkActorSubPilots($gameTemp.currentBattleActor);
 				if($gameTemp.currentBattleActor.subTwin && $gameTemp.currentBattleActor.subTwin.actorId() == actorId){
 					result = true;
 				}
+				checkActorSubPilots($gameTemp.currentBattleActor.subTwin);
 			}
 			if($gameTemp.currentBattleEnemy && $gameTemp.currentBattleEnemy.isActor()){
 				if($gameTemp.currentBattleEnemy.actorId() == actorId){
 					result = true;
 				}
+				checkActorSubPilots($gameTemp.currentBattleEnemy);
 				if($gameTemp.currentBattleEnemy.subTwin && $gameTemp.currentBattleEnemy.subTwin.actorId() == actorId){
 					result = true;
 				}
+				checkActorSubPilots($gameTemp.currentBattleEnemy.subTwin);
 			}
 			return result;
 		}
@@ -1306,6 +1419,11 @@
 		Game_Interpreter.prototype.setEventAbilityZone = function(eventId, params) {
 			$gameSystem.setEventAbilityZone(eventId, params);
 		}
+		
+		Game_Interpreter.prototype.clearEventAbilityZones = function(eventId) {
+			$gameSystem.clearEventAbilityZones(eventId);
+		}
+		
 
 		Game_Interpreter.prototype.applyFadeState = function() {
 			if(this.isTextSkipMode){
@@ -1967,11 +2085,12 @@
 							}
 							var damage = Math.floor(mechStats.maxHP * (damagePercent / 100));
 							aCache["damageInflicted"+attackedRef] = damage;
-							aCache.statusEffects = {};
+							aCache.statusEffects =  this._attacker.params.statusEffects || {};		
 							dCache.damageTaken+= damage;
 							if(this._attacker.params.targetEndHP <= 0){
 								dCache.isDestroyed = true;
 								dCache.destroyer = aCache.ref;
+								dCache.destroyedOrderIdx = orderIdx;
 							}
 						} 
 					}
