@@ -11,10 +11,13 @@ Window_UpgradePilotSelection.prototype = Object.create(Window_CSS.prototype);
 Window_UpgradePilotSelection.prototype.constructor = Window_UpgradePilotSelection;
 
 Window_UpgradePilotSelection.prototype.initialize = function() {
-	
+	const _this = this;
 	this._layoutId = "pilot_upgrade_list";	
 	this._pageSize = 1;
 	Window_CSS.prototype.initialize.call(this, 0, 0, 0, 0);	
+	window.addEventListener("resize", function(){
+		_this.requestRedraw();
+	});	
 }
 
 Window_UpgradePilotSelection.prototype.getCurrentSelection = function(){
@@ -132,6 +135,7 @@ Window_UpgradePilotSelection.prototype.update = function() {
 		if(Input.isTriggered('cancel') || TouchInput.isCancelled()){	
 			SoundManager.playCancel();
 			$gameTemp.popMenu = true;		
+			$gameTemp.buttonHintManager.hide();	
 			this.refresh();
 			return;	
 		}		
@@ -141,8 +145,12 @@ Window_UpgradePilotSelection.prototype.update = function() {
 };
 
 Window_UpgradePilotSelection.prototype.redraw = function() {
+	
+	$gameTemp.buttonHintManager.setHelpButtons([["select_pilot", "page_nav"], ["upgrade_pilot"], ["det_page_nav", "det_page_sort"], ["det_sort_order"]]);
+	$gameTemp.buttonHintManager.show();
+	
 	this._mechList.redraw();
 	this._detailBarPilotDetail.redraw();		
-
+	this.loadImages();
 	Graphics._updateCanvas();
 }

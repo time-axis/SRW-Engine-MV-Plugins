@@ -744,8 +744,16 @@
 		Sprite_Character.prototype.updateCharacterFrame = function() {
 			var pw = this.patternWidth();
 			var ph = this.patternHeight();
-			var sx = (this.characterBlockX() + this.characterPatternX()) * pw;
-			var sy = (this.characterBlockY() + this.characterPatternY()) * ph;
+			var sx;
+			var sy;
+			if(ENGINE_SETTINGS.USE_SINGLE_MAP_SPRITE){
+				sx = (this.characterBlockX() + 0) * pw;
+				sy = (this.characterBlockY() + 0) * ph;
+			} else {
+				sx = (this.characterBlockX() + this.characterPatternX()) * pw;
+				sy = (this.characterBlockY() + this.characterPatternY()) * ph;
+			}
+			
 			
 			let isMode7 = (typeof UltraMode7 != "undefined") && UltraMode7.isActive();
 			
@@ -943,7 +951,8 @@
 				}
 				this.y = this.y + (floatOffset * ratio);
 			}
-		}	
+		}
+		this.y-=(ENGINE_SETTINGS.CURSOR_OFFSET || 0);
 	};
 	
 //====================================================================
@@ -1775,7 +1784,6 @@
 
 	Sprite_Reticule.prototype.update = function() {
 		function lerp(start, end, t){
-		//	t => 1-(--t)*t*t*t;
 			return start + (end - start) * t;
 		}
 		
@@ -1791,13 +1799,18 @@
 				this._time = 0;
 				this.scale.x = 1;
 				this.scale.y = 1;
+				$gamePlayer.setTransparent(false);
 			}			
 		}
 		if(this._actorEvent && this._targetActorEvent){	
 			if(this._time <= this._duration){
+				$gamePlayer.setTransparent(true);
 				this.visible = true;
 				this.x = lerp(this._actorEvent.screenX(), this._targetActorEvent.screenX(), this._time / this._duration);
 				this.y = lerp(this._actorEvent.screenY() - 24, this._targetActorEvent.screenY() - 24, this._time / this._duration);				
+			}
+			if(this._time > this._duration / 2 && !$gameMap.isEventOnScreen( this._targetActorEvent.eventId())){
+				$gamePlayer.locate(this._targetActorEvent.posX(), this._targetActorEvent.posY());
 			}
 			this._time+=$gameSystem.getBattleSpeed();
 		} else if($gameTemp.reticuleInfo){

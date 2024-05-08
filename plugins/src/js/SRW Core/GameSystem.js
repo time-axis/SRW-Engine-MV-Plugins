@@ -27,7 +27,7 @@
 			this._pilotFallbackInfo = {};
 			this.initOptions();
 			
-			
+			this._controlSet = "mkb";
 		};
 		
 		Game_System.prototype.initOptions = function() {
@@ -49,7 +49,71 @@
 			if(this.optionAfterBattleBGM == null){
 				this.optionAfterBattleBGM = true;
 			}
+			if(this.optionInfiniteFunds == null){
+				this.optionInfiniteFunds = false;
+			}
+			if(this.optionInfinitePP == null){
+				this.optionInfinitePP = false;
+			}
+			if(this.optionPadSet == null){
+				this.optionPadSet = "xbox";
+			}
+			if(this.optionPadSet == null){
+				this.optionPadSet = "xbox";
+			}
+			if(this.optionMapHints == null){
+				this.optionMapHints = true;
+			}
 		};
+		
+		Game_System.prototype.getOptionMapHints = function() {
+			if(this.optionMapHints == null){
+				this.optionMapHints = true;
+			}
+			return this.optionMapHints;
+		}
+		
+		Game_System.prototype.setOptionMapHints = function(value) {			
+			this.optionMapHints = value;		
+		}
+		
+		Game_System.prototype.getControllerIconSets = function() {
+			return ["xbox", "ds", "nin"];
+		}
+		
+		Game_System.prototype.getOptionPadSet = function() {
+			return this.optionPadSet || "xbox";
+		}
+		
+		Game_System.prototype.setControlSet = function(newSet) {
+			if(this._controlSet != newSet){
+				if($gameTemp.buttonHintManager){
+					$gameTemp.buttonHintManager.redraw();
+				}
+			}
+			this._controlSet = newSet;		
+		}
+		
+		Game_System.prototype.getActiveGlyphSet = function() {
+			if(this._controlSet == "mkb"){
+				return this._controlSet;
+			}
+			if(this._controlSet == "controller"){
+				return this.optionPadSet || "xbox";
+			}
+			return "mkb";
+		}
+		
+		Game_System.prototype.getActionGlyphs = function(action) {
+			const activeSet = this.getActiveGlyphSet();
+			let glyphs;
+			if(activeSet == "mkb"){
+				glyphs = Input.getActionGlyphs(action);
+			} else {
+				glyphs = Input.getPadGlyphs(action);
+			}
+			return Input.getGlyphDefinition(activeSet, glyphs);
+		}
 
 	//変数関係の処理
 		//戦闘中かどうかのフラグを返す
@@ -245,7 +309,7 @@
 			this._searchedItemList = [];
 		};
 
-		Game_System.prototype.updateAvailableUnits = function(ignoreEventDeploys, preservePilotTypes){
+		Game_System.prototype.updateAvailableUnits = function(ignoreEventDeploys, preservePilotTypes, noReload){
 			const _this = this;
 			this._availableMechs = [];//available mechs must be cleared to avoid conflicts with previously serialized entries in the listing
 			this._availableUnits = $gameParty.allMembers();
@@ -287,18 +351,25 @@
 				$statCalc.applyBattleStartWill(actor);
 			}
 			
-			//main twin must be initialized first to ensure a reference event is available for their sub twin
-			this._availableUnits.forEach(function(actor){
-				if(!actor.isSubTwin){
-					updateUnit(actor);
-				}					
+			this._availableUnits.forEach(function(actor){		
+				actor.event = null									
 			});
 			
-			this._availableUnits.forEach(function(actor){
-				if(actor.isSubTwin){
-					updateUnit(actor);
-				}					
-			});
+			if(!noReload){
+				//main twin must be initialized first to ensure a reference event is available for their sub twin
+				this._availableUnits.forEach(function(actor){
+					if(!actor.isSubTwin){
+						updateUnit(actor);
+					}					
+				});
+				
+				this._availableUnits.forEach(function(actor){
+					if(actor.isSubTwin){
+						updateUnit(actor);
+					}					
+				});
+			}
+			
 			
 			var deployList = this.getDeployList();
 			var isSubTwin = {};
@@ -342,9 +413,14 @@
 			
 			var tmp = Object.keys($SRWSaveManager.getUnlockedUnits());			
 			for(var i = 0; i < tmp.length; i++){
-				var currentPilot = $statCalc.getCurrentPilot(tmp[i]);
+				let mechId = tmp[i];
+				var currentPilot = $statCalc.getCurrentPilot(mechId);
 				if(!currentPilot){
-					var mechData = $statCalc.getMechData($dataClasses[tmp[i]], true);			
+					//wholesale replace evolved units with their targets for availability
+					if($SRWSaveManager.isEvolvedMech(mechId)){
+						mechId = $SRWSaveManager.getEvolutionTarget(mechId);
+					}
+					var mechData = $statCalc.getMechData($dataClasses[mechId], true);			
 					
 					var result = $statCalc.createEmptyActor();				
 					result.SRWStats.mech = mechData;		
@@ -837,6 +913,10 @@
 			$statCalc.invalidateAbilityCache(actor_unit);
 			$statCalc.initSRWStats(actor_unit);
 			$statCalc.applyBattleStartWill(actor_unit);
+			let preferredSuperState = this.getPreferredSuperState(actor_unit);
+			if(preferredSuperState){
+				$statCalc.setSuperState(actor_unit, preferredSuperState);
+			}
 			$statCalc.updateSuperState(actor_unit, true);
 			//call refresh to clear any lingering states of the actor
 			actor_unit.refresh();
@@ -958,7 +1038,7 @@
 			});
 		}
 		
-		Game_System.prototype.redeployActors = function(validatePositions){                                                                                                                                                                                                                             
+		Game_System.prototype.redeployActors = function(validatePositions, forceRefresh){                                                                                                                                                                                                                             
 			$gameVariables.setValue(_existActorVarID, 0);
 			$gameSystem.clearSrpgAllActors();
 			$gameMap.events().forEach(function(event) {
@@ -967,7 +1047,11 @@
 					event.isDeployed = false;
 				}
 			 });
+			 if(!forceRefresh){
+				$statCalc.externalLockUnitUpdates(); 
+			 }			 
 			 this.deployActors(false, $gameTemp.manualDeployType, validatePositions);
+			 $statCalc.externalUnlockUnitUpdates();
 		}
 		
 		Game_System.prototype.redeployActor = function(actorId, toAnimQueue){  
@@ -1414,7 +1498,7 @@
 		//エネミーターンの開始
 		Game_System.prototype.srpgStartEnemyTurn = function(factionId) {
 			var _this = this;
-			
+			$gameTemp.buttonHintManager.hide();
 			
 			
 			$gameTemp.showAllyAttackIndicator = false;
@@ -1453,7 +1537,7 @@
 					var autoSpirits = $statCalc.getModDefinitions(battlerArray[1], ["auto_spirit"]);
 					
 					autoSpirits.forEach(function(autoSpirit){	
-						$statCalc.setAbilityUsed(actor, "auto_spirit_"+autoSpirit.stackId);
+						$statCalc.setAbilityUsed(battlerArray[1], "auto_spirit_"+autoSpirit.stackId);
 						spiritActivations.push({actor: battlerArray[1], spirit: autoSpirit.value});				
 					});	
 				}
@@ -1483,12 +1567,14 @@
 			
 			if(spiritActivations.length){					
 				_this.setSubBattlePhase('auto_spirits');
-			} //else if($gameTemp.AIActors.length){
+			} else if($gameTemp.AIActors.length){
 				_this.setBattlePhase('AI_phase');
 				_this.setSubBattlePhase('enemy_command');
-			//}
+			} else {
+				this.setSubBattlePhase('enemy_command');
+			}
 			
-			//this.setSubBattlePhase('enemy_command');
+			//
 		};
 
 		//ターン終了
@@ -1525,7 +1611,6 @@
 			
 			var moveRange = $statCalc.getCurrentMoveRange(battlerArray[1]);
 			$gameTemp.clearMoveTable();
-			$gameTemp.initialMoveTable(event.posX(), event.posY(), battlerArray[1].srpgThroughTag());
 			event.makeMoveTable(event.posX(), event.posY(), moveRange, [0], battlerArray[1]);
 			var list = $gameTemp.moveList();
 			var tileLookup = {};
@@ -2536,6 +2621,16 @@
 			}			
 		}
 		
+		Game_System.prototype.clearEventAbilityZones = function(eventId) {
+			this.validateAbilityZoneInfo();
+			for(var i = 0; i < Game_System.ABI_ZONE_MAX; i++){
+				if(this.abilityZoneInfo[i].ownerEventId == eventId){
+					this.abilityZoneInfo[i].phaseCount = 0;
+					this.setAbilityZoneNeedsRefresh(i);
+				}				
+			}			
+		}
+		
 		Game_System.prototype.setAbilityZone = function(id, params) {
 			this.validateAbilityZoneInfo();
 			if(id < 0 || id >= Game_System.ABI_ZONE_MAX){
@@ -2560,6 +2655,8 @@
 			this.validateAbilityZoneInfo();
 			this.abilityZoneAnimationsPending[id] = true;
 			this.abilityZoneRefreshInfo[id] = true;
+			
+			$statCalc.invalidateZoneCache();
 		}
 		
 		Game_System.prototype.clearAbilityZoneNeedsRefresh = function(id) {
@@ -2874,4 +2971,25 @@
 			}
 			return this.favPoints;
 		}
+		
+		Game_System.prototype.setPreferredSuperState = function(actor, state) {
+			if(!this.preferredSuperStates){
+				this.preferredSuperStates = {};
+			}
+			if(actor.actorId){
+				this.preferredSuperStates[actor.actorId()] = state;
+			}
+			
+		}
+		
+		Game_System.prototype.getPreferredSuperState = function(actor) {
+			if(!this.preferredSuperStates){
+				this.preferredSuperStates = {};
+			}
+			if(actor.actorId){
+				return this.preferredSuperStates[actor.actorId()];
+			}
+		}
+		
+		
 	}

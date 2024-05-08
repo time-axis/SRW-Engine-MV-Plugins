@@ -69,7 +69,8 @@ Window_TextLog.prototype.update = function() {
 Window_TextLog.prototype.redraw = function() {	
 	var _this = this;
 	var content = "";
-
+	$gameTemp.buttonHintManager.hide();
+	
 	if($gameSystem.textLog){
 		content+="<div class='log_container styled_scroll'>";		
 		
@@ -106,7 +107,7 @@ Window_TextLog.prototype.redraw = function() {
 		div.innerText = $gameSystem.textLog[div.getAttribute("data-idx")].text;
 		_this.updateScaledDiv(div, true);
 	});	
-	
+	this.loadImages();
 	Graphics._updateCanvas();
 	_this._bgFadeContainer.style.visibility = "hidden";
 	setTimeout(function(){

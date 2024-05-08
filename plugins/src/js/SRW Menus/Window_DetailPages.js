@@ -144,6 +144,7 @@ Window_DetailPages.prototype.createComponents = function() {
 	this._attackList.setView("summary");
 	this._attackList.enableSelection();
 	this._attackList.createComponents();	
+	this._attackList.registerObserver("redraw", function(){_this.requestRedraw();});
 	
 	this._weaponDetailContainer = document.createElement("div");
 	this._weaponDetailContainer.classList.add("list_detail");	
@@ -425,6 +426,7 @@ Window_DetailPages.prototype.update = function() {
 			SoundManager.playCancel();
 			if(this._uiState == "normal"){
 				$gameTemp.popMenu = true;	
+				$gameTemp.buttonHintManager.hide();
 			
 				if(this._callbacks["closed"]){
 					this._callbacks["closed"]();
@@ -441,18 +443,21 @@ Window_DetailPages.prototype.update = function() {
 };
 
 Window_DetailPages.prototype.validateTab = function() {
-	if(!this.getCurrentSelection().actor || this.getCurrentSelection().actor.SRWStats.pilot.id == -1){
-		if(this._selectedTab == 0){
-			this._selectedTab = 1;
-			this.requestRedraw();
+	const currentSelection = this.getCurrentSelection();
+	if(currentSelection){
+		if(!currentSelection.actor || currentSelection.actor.SRWStats.pilot.id == -1){
+			if(this._selectedTab == 0){
+				this._selectedTab = 1;
+				this.requestRedraw();
+			}
+		}		
+		if(currentSelection.mech.id == -1){
+			if(this._selectedTab != 0){
+				this._selectedTab = 0;
+				this.requestRedraw();
+			}
 		}
-	}		
-	if(this.getCurrentSelection().mech.id == -1){
-		if(this._selectedTab != 0){
-			this._selectedTab = 0;
-			this.requestRedraw();
-		}
-	}
+	}	
 }
 
 Window_DetailPages.prototype.drawPilotStats1 = function() {
@@ -493,8 +498,10 @@ Window_DetailPages.prototype.drawPilotStats1 = function() {
 	}
 	detailContent+="</div>";
 	
-	detailContent+="<div data-offset=-1 data-type=twin class='left twin selection_icon'></div>";//icon 
-	detailContent+="<div data-offset=1 data-type=twin class='right twin selection_icon'></div>";//icon 
+	if(ENGINE_SETTINGS.ENABLE_TWIN_SYSTEM){
+		detailContent+="<div data-offset=-1 data-type=twin class='left twin selection_icon'></div>";//icon 
+		detailContent+="<div data-offset=1 data-type=twin class='right twin selection_icon'></div>";//icon 
+	}
 	
 	detailContent+="<div class='pilot_type scaled_text fitted_text type_indicator'>";
 	if(!actor.isSubPilot){
@@ -525,12 +532,13 @@ Window_DetailPages.prototype.drawPilotStats1 = function() {
 	detailContent+="<div class='stat_value'>"+currentLevel+"</div>";
 	detailContent+="</div>";
 	
-	if(actor.SRWStats.pilot.stats.base.MP){
-		detailContent+="<div class='pilot_stat_container scaled_text scaled_width'>";		
+	detailContent+="<div class='pilot_stat_container scaled_text scaled_width'>";	
+	if(actor.SRWStats.pilot.stats.base.MP){		
 		detailContent+="<div class='stat_label'>"+APPSTRINGS.DETAILPAGES.label_pilot_MP+"</div>";
 		detailContent+="<div class='stat_value'>"+calculatedStats.currentMP+"/"+calculatedStats.MP+"</div>";
-		detailContent+="</div>";
 	}
+	detailContent+="</div>";
+	
 	
 	detailContent+="</div>";
 	
@@ -896,7 +904,7 @@ Window_DetailPages.prototype.drawPilotStats2 = function() {
 		}
 		
 		
-		detailContent+="<div "+descriptionData+" class='pilot_stat_container "+descriptionClass+" scaled_text scaled_width fitted_text "+displayClass+"'>";
+		detailContent+="<div "+descriptionData+" class='pilot_stat_container "+descriptionClass+" scaled_text scaled_width fitted_text "+displayClass+" "+i+"'>";
 		detailContent+="<div class='unique_skill_mark scaled_width'>"+uniqueString+"</div>";
 		detailContent+="<div class='stat_value'>"+displayName+"</div>";
 		detailContent+="</div>";		
@@ -925,7 +933,7 @@ Window_DetailPages.prototype.drawPilotStats2 = function() {
 		var uniqueString = "";
 		var descriptionData = "";
 		var descriptionClass = "";
-		if(typeof spiritList[i] != "undefined" && spiritList[i].level <= currentLevel){
+		if(typeof spiritList[i] != "undefined" && spiritList[i].idx !== '' &&  spiritList[i].level <= currentLevel){
 			descriptionClass = "described_element";
 			descriptionData = "data-type='spirit' data-idx='"+spiritList[i].idx+"'";
 			
@@ -933,7 +941,7 @@ Window_DetailPages.prototype.drawPilotStats2 = function() {
 			displayName = "<div class='scaled_width spirit_label'>"+displayInfo.name+"</div>("+spiritList[i].cost+")" ;
 		}
 		
-		detailContent+="<div "+descriptionData+" class='pilot_stat_container "+descriptionClass+" scaled_text scaled_width fitted_text spirit_list_entry'>";
+		detailContent+="<div "+descriptionData+" class='pilot_stat_container "+descriptionClass+" scaled_text scaled_width fitted_text spirit_list_entry' "+i+">";
 		detailContent+="<div class='stat_value'>"+displayName+"</div>";
 		detailContent+="</div>";		
 		
@@ -1011,7 +1019,7 @@ Window_DetailPages.prototype.drawPilotStats2 = function() {
 				displayName = "<div class='scaled_width spirit_label'>"+displayInfo.name+"</div>";
 			}
 			
-			detailContent+="<div "+descriptionData+" class='pilot_stat_container "+descriptionClass+" scaled_text scaled_width fitted_text spirit_list_entry'>";
+			detailContent+="<div "+descriptionData+" class='pilot_stat_container "+descriptionClass+" scaled_text scaled_width fitted_text spirit_list_entry' "+i+">";
 			detailContent+="<div class='stat_value'>"+displayName+"</div>";
 			detailContent+="</div>";		
 			
@@ -1030,6 +1038,29 @@ Window_DetailPages.prototype.drawPilotStats2 = function() {
 Window_DetailPages.prototype.redraw = function() {
 	//this._mechList.redraw();
 	var _this = this;
+	
+	if(this._selectedTab == 0){
+		if(ENGINE_SETTINGS.ENABLE_TWIN_SYSTEM){
+			$gameTemp.buttonHintManager.setHelpButtons([["previous_twin_pilot", "previous_sub_pilot"], ["tab_nav"], ["abi_details"]]);
+		} else {
+			$gameTemp.buttonHintManager.setHelpButtons([["previous_sub_pilot"], ["tab_nav"], ["abi_details"]]);
+		}		
+	} else if(this._selectedTab == 1){
+		if(ENGINE_SETTINGS.ENABLE_TWIN_SYSTEM){
+			$gameTemp.buttonHintManager.setHelpButtons([["tab_nav"], ["abi_details"]]);
+		} else {
+			$gameTemp.buttonHintManager.setHelpButtons([["tab_nav"], ["abi_details"]]);
+		}		
+	} else if(this._selectedTab == 2){
+		if(ENGINE_SETTINGS.ENABLE_TWIN_SYSTEM){
+			$gameTemp.buttonHintManager.setHelpButtons([["tab_nav"], ["inspect_weap"]]);
+		} else {
+			$gameTemp.buttonHintManager.setHelpButtons([["tab_nav"], ["inspect_weap"]]);
+		}		
+	} else {
+		$gameTemp.buttonHintManager.setHelpButtons([]);
+	}
+	$gameTemp.buttonHintManager.show();
 	
 	this._mapAttackPreview.classList.remove("active");	
 	if(this.getCurrentSelection().mech.id != -1){

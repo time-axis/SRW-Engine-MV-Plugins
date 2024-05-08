@@ -111,6 +111,18 @@ function GameStateManager(){
 	});
 }
 
+GameStateManager.prototype.updateStateButtonPrompts = function(items, displayKey){
+	let hasBlockingMenu = ($gameTemp.menuStack && $gameTemp.menuStack.length > 0);
+	if($gameTemp && $gameTemp.buttonHintManager){		
+		if($gameSystem && $gameSystem.getOptionMapHints()){
+			if(!hasBlockingMenu){
+				$gameTemp.buttonHintManager.setHelpButtons(items);
+				$gameTemp.buttonHintManager.show(displayKey);
+			}			
+		}		
+	}	
+}
+
 GameStateManager.prototype.getActiveStateName = function(){
 	return this._currentState;
 }
@@ -177,7 +189,14 @@ GameStateManager.prototype.canShowPopUpAnim = function(){
 
 GameStateManager.prototype.requestNewState = function(state){
 	if(this._stateObjMapping[state]){
+		//hacky fix for making the hint window shown in the normal game state go away when leaving that state
+		//if($gameTemp && $gameTemp.buttonHintManager){			
+		//	$gameTemp.buttonHintManager.clearDisplayKey(); //make sure the hint window can reappear when returning to the normal state
+		//	$gameTemp.buttonHintManager.hide();			
+		//}
+		
 		this._currentState = state;
+		
 	} else {
 		//while transitioning to the new system allow the stage manager to be left on an empty state
 		this._currentState = null;
@@ -221,9 +240,10 @@ GameState_actor_command_window.prototype = Object.create(GameState.prototype);
 GameState_actor_command_window.prototype.constructor = GameState_actor_command_window;
 
 GameState_actor_command_window.prototype.update = function(scene){
-	if(!scene._mapSrpgActorCommandWindow.isOpen() && !scene._mapSrpgActorCommandWindow.isOpening()){
+	$SRWGameState.updateStateButtonPrompts([["select_action"], ["confirm_action"]], "actor_command_window");
+	if(!scene._mapSrpgActorCommandWindow.isOpen() && !scene._mapSrpgActorCommandWindow.isOpening()){		
 		$gameSystem.setSrpgActorCommandWindowNeedRefresh($gameSystem.EventToUnit($gameTemp.activeEvent().eventId()));
-	}	
+	}		
 	return true;
 }
 
@@ -241,6 +261,11 @@ function GameState_post_move_command_window(){
 
 GameState_post_move_command_window.prototype = Object.create(GameState.prototype);
 GameState_post_move_command_window.prototype.constructor = GameState_post_move_command_window;
+
+GameState_post_move_command_window.prototype.update = function(scene){
+	$SRWGameState.updateStateButtonPrompts([["select_action"], ["confirm_action"]], "actor_command_window");
+	return true;
+}
 
 function GameState_battle_window(){
 	GameState.call(this);
@@ -266,6 +291,8 @@ GameState_actor_move.prototype.canCursorMove = function(){
 }
 
 GameState_actor_move.prototype.update = function(){
+	$SRWGameState.updateStateButtonPrompts([["move_cursor"], ["select_space"], ["quick_select_space"]], "actor_move");
+	
 	function putCursorAtCorner(direction){
 		$gamePlayer.locate($gameTemp.moveEdgeInfo.corners[direction].x, $gameTemp.moveEdgeInfo.corners[direction].y);
 	}
@@ -337,7 +364,7 @@ GameState_actor_move.prototype.updateTriggerAction = function(cursor){
 				var target = $statCalc.activeUnitAtPosition({x: cursor._x, y: cursor._y}, "actor");	
 				var initiator = $gameSystem.EventToUnit($gameTemp.activeEvent().eventId())[1];
 				
-				if(!$statCalc.isEssential(initiator) && !$gameTemp.activeShip && $statCalc.isShip(target) && $gameTemp.activeEvent().eventId() != target.event.eventId()){
+				if(!$statCalc.isEssential(initiator) && !$gameTemp.activeShip && $statCalc.isShip(target)  && !$statCalc.isShip(initiator) && $gameTemp.activeEvent().eventId() != target.event.eventId()){
 					SoundManager.playOk();
 					var battlerArray = $gameSystem.EventToUnit($gameTemp.activeEvent().eventId());
 					battlerArray[1].srpgMakeNewActions();
@@ -467,6 +494,14 @@ GameState_actor_map_target.prototype.constructor = GameState_actor_map_target;
 GameState_actor_map_target.prototype.update = function(scene){
 	var attack = $gameTemp.actorAction.attack;
 	var mapAttackDef = $mapAttackManager.getDefinition(attack.mapId);
+	
+	if(mapAttackDef.lockRotation){
+		$SRWGameState.updateStateButtonPrompts([["confirm_attack"]], "actor_map_target");
+	} else {
+		$SRWGameState.updateStateButtonPrompts([["choose_direction"], ["confirm_attack"]], "actor_map_target");
+	}
+	
+	
 	if(Input.isTriggered("ok") || TouchInput.isTriggered()){// && !$gameTemp.OKHeld	
 		var processOK = false;
 		if(TouchInput.isTriggered() && $gameTemp.touchMapAttackState == "direction"){
@@ -523,7 +558,8 @@ GameState_actor_map_target.prototype.update = function(scene){
 				$gamePlayer.locate($gameTemp.activeEvent().posX() + adjusted[0][0], $gameTemp.activeEvent().posY() + adjusted[0][1]);
 				$gameTemp.mapTouchRetargetState = "init";
 				$gameSystem.setSubBattlePhase('actor_map_target_confirm');
-				Input.clear();
+				$gameTemp.AHeldCtr = 30;
+				//Input.clear();
 			}	
 		}									
 	} else if (Input.isTriggered('cancel') || TouchInput.isCancelled()) {
@@ -539,17 +575,11 @@ GameState_actor_map_target.prototype.update = function(scene){
 			var battlerArray = $gameSystem.EventToUnit(event.eventId());
 			$gameTemp.clearMoveTable();
 			
-			/*var list = $gameTemp.moveList();
-			for (var i = 0; i < list.length; i++) {
-				var pos = list[i];
-				event.makeRangeTable(pos[0], pos[1], battlerArray[1].srpgWeaponRange(), [0], pos[0], pos[1], $dataSkills[battlerArray[1].attackSkillId()]);
-			}*/
 			$gameTemp.pushRangeListToMoveList();
 			$gameTemp.setResetMoveList(true);
 			$gameSystem.setSrpgActorCommandWindowNeedRefresh(battlerArray);
 			if($gameTemp.isPostMove){
 				$gameSystem.setSubBattlePhase('post_move_command_window');
-				$gameTemp.initialMoveTable($gameTemp.originalPos()[0], $gameTemp.originalPos()[1], $statCalc.getCurrentMoveRange(battlerArray[1]));
 				event.makeMoveTable($gameTemp.originalPos()[0], $gameTemp.originalPos()[1], $statCalc.getCurrentMoveRange(battlerArray[1]), [0], battlerArray[1]);
 			} else {
 				$gamePlayer.locate(event.posX(), event.posY());
@@ -616,6 +646,8 @@ GameState_actor_map_target_confirm.prototype.constructor = GameState_actor_map_t
 
 GameState_actor_map_target_confirm.prototype.update = function(scene){
 	
+	$SRWGameState.updateStateButtonPrompts([["choose_position"], ["confirm_attack"]], "actor_map_target_confirm");
+	
 	var currentPosition = {x: $gamePlayer.posX(), y: $gamePlayer.posY()};		
 
 	var summaryUnit = $statCalc.activeUnitAtPosition(currentPosition);
@@ -663,11 +695,22 @@ GameState_actor_map_target_confirm.prototype.update = function(scene){
 		$gameTemp.currentMapTargets = targets;				
 	}			
 	
+	if(Input.isPressed("ok") && $gameTemp.AHeldCtr > 0){
+		$gameTemp.AHeldCtr--;
+		if($gameTemp.AHeldCtr > 0){
+			return;
+		}		
+	} else {
+		$gameTemp.AHeldCtr = 0;
+	}
+	
 	if(Input.isTriggered("ok") || TouchInput.isTriggered()){// && !$gameTemp.OKHeld	
 		
 		if(!mapAttackDef.retargetInfo || !mapAttackDef.retargetInfo.shape.length){
 			$gameTemp.clearMoveTable();	
 			$gameTemp.setResetMoveList(true);
+			$gamePlayer.locate($gameTemp.activeEvent().posX(), $gameTemp.activeEvent().posY(), false, true);
+			$gameTemp.mapAttackAnimationDelay = 30;
 			scene.mapAttackStart();
 		} else {
 			var triggerOK = true;
@@ -757,6 +800,9 @@ GameState_actor_support.prototype = Object.create(GameState.prototype);
 GameState_actor_support.prototype.constructor = GameState_actor_support;
 
 GameState_actor_support.prototype.update = function(scene){
+	
+	$SRWGameState.updateStateButtonPrompts([["move_cursor", "speed_up_cursor"], ["confirm_recipient"]], "actor_support");
+	
 	if (Input.isTriggered('cancel') || TouchInput.isCancelled()) {
 		var battlerArray = $gameSystem.EventToUnit($gameTemp.activeEvent().eventId());
 		SoundManager.playCancel();
@@ -889,6 +935,9 @@ GameState_actor_target.prototype = Object.create(GameState.prototype);
 GameState_actor_target.prototype.constructor = GameState_actor_target;
 
 GameState_actor_target.prototype.update = function(scene){
+	
+	$SRWGameState.updateStateButtonPrompts([["move_cursor", "speed_up_cursor"], ["prev_target", "next_target"], ["select_target"]], "actor_target");
+	
 	if (Input.isTriggered('pageup')) {                   
 		$gameSystem.getNextLTarget();
 	} else if (Input.isTriggered('pagedown')) {      
@@ -909,18 +958,12 @@ GameState_actor_target.prototype.update = function(scene){
 		}
 		$gameTemp.disableHighlightGlow = true;
 		
-		/*var list = $gameTemp.moveList();
-		for (var i = 0; i < list.length; i++) {
-			var pos = list[i];
-			event.makeRangeTable(pos[0], pos[1], battlerArray[1].srpgWeaponRange(), [0], pos[0], pos[1], $dataSkills[battlerArray[1].attackSkillId()]);
-		}*/
 		$gameTemp.pushRangeListToMoveList();
 		$gameTemp.setResetMoveList(true);
 		$gameSystem.setSrpgActorCommandWindowNeedRefresh(battlerArray);
 		$gamePlayer.locate(event.posX(), event.posY());
 		if($gameTemp.isPostMove){
 			$gameSystem.setSubBattlePhase('post_move_command_window');
-			$gameTemp.initialMoveTable($gameTemp.originalPos()[0], $gameTemp.originalPos()[1], $statCalc.getCurrentMoveRange(battlerArray[1]));
 			event.makeMoveTable($gameTemp.originalPos()[0], $gameTemp.originalPos()[1], $statCalc.getCurrentMoveRange(battlerArray[1]), [0], battlerArray[1]);
 		} else {			
 			$gameSystem.setSubBattlePhase('actor_command_window');	
@@ -951,6 +994,7 @@ GameState_actor_target.prototype.updateMapEvent = function(x, y, triggers){
 				if(isInRange && validTarget){
 					let isValidWeaponTarget = $statCalc.isValidWeaponTarget(actionBattlerArray[1], targetBattlerArray[1], $gameTemp.actorAction.attack);
 					if(isValidWeaponTarget || (targetBattlerArray[0] === 'actor' && $gameTemp.actorAction.type === "support")){
+						
 						//$gameSystem.setSrpgBattleWindowNeedRefresh(actionBattlerArray, targetBattlerArray);
 						//$gameSystem.setSrpgStatusWindowNeedRefresh(actionBattlerArray);
 						$gameTemp.currentBattleActor = actionBattlerArray[1];
@@ -960,6 +1004,7 @@ GameState_actor_target.prototype.updateMapEvent = function(x, y, triggers){
 						var enemyInfo = {actor: $gameTemp.currentBattleEnemy, pos: {x: event.posX(), y: event.posY()}};
 						var actorInfo = {actor: $gameTemp.currentBattleActor, pos: {x: $gameTemp.activeEvent()._x, y: $gameTemp.activeEvent()._y}};
 						$gameTemp.enemyAction = null;
+						$statCalc.invalidateAbilityCache(enemyInfo.actor);
 						if(enemyInfo.actor.counterBehavior == "defend"){
 							$gameTemp.enemyAction = {
 								type: "defend",
@@ -1548,6 +1593,13 @@ GameState_normal.prototype.constructor = GameState_normal;
 
 
 GameState_normal.prototype.update = function(scene){
+	
+	//hacky workaround for issue where transitioning into the save scene runs this state for a frame, popping open the button prompts
+	/*if($gameTemp.isPendingSaveMenu){
+		$gameTemp.isPendingSaveMenu = false;
+		return;
+	}*/
+	
 	$gameTemp.activeShip = null;
 	$gameTemp.actorAction = {};
 	$gameTemp.enemyAction = {};
@@ -1572,7 +1624,7 @@ GameState_normal.prototype.update = function(scene){
 	
 	if (!$gameSystem.isSRPGMode()){
 		if(Input.isTriggered('menu')){
-			scene.showPauseMenu();
+			//scene.showPauseMenu();
 			$gameSystem.setSubBattlePhase('pause_menu');		
 			scene._mapButtonsWindow.requestRedraw();	
 		}
@@ -1606,9 +1658,22 @@ GameState_normal.prototype.update = function(scene){
 	var currentPosition = {x: $gamePlayer.posX(), y: $gamePlayer.posY()};
 	$gameTemp.previousCursorPosition = currentPosition;			
 
-	let hasActiveZones = $gameSystem.isZoneActiveAtTile(currentPosition);		
-	
+	let hasActiveZones = $gameSystem.isZoneActiveAtTile(currentPosition);
+
 	var summaryUnit = $statCalc.activeUnitAtPosition(currentPosition);
+
+	let menuAction;
+	if(hasActiveZones){
+		menuAction = "show_zone_info";
+	} else {
+		if(summaryUnit){
+			menuAction = "show_status";
+		} else {
+			menuAction = "toggle_detail_icons";
+		}		
+	}
+	
+	
 	if(summaryUnit && $gameTemp.summariesTimeout <= 0){
 		var previousUnit = $gameTemp.summaryUnit;
 		$gameTemp.summaryUnit = summaryUnit;	
@@ -1637,6 +1702,24 @@ GameState_normal.prototype.update = function(scene){
 				$gameTemp.showEnemyDefendIndicator = true;
 			}
 		}
+	
+		let items = [];
+		let displayKey = "GameState_normal_";
+		if(summaryUnit.isActor()){
+			if(summaryUnit.canInput()){
+				items = [["actor_menu"], ["move_cursor", "speed_up_cursor"], ["navigate_units"], [menuAction]];
+				displayKey+="acting_unit";
+			} else {
+				items = [["show_actor"], ["move_cursor", "speed_up_cursor"], ["navigate_units"], [menuAction]];
+				displayKey+="waiting_unit";
+			}			
+		} else {
+			items = [["show_enemy"], ["move_cursor", "speed_up_cursor"], ["navigate_units"], [menuAction]];
+			displayKey+="enemy";
+		}		
+
+		
+		$SRWGameState.updateStateButtonPrompts(items, displayKey+menuAction);
 		
 	} else {
 		$gameTemp.summaryUnit = null;
@@ -1653,9 +1736,10 @@ GameState_normal.prototype.update = function(scene){
 		$gameTemp.showEnemyDefendIndicator = false;
 		
 		if(Input.isTriggered('ok')){			
-			scene.showPauseMenu();
+			//scene.showPauseMenu();
 			$gameSystem.setSubBattlePhase('pause_menu');		
 			scene._mapButtonsWindow.requestRedraw();	
+			return;	
 		} else {
 			$gameTemp.OKHeld = false;
 		}
@@ -1663,6 +1747,8 @@ GameState_normal.prototype.update = function(scene){
 		if(Input.isTriggered('menu') && !hasActiveZones){
 			$gameSystem.showWillIndicator = !$gameSystem.showWillIndicator;
 		}
+
+		$SRWGameState.updateStateButtonPrompts([["pause_menu"], ["move_cursor", "speed_up_cursor"], ["navigate_units"], [menuAction]], "GameState_normal_empty"+menuAction);
 	}	
 	
 	var regionId = $gameMap.regionId(currentPosition.x, currentPosition.y);
@@ -1783,8 +1869,9 @@ GameState_normal.prototype.updateMapEvent = function(x, y, triggers){
 				
 				$gameSystem.srpgMakeMoveTable(event);
 				$gameSystem.setSubBattlePhase('enemy_range_display');
-				Input.clear();
-				TouchInput.clear();
+				$gameTemp.AHeldCtr = 30;
+				//Input.clear();
+				//TouchInput.clear();
 				return true;
 				
 			} else if (event.isType() === 'playerEvent') {
@@ -1801,6 +1888,13 @@ function GameState_confirm_boarding(){
 
 GameState_confirm_boarding.prototype = Object.create(GameState.prototype);
 GameState_confirm_boarding.prototype.constructor = GameState_confirm_boarding;
+
+
+GameState_confirm_boarding.prototype.update = function(scene){	
+	$SRWGameState.updateStateButtonPrompts([["confirm_boarding"]], "confirm_boarding");
+	return true;
+}
+
 
 function GameState_confirm_end_turn(){
 	GameState.call(this);
@@ -1957,6 +2051,17 @@ GameState_enemy_range_display.prototype = Object.create(GameState.prototype);
 GameState_enemy_range_display.prototype.constructor = GameState_enemy_range_display;
 
 GameState_enemy_range_display.prototype.update = function(scene){
+	
+	$SRWGameState.updateStateButtonPrompts([["show_actor"]], "actor_move");
+	
+	if(Input.isPressed("ok") && $gameTemp.AHeldCtr > 0){
+		$gameTemp.AHeldCtr--;
+		if($gameTemp.AHeldCtr > 0){
+			return;
+		}		
+	} else {
+		$gameTemp.AHeldCtr = 0;
+	}
 	if(Input.isTriggered("cancel") || TouchInput.isCancelled()){
 		$gameTemp.clearMoveTable();
 		$gameSystem.setSubBattlePhase("normal");
@@ -2026,7 +2131,6 @@ GameState_enemy_hit_and_away.prototype.update = function(scene){
 				$gameSystem.srpgMakeMoveTable(event);
 				$gameTemp.isPostMove = true;
 				$gameTemp.hitAndAwayTimer = $gameSystem.getScaledTime(30);
-				var route = $gameTemp.MoveTable(optimalPos[0], optimalPos[1])[1];
 				$gameSystem.setSrpgWaitMoving(true);
 				event.srpgMoveToPoint({x: optimalPos[0], y: optimalPos[1]});
 				$gamePlayer.setTransparent(true);
@@ -2268,6 +2372,7 @@ GameState_pause_menu.prototype = Object.create(GameState.prototype);
 GameState_pause_menu.prototype.constructor = GameState_pause_menu;
 
 GameState_pause_menu.prototype.update = function(scene){
+	$SRWGameState.updateStateButtonPrompts([["select_action"], ["confirm_action"]], "pause_menu");
 	if(!scene._mapButtonsWindow.visible){
 		scene._mapButtonsWindow.open();
 		scene._mapButtonsWindow.show();
@@ -2316,7 +2421,7 @@ GameState_process_death.prototype.update = function(scene){
 			var oldValue = $gameVariables.value(_actorsDestroyed) * 1;
 			$gameVariables.setValue(_actorsDestroyed, oldValue + delta); 
 			
-			if(scene._currentDeath.event.isType() == "ship"){
+			if(scene._currentDeath.event.isType() == "ship" || $statCalc.isShip(scene._currentDeath.actor)){
 				var oldValue = $gameVariables.value(_existShipVarId);
 				$gameVariables.setValue(_existShipVarId, oldValue - 1); 	
 			}
@@ -2504,7 +2609,11 @@ GameState_rearrange_deploys.prototype.update = function(scene){
 		$gameTemp.doingManualDeploy = false;
 		$gameTemp.disableHighlightGlow = false;
 		$gameSystem.undeployActors(true);
+		
+		$statCalc.externalLockUnitUpdates();
 		$gameSystem.deployActors(true, $gameTemp.manualDeployType, true);
+		$statCalc.externalUnlockUnitUpdates();
+		
 		$gameSystem.setBattlePhase($gameTemp.deployContextState);
 		$gameSystem.setSubBattlePhase($gameTemp.deployContextSubState);
 		

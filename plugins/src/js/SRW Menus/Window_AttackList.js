@@ -28,7 +28,7 @@ Window_AttackList.prototype.getCurrentSelection = function(){
 
 Window_AttackList.prototype.validateAttack = function(attack) {
 	var actor = this.getCurrentSelection().actor;
-	var isPostMoveOnly = $gameTemp.isPostMove && !$statCalc.getActiveSpirits(actor).charge && !$gameTemp.isEnemyAttack;	
+	var isPostMoveOnly = $gameTemp.isPostMove && !$gameTemp.isEnemyAttack;	
 	var rangeTarget;
 	//if($gameTemp.isEnemyAttack){
 	if($gameTemp.currentBattleEnemy){
@@ -123,11 +123,13 @@ Window_AttackList.prototype.update = function() {
 		if(Input.isTriggered('left') || Input.isRepeated('left') || this._touchLeft){
 			this.requestRedraw();			
 			this._attackList.decrementPage();	
+			this.resetTouchState();
 			return;	
 			
 		} else if (Input.isTriggered('right') || Input.isRepeated('right') || this._touchRight) {
 			this.requestRedraw();			
 			this._attackList.incrementPage();	
+			this.resetTouchState();
 			return;	
 		}
 		
@@ -155,7 +157,8 @@ Window_AttackList.prototype.update = function() {
 		if(Input.isTriggered('ok') || this._touchOK){
 			var attack = this._attackList.getCurrentSelection();   
 			var validationResult = this.validateAttack(attack);
-			if(validationResult.canUse){				  
+			if(validationResult.canUse){	
+				$gameTemp.buttonHintManager.hide();
 				SoundManager.playOk();
 				if(this._callbacks["selected"]){
 					this._callbacks["selected"](this._attackList.getCurrentSelection());
@@ -163,14 +166,17 @@ Window_AttackList.prototype.update = function() {
 			} else {
 				SoundManager.playCancel();
 			}	
+			this.resetTouchState();
 			return;	
 		}
 		if(Input.isTriggered('cancel') || TouchInput.isCancelled()){		
 			SoundManager.playCancel();
 			$gameTemp.popMenu = true;	
+			$gameTemp.buttonHintManager.hide();
 			if(this._callbacks["closed"]){
 				this._callbacks["closed"]();
 			}
+			this.resetTouchState();
 			return;	
 		}		
 		
@@ -182,6 +188,9 @@ Window_AttackList.prototype.update = function() {
 
 Window_AttackList.prototype.redraw = function() {
 	//this._mechList.redraw();	
+
+	$gameTemp.buttonHintManager.setHelpButtons([["select_list_weapon"],["page_nav"], ["confirm_weapon"]]);
+	$gameTemp.buttonHintManager.show();
 
 	this._attackList.redraw();
 	this._attackSummary.redraw();

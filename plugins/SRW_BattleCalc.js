@@ -494,7 +494,7 @@ BattleCalc.prototype.performDamageCalculation = function(attackerInfo, defenderI
 		}
 		
 		result.barrierNames = [];
-		if(!noBarrier && !$statCalc.applyStatModsToValue(attackerInfo.actor, 0, ["pierce_barrier"]) && !activeAttackerSpirits.fury){			
+		if(!noBarrier && (!$statCalc.applyStatModsToValue(attackerInfo.actor, 0, ["pierce_barrier"]) || $statCalc.applyStatModsToValue(defenderInfo.actor, 0, ["always_barrier"])) && !activeAttackerSpirits.fury){			
 			var totalBarrierCost = 0;
 			
 			
@@ -681,11 +681,6 @@ BattleCalc.prototype.prepareBattleCache = function(actionObject, type){
 	var actor = actionObject.actor;
 	
 
-	/*if(actor.isActor()){
-		actor._cacheReference = "a_"+actor.actorId();
-	} else {
-		actor._cacheReference = "e_"+actor.enemyId();
-	}*/
 	var ref;
 	if(type == "initiator" || type == "defender" || type == "twin attack" || type == "twin defend"){
 		ref = $statCalc.getReferenceEventId(actor);
@@ -1111,6 +1106,7 @@ BattleCalc.prototype.generateBattleResult = function(isPrediction){
 					} else {
 						activeDefenderCache.isDestroyed = true;
 						activeDefenderCache.destroyer = aCache.ref;
+						activeDefenderCache.destroyedOrderIdx = orderIdx;
 						aCache.destroyedTarget = true;
 					}				
 				}				
@@ -1442,68 +1438,74 @@ BattleCalc.prototype.generateBattleResult = function(isPrediction){
 	
 	var gainRecipient = $gameTemp.currentBattleActor;	
 	var aCache = $gameTemp.battleEffectCache[gainRecipient._cacheReference];
-	aCache.expGain = 0;
-	aCache.ppGain = 0;
-	aCache.fundGain = 0;
-	
-	var gainDonors = [];
-	gainDonors.push($gameTemp.currentBattleEnemy);
-	if(supportDefender && !$gameSystem.isFriendly(supportDefender.actor, "player")){
-		gainDonors.push(supportDefender.actor);
-	}
-	if($gameTemp.currentBattleEnemy.subTwin){
-		gainDonors.push($gameTemp.currentBattleEnemy.subTwin);
-	}
-	aCache.gainDonors = [];
-	gainDonors.forEach(function(gainDonor){		
-		//var gainDonor = $gameTemp.currentBattleEnemy;
-		var dCache = $gameTemp.battleEffectCache[gainDonor._cacheReference];			
-		if(!dCache){
-			dCache = $gameTemp.battleEffectCache[gainDonor._supportCacheReference];	
+	if(aCache){	
+		aCache.expGain = 0;
+		aCache.ppGain = 0;
+		aCache.fundGain = 0;
+		
+		var gainDonors = [];
+		gainDonors.push($gameTemp.currentBattleEnemy);
+		if(supportDefender && !$gameSystem.isFriendly(supportDefender.actor, "player")){
+			gainDonors.push(supportDefender.actor);
 		}
-		
-		if(aCache && dCache){	
-			aCache.gainDonors.push(dCache);
-		
-			var expGain = _this.performExpCalculation(gainRecipient, gainDonor);
-			expGain = $statCalc.applyStatModsToValue(gainRecipient, expGain, ["exp"]);
-			if($statCalc.getActiveSpirits(gainRecipient).gain && !aCache.isBuffingAttack){
-				expGain*=2;
+		if($gameTemp.currentBattleEnemy.subTwin){
+			gainDonors.push($gameTemp.currentBattleEnemy.subTwin);
+		}
+		aCache.gainDonors = [];
+		gainDonors.forEach(function(gainDonor){		
+			//var gainDonor = $gameTemp.currentBattleEnemy;
+			var dCache = $gameTemp.battleEffectCache[gainDonor._cacheReference];			
+			if(!dCache){
+				dCache = $gameTemp.battleEffectCache[gainDonor._supportCacheReference];	
 			}
 			
-			var ppGain = _this.performPPCalculation(gainRecipient, gainDonor);
-			var fundGain = $statCalc.getAwardedFunds(gainDonor);
-			if($statCalc.getActiveSpirits(gainRecipient).fortune){
-				fundGain*=2;
-			}
-			if(!dCache.isDestroyed){
-				if(aCache.isBuffingAttack){
-					expGain = Math.floor(expGain / 4);
+			if(aCache && dCache){	
+				aCache.gainDonors.push(dCache);
+			
+				var expGain = _this.performExpCalculation(gainRecipient, gainDonor);
+				expGain = $statCalc.applyStatModsToValue(gainRecipient, expGain, ["exp"]);
+				if($statCalc.getActiveSpirits(gainRecipient).gain && !aCache.isBuffingAttack){
+					expGain*=2;
+					aCache.isGainBoosted = true;
+				}
+				
+				var ppGain = _this.performPPCalculation(gainRecipient, gainDonor);
+				var fundGain = $statCalc.getAwardedFunds(gainDonor);
+				if($statCalc.getActiveSpirits(gainRecipient).fortune){
+					fundGain*=2;
+				}
+				if(!dCache.isDestroyed){
+					if(aCache.isBuffingAttack){
+						expGain = Math.floor(expGain / 4);
+					} else {
+						expGain = Math.floor(expGain / 10);
+					}				
+					ppGain = 0;
+					fundGain = 0;
 				} else {
-					expGain = Math.floor(expGain / 10);
-				}				
-				ppGain = 0;
-				fundGain = 0;
-			} else {
-				fundGain = $statCalc.applyStatModsToValue(gainRecipient, fundGain, ["fund_gain_destroy"]);
+					fundGain = $statCalc.applyStatModsToValue(gainRecipient, fundGain, ["fund_gain_destroy"]);
+				}
+				
+				aCache.expGain+= expGain;
+				aCache.ppGain+= ppGain;
+				aCache.fundGain+= fundGain;
+				
+				
 			}
-			
-			aCache.expGain+= expGain;
-			aCache.ppGain+= ppGain;
-			aCache.fundGain+= fundGain;
-			
-			
+		});
+		if(!isPrediction && !aCache.isBuffingAttack){
+			if($statCalc.getActiveSpirits(gainRecipient).gain){
+				$statCalc.clearSpirit(gainRecipient, "gain");
+			}
+			if($statCalc.getActiveSpirits(gainRecipient).fortune){
+				$statCalc.clearSpirit(gainRecipient, "fortune");
+			}
 		}
-	});
-	if(!isPrediction && !aCache.isBuffingAttack){
-		if($statCalc.getActiveSpirits(gainRecipient).gain){
-			$statCalc.clearSpirit(gainRecipient, "gain");
-		}
-		if($statCalc.getActiveSpirits(gainRecipient).fortune){
-			$statCalc.clearSpirit(gainRecipient, "fortune");
-		}
-	}
 	
+	
+	} else {
+		console.log("!!! Gainrecipient " + gainRecipient.actorId() + " does not have a valid battle cache ref!");
+	}
 	
 	$gameTemp.unitHitInfo = {
 		actor: {
@@ -1587,7 +1589,7 @@ BattleCalc.prototype.generateMapBattleResult = function(){
 	
 	var targets = $gameTemp.currentMapTargets;
 	targets.forEach(function(target){
-		$statCalc.invalidateAbilityCache();
+		$statCalc.invalidateAbilityCache(target);
 		//temp variable used to resolve weapon effects per target in StatCalc.prototype.getActiveStatMods
 		$gameTemp.currentBattleTarget = target;
 		
@@ -1745,7 +1747,11 @@ BattleCalc.prototype.getBestWeaponAndDamage = function(attackerInfo, defenderInf
 	var defenderHP = defenderInfo.actor.hp;
 	var canShootDown = false;
 	allWeapons.forEach(function(weapon){
-		if(!weapon.isMap && (!allRequired || (allRequired == 1 && weapon.isAll) || (allRequired == -1 && !weapon.isAll)) && $statCalc.canUseWeapon(attackerInfo.actor, weapon, postMoveEnabledOnly, defenderInfo.actor) && (ignoreRange || _this.isTargetInRange(attackerInfo.pos, defenderInfo.pos, $statCalc.getRealWeaponRange(attackerInfo.actor, weapon), $statCalc.getRealWeaponMinRange(attackerInfo.actor, weapon)))){
+		let isInRange;
+		if(!ignoreRange){
+			isInRange = _this.isTargetInRange(attackerInfo.pos, defenderInfo.pos, $statCalc.getRealWeaponRange(attackerInfo.actor, weapon), $statCalc.getRealWeaponMinRange(attackerInfo.actor, weapon));
+		}
+		if(!weapon.isMap && (!allRequired || (allRequired == 1 && weapon.isAll) || (allRequired == -1 && !weapon.isAll)) && $statCalc.canUseWeapon(attackerInfo.actor, weapon, postMoveEnabledOnly, defenderInfo.actor) && (ignoreRange || isInRange)){
 			var damageResult = _this.performDamageCalculation(
 				{actor: attackerInfo.actor, action: {type: "attack", attack: weapon}},
 				{actor: defenderInfo.actor, action: {type: "none"}},
@@ -1753,10 +1759,13 @@ BattleCalc.prototype.getBestWeaponAndDamage = function(attackerInfo, defenderInf
 				!considerBarrier
 			);
 			var isReachable;
-			var range = $statCalc.getRealWeaponRange(attackerInfo.actor, weapon);
-			isReachable = $statCalc.isReachable(defenderInfo.actor, attackerInfo.actor, range, $statCalc.getRealWeaponMinRange(attackerInfo.actor, weapon));
+			if(!isInRange){
+				var range = $statCalc.getRealWeaponRange(attackerInfo.actor, weapon);
+				isReachable = $statCalc.isReachable(defenderInfo.actor, range, $statCalc.getRealWeaponMinRange(attackerInfo.actor, weapon));
+			}
 			
-			if(isReachable){				
+			
+			if(isInRange || isReachable){				
 				if(optimizeCost){
 					var currentWeaponCanShootDown = false;
 					if(damageResult.damage >= defenderHP){

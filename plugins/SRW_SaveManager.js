@@ -173,6 +173,27 @@ SRWSaveManager.prototype.storeMechData = function(mechId, data){
 	}	
 }
 
+SRWSaveManager.prototype.registerEvolvedMech = function(mechId, targetMechId){
+	if(!$gameSystem.evolvedMechLookup){
+		$gameSystem.evolvedMechLookup = {};
+	}
+	$gameSystem.evolvedMechLookup[mechId] = targetMechId;
+}
+
+SRWSaveManager.prototype.getEvolutionTarget = function(mechId){
+	if(!$gameSystem.evolvedMechLookup){
+		$gameSystem.evolvedMechLookup = {};
+	}
+	return $gameSystem.evolvedMechLookup[mechId];
+}
+
+SRWSaveManager.prototype.isEvolvedMech = function(mechId){
+	if(!$gameSystem.evolvedMechLookup){
+		$gameSystem.evolvedMechLookup = {};
+	}
+	return $gameSystem.evolvedMechLookup[mechId] != null;
+}
+
 SRWSaveManager.prototype.getUnlockedUnits = function(){
 	if(!$gameSystem.unlockedUnits){
 		$gameSystem.unlockedUnits = {};

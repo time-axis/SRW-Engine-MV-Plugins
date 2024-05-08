@@ -1,6 +1,7 @@
 var ENGINE_SETTINGS = {
 	GAMEID: "SRWMV",
 	CUSTOM_TITLE_SCREEN: "",
+	PLACE_PARALLAX_ABOVE_MAP: true,
 	FONT_SCALE: 1,//used to scale the text in CSS menus.
 	FONT_LINE_HEIGHT_SCALE: 0,//used to offset text in CSS menus.
 	FONT_SIZE: 28,//font size in RPG Maker text boxes. Also affects the line height in the message window.
@@ -24,6 +25,7 @@ var ENGINE_SETTINGS = {
 	USE_SRW_SUPPORT_ORDER: true,
 	ALERT_CLEARS_ON_ATTACK: false,//if true alert clears after dodging one attack, otherwise it affects all attacks in one battle phase(support attacks, etc.)
 	PERSIST_CLEARS_ON_HIT: false,//if true persist clears after taking one attack, otherwise it affects all attacks in one battle phase(support attacks, etc.)
+	ALLOW_MAP_CHARGE: false, //if true the charge spirit effect also affects MAP attacks
 	DISABLE_EVASION_DECAY: false,
 	CURSOR_TINT_INFO: {//a blend color set for the cursor when hovering units of a certain faction
 		enabled: false,
@@ -35,6 +37,17 @@ var ENGINE_SETTINGS = {
 		}
 	},	
 	TINT_CURSOR_PER_FACTION: true,
+	CURSOR_OFFSET: 0,
+	USE_SINGLE_MAP_SPRITE: false,
+	MAP_BUTTON_CONFIG: {
+		SPRITE_SHEET: {
+			PATH: "UI/GlyphTiles.png", //the path of the sprite sheet file, CHANGE THIS IF YOU USE A CUSTOM ONE!
+			TILE_SIZE: 16, //the size of one tile on the sprite sheet(pixels)
+			WIDTH: 544, //the width of the sprite sheet file(pixels)
+			HEIGHT: 384 //the height of the sprite sheet file(pixels)
+		},
+		BUTTON_SCALE: 1, // a multiplier for the displayed size of the icon
+	},
 	ATTR_LABEL_LENGTH: 2, //The length of the weapon attribute string shown in the attack list. It takes a substring of this length of the attribute string and capitalizes the first letter.
 	USE_TILE_PASSAGE: true, //if true use RPG Maker tile passage setting to restrict movement
 	ENABLE_QUICK_MOVE: true,
@@ -142,6 +155,7 @@ var ENGINE_SETTINGS = {
 		0: [100, 100, 100, 150, 150, 150, 200, 200, 200, 250, 200, 200, 200, 200, 200],
 		1: [100, 150, 150, 150, 150, 200, 200, 200, 200, 250, 200, 200, 200, 200, 200]		
 	},
+	SCORE_GOES_TO_SUBS: false,
 	ACE_REQUIREMENT: 50, //amount of kills required to unlocked the Ace Bonus
 	DEFAULT_SP_REGEN: 0, //default SP regen in points of SP
 	DEFAULT_HP_REGEN: 0, //default HP regen in percent of total(10,50,etc.)
@@ -195,6 +209,7 @@ var ENGINE_SETTINGS = {
 	MAX_DEPLOY_SIZE: 36, //the number of slots shown in the deploy window if TWIN mode is not enabled
 	MAX_DEPLOY_SIZE_TWIN: 40, //the number of slots shown in the deploy window if TWIN mode is enabled
 	SINGLE_BATTLE_SPRITE_MODE: false,
+	ENABLE_TWEAKS_OPTION: false,
 	MERGE_ATTACK_UPGRADES: false,
 	ENABLE_ATTRIBUTE_SYSTEM: false,
 	USE_WEAPON_ATTRIBUTE: false,

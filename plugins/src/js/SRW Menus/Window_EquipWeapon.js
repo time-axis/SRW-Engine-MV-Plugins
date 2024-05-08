@@ -259,11 +259,13 @@ Window_EquipWeapon.prototype.update = function() {
 			this.requestRedraw();
 			this.decrementUpgradeLevel();
 			this.refresh();
+			this.resetTouchState();
 			return;	
 		} else if (Input.isTriggered('right') || Input.isRepeated('right') || this._touchRight) {
 			this.requestRedraw();
 			this.incrementUpgradeLevel();
 			this.refresh();
+			this.resetTouchState();
 			return;	
 		}
 		
@@ -332,27 +334,39 @@ Window_EquipWeapon.prototype.update = function() {
 					} else {
 						SoundManager.playBuzzer();
 					}		
+				} else {
+					let itemInfo = $equipablesManager.getActorItems(mech.id)[this._currentSelection];
+					if(itemInfo){
+						$equipablesManager.removeItemHolder(itemInfo.weaponId, itemInfo.instanceId);
+					}
+					SoundManager.playOk();			
+					this._currentUIState = "slot_selection";
+					this.refreshAllUnits();	
 				}	
 			}
+			this.resetTouchState();
 			this.refresh();
 			return;	
 		}
 		if(Input.isTriggered('cancel') || TouchInput.isCancelled()){	
 			this.refreshAllUnits();
 			SoundManager.playCancel();		
-			this.requestRedraw();
 			if(this._currentUIState == "slot_selection"){
 				this._currentSelection = 0;
 				$gameTemp.popMenu = true;	
+				$gameTemp.buttonHintManager.hide();	
 			} else if(this._currentUIState == "item_selection"){			
-				this._currentUIState = "slot_selection";							
+				this._currentUIState = "slot_selection";			
+				this.requestRedraw();	
 			}  else if(this._currentUIState == "item_transfer"){			
-				this._currentUIState = "item_selection";							
+				this._currentUIState = "item_selection";		
+				this.requestRedraw();
 			}
+			this.resetTouchState();
 			this.refresh();
 			return;				
 		}		
-		this.resetTouchState();
+		
 		this.refresh();
 	}		
 };
@@ -367,6 +381,15 @@ Window_EquipWeapon.prototype.currentCost = function() {
 
 Window_EquipWeapon.prototype.redraw = function() {
 	var _this = this;
+	
+	if(this._currentUIState == "slot_selection"){
+		$gameTemp.buttonHintManager.setHelpButtons([["select_slot"], ["confirm_slot"]]);
+	} else if(this._currentUIState == "item_selection"){
+		$gameTemp.buttonHintManager.setHelpButtons([["select_weapon", "page_nav"], ["confirm_weapon"]]);
+	} 
+	
+	$gameTemp.buttonHintManager.show();	
+	
 	var mechData = this.getCurrentSelection();
 	var inventoryInfo = $inventoryManager.getCurrentInventory();
 	

@@ -211,7 +211,7 @@
 }
 
 .participant_block .percent_indicator .entry img{
-	width: 1px;
+	--widthscaling: 1px;
 	filter: var(--white-filter);
 }
 
@@ -261,10 +261,11 @@
 
 .participant_block .main_row .main_content .pilot_name{
 	--fontsize: 2.2px;
-	--widthscaling: 12;
+	--widthscaling: 15;
 	position: absolute;
 	top: 0%;
     left: 27%;
+	white-space: nowrap;
 }
 
 .participant_block .main_row .main_content .pilot_stats {
@@ -285,15 +286,15 @@
 .participant_block .main_row .main_content .pilot_stats .level{
 	display: flex;
 	align-items: center;
-	--widthscaling: 8;
+	--widthscaling: 6;
 	margin-left: 10%;
 }
 
 .participant_block .main_row .main_content .pilot_stats .will{
 	display: flex;
 	align-items: center;
-	--widthscaling: 12;
-	margin-left: 10%;
+	--widthscaling: 10;
+	margin-left: 5%;
 }
 
 .participant_block .main_row .main_content .mech_hp_en_container {

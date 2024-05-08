@@ -2,6 +2,15 @@ export default function CSSUIManager(){
 	
 }
 
+
+CSSUIManager.textScaleCache = {};
+CSSUIManager.textScaleCacheCtr = 0;
+
+CSSUIManager.bumpScaleCache = function(dimensions){
+	CSSUIManager.textScaleCacheCtr++;
+	CSSUIManager.textScaleCache = {};
+}
+
 CSSUIManager.prototype.updateLayer = function(dimensions){
 	if(this.customUILayer){
 		this.customUILayer.style.width = dimensions.width+"px";
@@ -9,8 +18,27 @@ CSSUIManager.prototype.updateLayer = function(dimensions){
 	}	
 }
 
-CSSUIManager.prototype.updateScaledText = function(windowId){
+CSSUIManager.prototype.updateScaledText = function(windowId, bustCache){
+	if($gameTemp){
+		$gameTemp.scaledTextUpdateRequested = true;	
+	}	
+}
+
+CSSUIManager.prototype.doUpdateScaledText = function(windowId, forceAll){
 	if(this.customUILayer){
+		
+		function getElemCacheIdx(elem){
+			let resultParts = [];
+			resultParts.push(elem.id+"::"+Array.from(elem.classList).join("__"));
+			let ctr = 0;
+			while(elem.parentNode && ctr < 1){
+				elem = elem.parentNode;
+				resultParts.push(elem.id+"::"+Array.from(elem.classList).join("__"));
+				ctr++;
+			}
+			return resultParts.join("->");
+		}
+		
 		var sourceContainer;
 		if(windowId){
 			sourceContainer = window.document.getElementById(windowId);
@@ -19,50 +47,91 @@ CSSUIManager.prototype.updateScaledText = function(windowId){
 			sourceContainer = window.document;
 		}
 		
+		const baseCacheKey = "::";
+		
 		//this.customUILayer.style.display = "none";
 		var referenceWidth = Graphics._getCurrentWidth();
 		var textElements = sourceContainer.querySelectorAll(".scaled_text");	
 		textElements.forEach(function(textElement){
-			var fontPercent = textElement.getAttribute("data-font-percent");
-			if(!fontPercent){
-				fontPercent = window.getComputedStyle(textElement, null).getPropertyValue('--fontsize');
-				fontPercent = parseFloat(fontPercent.replace("px", ""));
-				textElement.setAttribute("data-font-percent", fontPercent);
-			}
-			
-			textElement.style.fontSize = Math.floor(referenceWidth/100 * fontPercent) * (ENGINE_SETTINGS.FONT_SCALE || 1) + "px";
-			if(ENGINE_SETTINGS.FONT_LINE_HEIGHT_SCALE){
-				textElement.style.lineHeight = Math.floor(referenceWidth/100 * fontPercent) * (ENGINE_SETTINGS.FONT_SCALE || 1) * ENGINE_SETTINGS.FONT_LINE_HEIGHT_SCALE + "px";
+			if(forceAll || textElement.offsetParent != null){		
+				const cacheKey = "scaled_text:" + getElemCacheIdx(textElement);
+				if(CSSUIManager.textScaleCache[cacheKey]){
+					textElement.style.fontSize = CSSUIManager.textScaleCache[cacheKey].fontSize;
+					if(ENGINE_SETTINGS.FONT_LINE_HEIGHT_SCALE){
+						textElement.style.lineHeight = CSSUIManager.textScaleCache[cacheKey].lineHeight;
+					}
+					return;
+				}
+				var fontPercent = textElement.getAttribute("data-font-percent");
+				if(!fontPercent){
+					fontPercent = window.getComputedStyle(textElement, null).getPropertyValue('--fontsize');
+					fontPercent = parseFloat(fontPercent.replace("px", ""));
+					textElement.setAttribute("data-font-percent", fontPercent);
+				}
+				
+				textElement.style.fontSize = Math.floor(referenceWidth/100 * fontPercent) * (ENGINE_SETTINGS.FONT_SCALE || 1) + "px";
+				if(ENGINE_SETTINGS.FONT_LINE_HEIGHT_SCALE){
+					textElement.style.lineHeight = Math.floor(referenceWidth/100 * fontPercent) * (ENGINE_SETTINGS.FONT_SCALE || 1) * ENGINE_SETTINGS.FONT_LINE_HEIGHT_SCALE + "px";
+				}
+				CSSUIManager.textScaleCache[cacheKey] = {
+					fontSize: textElement.style.fontSize,
+					lineHeight: textElement.style.lineHeight
+				};
 			}
 		});
 		var scaledWidthElements = sourceContainer.querySelectorAll(".scaled_width");	
 		scaledWidthElements.forEach(function(scaledElement){
-			var scalePercent = scaledElement.getAttribute("data-original-width");
-			if(!scalePercent){
-				scalePercent = window.getComputedStyle(scaledElement, null).getPropertyValue('--widthscaling');
+			if(forceAll || scaledElement.offsetParent != null){			
+				const cacheKey = "scaled_width:" + getElemCacheIdx(scaledElement);
+				if(CSSUIManager.textScaleCache[cacheKey]){
+					scaledElement.style.width = CSSUIManager.textScaleCache[cacheKey].width;
+					return;
+				}
+				var scalePercent = window.getComputedStyle(scaledElement, null).getPropertyValue('--widthscaling');
 				if(!scalePercent){
-					scalePercent = window.getComputedStyle(scaledElement, null).getPropertyValue('width');
-				}				
+					scalePercent = scaledElement.getAttribute("data-original-width");
+				}			
+				if(!scalePercent){				
+					if(!scalePercent){
+						scalePercent = window.getComputedStyle(scaledElement, null).getPropertyValue('width');
+					}								
+					scaledElement.setAttribute("data-original-width", scalePercent);
+				}
+				
 				scalePercent = parseFloat(scalePercent.replace("px", ""));
-				scaledElement.setAttribute("data-original-width", scalePercent);
+				
+				scaledElement.style.width = Math.floor(referenceWidth/100 * scalePercent) + "px";
+				CSSUIManager.textScaleCache[cacheKey] = {
+					width: scaledElement.style.width
+				}
 			}
-			
-			scaledElement.style.width = Math.floor(referenceWidth/100 * scalePercent) + "px";
 		});
 		
 		var scaledHeightElements = sourceContainer.querySelectorAll(".scaled_height");	
 		scaledHeightElements.forEach(function(scaledElement){
-			var scalePercent = scaledElement.getAttribute("data-original-height");
-			if(!scalePercent){
-				scalePercent = window.getComputedStyle(scaledElement, null).getPropertyValue('--heightscaling');
+			if(forceAll || scaledElement.offsetParent != null){			
+				const cacheKey = "scaled_height:" + getElemCacheIdx(scaledElement);
+				if(CSSUIManager.textScaleCache[cacheKey]){
+					scaledElement.style.height = CSSUIManager.textScaleCache[cacheKey].height;
+					return;
+				}
+				var scalePercent = window.getComputedStyle(scaledElement, null).getPropertyValue('--heightscaling');
 				if(!scalePercent){
-					scalePercent = window.getComputedStyle(scaledElement, null).getPropertyValue('height');
+					scalePercent = scaledElement.getAttribute("data-original-height");
+				}
+				if(!scalePercent){
+					if(!scalePercent){
+						scalePercent = window.getComputedStyle(scaledElement, null).getPropertyValue('height');
+					}				
+					scaledElement.setAttribute("data-original-height", scalePercent);
 				}
 				scalePercent = parseFloat(scalePercent.replace("px", ""));
-				scaledElement.setAttribute("data-original-height", scalePercent);
+				
+				scaledElement.style.height = Math.floor(referenceWidth/100 * scalePercent) + "px";
+				CSSUIManager.textScaleCache[cacheKey] = {
+					height: scaledElement.style.height
+				}
 			}
-			
-			scaledElement.style.height = Math.floor(referenceWidth/100 * scalePercent) + "px";
 		});
 		
 		//this.customUILayer.style.display = "";
@@ -72,44 +141,42 @@ CSSUIManager.prototype.updateScaledText = function(windowId){
 		let elemId = 0;
 		let fittedElemInfo = {};
 		fittedTextElements.forEach(function(textElement){
-			const currentFontSize = textElement.style.fontSize.replace("px", "");
-			fittedElemInfo[elemId] = {
-				elem: textElement,
-				currentFontSize: currentFontSize,
-				minFontSize: Math.floor(currentFontSize / 10)		
+			if(forceAll || textElement.offsetParent != null){			
+				const currentFontSize = textElement.style.fontSize.replace("px", "");
+				fittedElemInfo[elemId] = {
+					elem: textElement,
+					currentFontSize: currentFontSize,
+					minFontSize: Math.floor(currentFontSize / 10),
+					isValid: true
+				}
+				elemId++;	
 			}
-			elemId++;	
 		});
-		while(Object.keys(fittedElemInfo).length){
-			for(const elemId in fittedElemInfo){
-				const textElement = fittedElemInfo[elemId].elem;
-				if(textElement.scrollHeight > textElement.clientHeight || textElement.scrollWidth > textElement.clientWidth){
+		
+		for(const elemId in fittedElemInfo){
+			const textElement = fittedElemInfo[elemId].elem;
+			
+			const cacheKey = "fitted_text:" + getElemCacheIdx(textElement)+"="+textElement.innerText;
+			if(CSSUIManager.textScaleCache[cacheKey]){
+				textElement.style.fontSize = CSSUIManager.textScaleCache[cacheKey].fontSize;
+				
+			} else {
+				let needsProcessing = true;
+				let isUnderflow = false;
+				while(!isUnderflow && (textElement.scrollHeight > textElement.clientHeight || textElement.scrollWidth > textElement.clientWidth)){
 					const nextSize = Math.floor(fittedElemInfo[elemId].currentFontSize / 1.2);
 					if(nextSize > fittedElemInfo[elemId].minFontSize){
 						fittedElemInfo[elemId].currentFontSize = nextSize;
 					} else {
-						delete fittedElemInfo[elemId];
+						isUnderflow = true;
 					}
-				} else {
-					delete fittedElemInfo[elemId];
+					fittedElemInfo[elemId].elem.style.fontSize = fittedElemInfo[elemId].currentFontSize + "px";
+					CSSUIManager.textScaleCache[cacheKey] = {
+						fontSize: fittedElemInfo[elemId].elem.style.fontSize
+					}
 				}
-				
-			}
-			
-			for(const elemId in fittedElemInfo){
-				fittedElemInfo[elemId].elem.style.fontSize = fittedElemInfo[elemId].currentFontSize + "px";
-			}
-		}
-		
-		//document.body.display = "";
-		/*
-		
-		while(currentFontSize > minFontSize && (textElement.scrollHeight > textElement.clientHeight || textElement.scrollWidth > textElement.clientWidth)){
-				currentFontSize = Math.floor(currentFontSize / 1.2);
-				textElement.style.fontSize = currentFontSize + "px";
-			}	
-		*/
-		
+			}					
+		}		
 	}
 }
 
@@ -156,7 +223,8 @@ CSSUIManager.prototype.initAllWindows = function(){
 	this.initWindow("opening_crawl");
 	this.initWindow("text_log");
 	this.initWindow("zone_status");
-	
+	this.initWindow("game_modes");
+	this.initWindow("button_hints");
 }
 
 CSSUIManager.prototype.initWindow = function(id){

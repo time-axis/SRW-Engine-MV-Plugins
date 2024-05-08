@@ -476,20 +476,30 @@
 			{ name: '$dataMapInfos',     src: 'MapInfos.json'     },
 		];
 		
+		DataManager.textScriptCache = {};
+		
+		DataManager.resetTextScriptCache = function(){
+			DataManager.textScriptCache = {};
+		}
+		
 		DataManager.loadTextScript = function(id) {
 			return new Promise(function(resolve, reject){
-				var xhr = new XMLHttpRequest();
-				var url = 'text_scripts/' + id + ".mvs";
-				xhr.open('GET', url);
-				xhr.onload = function() {
-					if (xhr.status < 400) {
-						resolve(xhr.responseText);
-					}
-				};
-				xhr.onerror = reject;
-				xhr.send();
-			});
-			
+				if(!DataManager.textScriptCache[id]){
+					var xhr = new XMLHttpRequest();
+					var url = 'text_scripts/' + id + ".mvs";
+					xhr.open('GET', url);
+					xhr.onload = function() {
+						if (xhr.status < 400) {
+							DataManager.textScriptCache[id] = xhr.responseText;
+							resolve(xhr.responseText);
+						}
+					};
+					xhr.onerror = reject;
+					xhr.send();
+				} else {
+					resolve(DataManager.textScriptCache[id]);
+				}				
+			});			
 		};
 		StorageManager.localFileDirectoryPath = function() {
 			var path = require('path');
@@ -552,6 +562,7 @@
 				setMinDeployCount: true,
 				setShipDeployCount: true,
 				assignSlot: true,
+				assignSlotFromMech: true,
 				assignSlotSub: true,
 				assignShipSlot: true,
 				lockDeploySlot: true,
@@ -723,10 +734,16 @@
 					});
 				},
 				showBackground: function(eventList, indent, params){
+					let x = 0;
+					let y = 0;
+					if(ENGINE_SETTINGS.VN_BG_OFFSET){
+						x = ENGINE_SETTINGS.VN_BG_OFFSET.x || 0;
+						y = ENGINE_SETTINGS.VN_BG_OFFSET.y || 0;
+					}
 					eventList.push({
 						code: 231,
 						indent: indent,
-						parameters: [params[0], params[1], 0, 0, 0, 0, 100, 100, 255, 0]
+						parameters: [params[0], params[1], 0, 0, x, y, 100, 100, 255, 0]
 					});
 				},
 				showPicture: function(eventList, indent, params){
@@ -1252,7 +1269,7 @@
 					return eventList;
 				}
 				for(var i = 0; i < contentParts.length; i++){
-					var line = JSON.parse(JSON.stringify(contentParts[i]));								
+					var line = contentParts[i];								
 				
 					line = processArgTokens(args, line);
 					line = processDefineTokens(line);

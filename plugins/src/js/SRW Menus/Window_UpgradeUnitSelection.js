@@ -10,8 +10,12 @@ Window_UpgradeUnitSelection.prototype = Object.create(Window_CSS.prototype);
 Window_UpgradeUnitSelection.prototype.constructor = Window_UpgradeUnitSelection;
 
 Window_UpgradeUnitSelection.prototype.initialize = function() {	
+	const _this = this;
 	this._layoutId = "upgrade_unit_selection";	
 	Window_CSS.prototype.initialize.call(this, 0, 0, 0, 0);	
+	window.addEventListener("resize", function(){
+		_this.requestRedraw();
+	});	
 }
 
 Window_UpgradeUnitSelection.prototype.getCurrentSelection = function(){
@@ -121,6 +125,7 @@ Window_UpgradeUnitSelection.prototype.update = function() {
 		if(Input.isTriggered('cancel') || TouchInput.isCancelled()){	
 			SoundManager.playCancel();		
 			$gameTemp.popMenu = true;
+			$gameTemp.buttonHintManager.hide();	
 			this.refresh();
 			return;				
 		}		
@@ -131,9 +136,12 @@ Window_UpgradeUnitSelection.prototype.update = function() {
 
 Window_UpgradeUnitSelection.prototype.redraw = function() {
 	this._mechList.redraw();
-	this._DetailBarMechUpgrades.redraw();		
-	
+	this._DetailBarMechUpgrades.redraw();	
 
+	$gameTemp.buttonHintManager.setHelpButtons([["select_mech", "page_nav"], ["upgrade_unit"], ["det_page_nav", "det_page_sort"], ["det_sort_order"]]);
+	$gameTemp.buttonHintManager.show();	
+	
+	this.loadImages();
 	Graphics._updateCanvas();
 }
 
