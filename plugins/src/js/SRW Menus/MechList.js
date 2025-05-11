@@ -179,12 +179,12 @@ MechList.prototype.defineContent = function(){
 					title:  APPSTRINGS.MECHLIST.column_mech,
 					contentFunction: mechName,
 					compareFunction: compareMechName
-				}, 
+				},/* 
 				{
 					title:  APPSTRINGS.MECHLIST.column_team,
 					contentFunction: mechTeam,
 					compareFunction: compareMechTeam
-				}, 
+				},*/ 
 				{
 					title: "",
 					contentFunction: function(pilot, mech){
@@ -231,12 +231,12 @@ MechList.prototype.defineContent = function(){
 					title:  APPSTRINGS.MECHLIST.column_mech,
 					contentFunction: mechName,
 					compareFunction: compareMechName
-				}, 
+				},/* 
 				{
 					title:  APPSTRINGS.MECHLIST.column_team,
 					contentFunction: mechTeam,
 					compareFunction: compareMechTeam
-				}, 
+				},*/ 
 				{
 					title: "HP",
 					contentFunction: function(pilot, mech){
@@ -280,12 +280,12 @@ MechList.prototype.defineContent = function(){
 					title:  APPSTRINGS.MECHLIST.column_mech,
 					contentFunction: mechName,
 					compareFunction: compareMechName
-				}, 
+				},/* 
 				{
 					title:  APPSTRINGS.MECHLIST.column_team,
 					contentFunction: mechTeam,
 					compareFunction: compareMechTeam
-				}, 
+				},*/ 
 				{
 					title: APPSTRINGS.MECHSTATS.armor,
 					contentFunction: function(pilot, mech){
@@ -365,12 +365,12 @@ MechList.prototype.defineContent = function(){
 					title:  APPSTRINGS.MECHLIST.column_mech,
 					contentFunction: mechName,
 					compareFunction: compareMechName
-				}, 
+				},/* 
 				{
 					title:  APPSTRINGS.MECHLIST.column_team,
 					contentFunction: mechTeam,
 					compareFunction: compareMechTeam
-				}, 
+				},*/ 
 				{
 					title: APPSTRINGS.MECHSTATS.repair,
 					contentFunction: function(pilot, mech){
@@ -439,12 +439,12 @@ MechList.prototype.defineContent = function(){
 					title:  APPSTRINGS.MECHLIST.column_mech,
 					contentFunction: mechName,
 					compareFunction: compareMechName
-				}, 
+				},/* 
 				{
 					title:  APPSTRINGS.MECHLIST.column_team,
 					contentFunction: mechTeam,
 					compareFunction: compareMechTeam
-				}, 
+				},*/ 
 				{
 					title: APPSTRINGS.MECHLIST.column_upgrade_percent,
 					contentFunction: function(pilot, mech){
@@ -498,12 +498,12 @@ MechList.prototype.defineContent = function(){
 					compareFunction: function(a, b){
 						return ($statCalc.getCurrentLevel(getUnitData(a).pilot) - $statCalc.getCurrentLevel(getUnitData(b).pilot))  * _this._sortDirection;						
 					}
-				},
+				},/*
 				{
 					title:  APPSTRINGS.MECHLIST.column_team,
 					contentFunction: mechTeam,
 					compareFunction: compareMechTeam
-				}, 
+				},*/ 
 				{
 					title: "",
 					contentFunction: mechIcon,
@@ -549,12 +549,12 @@ MechList.prototype.defineContent = function(){
 					compareFunction: function(a, b){
 						return $statCalc.getCurrentLevel(getUnitData(a).pilot) - $statCalc.getCurrentLevel(getUnitData(b).pilot)  * _this._sortDirection;						
 					}
-				},
+				},/*
 				{
 					title:  APPSTRINGS.MECHLIST.column_team,
 					contentFunction: mechTeam,
 					compareFunction: compareMechTeam
-				}, 
+				},*/ 
 				{
 					title: APPSTRINGS.PILOTSTATS.melee,
 					contentFunction: function(pilot, mech){					
@@ -644,12 +644,12 @@ MechList.prototype.defineContent = function(){
 					compareFunction: function(a, b){
 						return $statCalc.getCurrentLevel(getUnitData(a).pilot) - $statCalc.getCurrentLevel(getUnitData(b).pilot)  * _this._sortDirection;						
 					}
-				},
+				},/*
 				{
 					title:  APPSTRINGS.MECHLIST.column_team,
 					contentFunction: mechTeam,
 					compareFunction: compareMechTeam
-				}, 
+				},*/ 
 				{
 					title: "PP",
 					contentFunction: function(pilot, mech){			
@@ -775,12 +775,12 @@ MechList.prototype.defineContent = function(){
 					compareFunction: function(a, b){
 						return $statCalc.getCurrentLevel(getUnitData(a).pilot) - $statCalc.getCurrentLevel(getUnitData(b).pilot)  * _this._sortDirection;						
 					}
-				},
+				},/*
 				{
 					title:  APPSTRINGS.MECHLIST.column_team,
 					contentFunction: mechTeam,
 					compareFunction: compareMechTeam
-				}, 
+				},*/ 
 				{
 					title: APPSTRINGS.MECHLIST.column_support_attack,
 					contentFunction: function(pilot, mech){					
@@ -856,12 +856,12 @@ MechList.prototype.defineContent = function(){
 					compareFunction: function(a, b){
 						return $statCalc.getCurrentLevel(getUnitData(a).pilot) - $statCalc.getCurrentLevel(getUnitData(b).pilot)  * _this._sortDirection;						
 					}
-				},
+				},/*
 				{
 					title:  APPSTRINGS.MECHLIST.column_team,
 					contentFunction: mechTeam,
 					compareFunction: compareMechTeam
-				}, 
+				},*/ 
 				{
 					title: "",
 					contentFunction: mechIcon,
@@ -887,12 +887,12 @@ MechList.prototype.defineContent = function(){
 					title:  APPSTRINGS.MECHLIST.column_mech,
 					contentFunction: mechName,
 					compareFunction: compareMechName
-				}, 
+				},/* 
 				{
 					title:  APPSTRINGS.MECHLIST.column_team,
 					contentFunction: mechTeam,
 					compareFunction: compareMechTeam
-				}, 
+				},*/ 
 				{
 					title: APPSTRINGS.MECHLIST.column_slots,
 					contentFunction: function(pilot, mech){
