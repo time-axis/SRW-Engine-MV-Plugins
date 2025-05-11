@@ -101,7 +101,18 @@ DetailBarMechDetail.prototype.redraw = function(){
 	detailContent+="</div>";
 	detailContent+="<div class='stat_section stat_section_size'>";
 	detailContent+="<div class='stat_label'>"+APPSTRINGS.MECHSTATS.size+"</div>";
-	detailContent+="<div class='stat_value'>"+$statCalc.getCurrentSize(actor)+"</div>";
+	let attr1 = $statCalc.getParticipantAttribute(this.getCurrentSelection().actor, "attribute1");
+	if(attr1){
+		let attrInfo = ENGINE_SETTINGS.ATTRIBUTE_DISPLAY_NAMES[attr1] || {};
+		var content = "";
+		content+="<div class='stat_value'><div class='attribute_block_entry scaled_height scaled_width scaled_text'>";		
+		content+="<img data-img='img/system/attribute_"+attr1+".png'>";		
+		content+="</div></div>";	
+		
+		detailContent += content;		
+	} else {
+		detailContent+="<div class='stat_value'>"+$statCalc.getCurrentSize(actor)+"</div>";
+	}
 	detailContent+="</div>";
 	
 	

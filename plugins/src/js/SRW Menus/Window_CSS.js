@@ -681,9 +681,21 @@ Window_CSS.prototype.createAttributeBlock = function(attack) {
 	}
 	
 	content+="<div class='attribute_block_entry scaled_width scaled_height scaled_text'>";
-	if(attack.effects.length){
-		content+="S";
-	} 
+	if (attack.effects.length) {
+		const weaponEffects = $weaponEffectManager._abilityDefinitions;
+		let isActive = false;
+		attack.effects.forEach(effect => {
+			const effectDef = weaponEffects[effect.idx];
+			if (effectDef && typeof effectDef.isActiveHandler === 'function') {
+				if (effectDef.isActiveHandler($gameTemp.currentMenuUnit.actor, effect.level)) {
+					isActive = true;
+				}
+			}
+		});
+		if (isActive) {
+			content += "S";
+		}
+	}
 	content+="</div>";
 	content+="<div class='attribute_block_entry scaled_width scaled_height scaled_text'>";
 	if(attack.postMoveEnabled){

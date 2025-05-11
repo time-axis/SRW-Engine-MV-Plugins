@@ -1358,7 +1358,7 @@ Window_BeforebattleTwin.prototype.createParticipantBlock = function(ref, action,
 			} else {
 				content+="<img class='attack_list_type scaled_width' src='svg/crosshair.svg'>";
 			}
-			if(ENGINE_SETTINGS.ENABLE_ATTRIBUTE_SYSTEM){
+			/*if(ENGINE_SETTINGS.ENABLE_ATTRIBUTE_SYSTEM){
 				const aCache = $gameTemp.battleEffectCache[effectRef];
 				if(aCache){
 					const attacked = aCache.attacked;
@@ -1366,7 +1366,7 @@ Window_BeforebattleTwin.prototype.createParticipantBlock = function(ref, action,
 						content+=_this.createAttributeEffectivenessBlock(ref, "attribute1", attack, attacked.ref);
 					}	
 				}								
-			}
+			}*/
 			
 			content+="<div class=''>"+attack.name+"</div>";
 		} else {
@@ -1420,7 +1420,7 @@ Window_BeforebattleTwin.prototype.createSmallParticipantBlock = function(ref, ac
 			} else {
 				content+="<img class='attack_list_type scaled_width' src='svg/crosshair.svg'>";
 			}
-			if(ENGINE_SETTINGS.ENABLE_ATTRIBUTE_SYSTEM){		
+			/*if(ENGINE_SETTINGS.ENABLE_ATTRIBUTE_SYSTEM){		
 				let attacked;
 				if(ref._supportCacheReference){
 					let mainAttacker = $gameTemp.battleEffectCache[ref._supportCacheReference].mainAttacker;
@@ -1429,7 +1429,7 @@ Window_BeforebattleTwin.prototype.createSmallParticipantBlock = function(ref, ac
 					}				
 				}
 				content+=_this.createAttributeEffectivenessBlock(ref, "attribute1", attack, attacked);
-			}
+			}*/
 			
 			content+="<div class=''>"+attack.name+"</div>";
 		} else {
@@ -1445,7 +1445,7 @@ Window_BeforebattleTwin.prototype.createSmallParticipantBlock = function(ref, ac
 		content+="Support Defend";
 		content+="</div>";
 		
-		if(ENGINE_SETTINGS.ENABLE_ATTRIBUTE_SYSTEM){		
+		/*if(ENGINE_SETTINGS.ENABLE_ATTRIBUTE_SYSTEM){		
 			let attacked;
 			if(ref._supportCacheReference){
 				let mainAttacker = $gameTemp.battleEffectCache[ref._supportCacheReference].mainAttacker;
@@ -1454,7 +1454,7 @@ Window_BeforebattleTwin.prototype.createSmallParticipantBlock = function(ref, ac
 				}				
 			}
 			content+=_this.createAttributeEffectivenessBlock(ref, "attribute1", attack, attacked);
-		}
+		}*/
 	}
 	/*if(action.type == "none"){
 		content+="---";
