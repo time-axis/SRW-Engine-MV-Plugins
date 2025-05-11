@@ -76,6 +76,9 @@ MechList.prototype.defineContent = function(){
 		}
 		return "<div class='list_mech_icon' data-mech='"+mech.classData.id+"'></div>";
 	}
+	function blank(pilot, mech){
+		return "";
+	}
 	function mechName(pilot, mech){
 		if(!mech.classData){
 			return "";
@@ -179,6 +182,11 @@ MechList.prototype.defineContent = function(){
 					title:  APPSTRINGS.MECHLIST.column_mech,
 					contentFunction: mechName,
 					compareFunction: compareMechName
+				},
+				{
+					title: "",
+					contentFunction: blank,
+					noSort: true
 				},/* 
 				{
 					title:  APPSTRINGS.MECHLIST.column_team,
@@ -231,6 +239,11 @@ MechList.prototype.defineContent = function(){
 					title:  APPSTRINGS.MECHLIST.column_mech,
 					contentFunction: mechName,
 					compareFunction: compareMechName
+				},
+				{
+					title: "",
+					contentFunction: blank,
+					noSort: true
 				},/* 
 				{
 					title:  APPSTRINGS.MECHLIST.column_team,
@@ -280,6 +293,11 @@ MechList.prototype.defineContent = function(){
 					title:  APPSTRINGS.MECHLIST.column_mech,
 					contentFunction: mechName,
 					compareFunction: compareMechName
+				},
+				{
+					title: "",
+					contentFunction: blank,
+					noSort: true
 				},/* 
 				{
 					title:  APPSTRINGS.MECHLIST.column_team,
@@ -365,6 +383,11 @@ MechList.prototype.defineContent = function(){
 					title:  APPSTRINGS.MECHLIST.column_mech,
 					contentFunction: mechName,
 					compareFunction: compareMechName
+				},
+				{
+					title: "",
+					contentFunction: blank,
+					noSort: true
 				},/* 
 				{
 					title:  APPSTRINGS.MECHLIST.column_team,
@@ -439,12 +462,11 @@ MechList.prototype.defineContent = function(){
 					title:  APPSTRINGS.MECHLIST.column_mech,
 					contentFunction: mechName,
 					compareFunction: compareMechName
-				},/* 
+				},
 				{
-					title:  APPSTRINGS.MECHLIST.column_team,
-					contentFunction: mechTeam,
-					compareFunction: compareMechTeam
-				},*/ 
+					title: "",
+					noSort: true
+				}, 
 				{
 					title: APPSTRINGS.MECHLIST.column_upgrade_percent,
 					contentFunction: function(pilot, mech){
@@ -498,6 +520,11 @@ MechList.prototype.defineContent = function(){
 					compareFunction: function(a, b){
 						return ($statCalc.getCurrentLevel(getUnitData(a).pilot) - $statCalc.getCurrentLevel(getUnitData(b).pilot))  * _this._sortDirection;						
 					}
+				},
+				{
+					title: "",
+					contentFunction: blank,
+					noSort: true
 				},/*
 				{
 					title:  APPSTRINGS.MECHLIST.column_team,
@@ -549,6 +576,11 @@ MechList.prototype.defineContent = function(){
 					compareFunction: function(a, b){
 						return $statCalc.getCurrentLevel(getUnitData(a).pilot) - $statCalc.getCurrentLevel(getUnitData(b).pilot)  * _this._sortDirection;						
 					}
+				},
+				{
+					title: "",
+					contentFunction: blank,
+					noSort: true
 				},/*
 				{
 					title:  APPSTRINGS.MECHLIST.column_team,
@@ -644,6 +676,11 @@ MechList.prototype.defineContent = function(){
 					compareFunction: function(a, b){
 						return $statCalc.getCurrentLevel(getUnitData(a).pilot) - $statCalc.getCurrentLevel(getUnitData(b).pilot)  * _this._sortDirection;						
 					}
+				},
+				{
+					title: "",
+					contentFunction: blank,
+					noSort: true
 				},/*
 				{
 					title:  APPSTRINGS.MECHLIST.column_team,
@@ -775,6 +812,11 @@ MechList.prototype.defineContent = function(){
 					compareFunction: function(a, b){
 						return $statCalc.getCurrentLevel(getUnitData(a).pilot) - $statCalc.getCurrentLevel(getUnitData(b).pilot)  * _this._sortDirection;						
 					}
+				},
+				{
+					title: "",
+					contentFunction: blank,
+					noSort: true
 				},/*
 				{
 					title:  APPSTRINGS.MECHLIST.column_team,
@@ -856,6 +898,11 @@ MechList.prototype.defineContent = function(){
 					compareFunction: function(a, b){
 						return $statCalc.getCurrentLevel(getUnitData(a).pilot) - $statCalc.getCurrentLevel(getUnitData(b).pilot)  * _this._sortDirection;						
 					}
+				},
+				{
+					title: "",
+					contentFunction: blank,
+					noSort: true
 				},/*
 				{
 					title:  APPSTRINGS.MECHLIST.column_team,
@@ -887,6 +934,11 @@ MechList.prototype.defineContent = function(){
 					title:  APPSTRINGS.MECHLIST.column_mech,
 					contentFunction: mechName,
 					compareFunction: compareMechName
+				},
+				{
+					title: "",
+					contentFunction: blank,
+					noSort: true
 				},/* 
 				{
 					title:  APPSTRINGS.MECHLIST.column_team,
@@ -965,7 +1017,7 @@ MechList.prototype.defineContent = function(){
 			compareFunction: function(a, b){
 				let attrA = String($statCalc.getParticipantAttribute(a, "attribute1") || "");
 				let attrB = String($statCalc.getParticipantAttribute(b, "attribute1") || "");
-				return attrA.localeCompare(attrB);
+				return attrA.localeCompare(attrB) * _this._sortDirection;
 			}
 		};
 	}

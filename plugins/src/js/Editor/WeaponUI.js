@@ -892,6 +892,8 @@ WeaponUI.prototype.initPropertyHandlers = function(){
 		weight: handleDefaultProp("weaponWeight", EDITORSTRINGS.WEAPON.label_weight),
 		bannedMechs: handleDefaultProp("weaponBannedOn", EDITORSTRINGS.WEAPON.label_banned_mechs),
 		allowedMechs: handleDefaultProp("weaponAllowedOn", EDITORSTRINGS.WEAPON.label_allowed_mechs),
+		bannedAttributes: handleDefaultProp("weaponBannedOnAttributes", EDITORSTRINGS.WEAPON.label_banned_attributes),
+		allowedAttributes: handleDefaultProp("weaponAllowedOnAttributes", EDITORSTRINGS.WEAPON.label_allowed_attributes),
 		alias: {
 			createControls(){		
 				var content = "";			
@@ -1179,6 +1181,14 @@ WeaponUI.prototype.show = async function(){
 	
 	content+="<div class='row'>";
 	content+=_this._propertyHandlers.allowedMechs.createControls();
+	content+="</div>";
+	
+	content+="<div class='row'>";
+	content+=_this._propertyHandlers.bannedAttributes.createControls();
+	content+="</div>";
+	
+	content+="<div class='row'>";
+	content+=_this._propertyHandlers.allowedAttributes.createControls();
 	content+="</div>";
 	
 	content+="</div>";

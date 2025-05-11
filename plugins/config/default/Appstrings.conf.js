@@ -856,6 +856,8 @@ EDITORSTRINGS.WEAPON = {
 	
 	label_banned_mechs: "Banned on ids",
 	label_allowed_mechs: "Allowed on ids",
+	label_banned_attributes: "Banned on attributes",
+	label_allowed_attributes: "Allowed on attributes",
 	
 	label_type: "Type",
 	

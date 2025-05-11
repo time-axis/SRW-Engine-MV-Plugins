@@ -3764,16 +3764,65 @@ StatCalc.prototype.getWeaponValidHolders = function(weaponId){
 		return result;
 	}
 	
+	function parseAttributeList(listString){
+		listString = listString || "";
+		let result = [];
+		const parts = listString.split(",");
+		for(let attribute of parts){
+			if(attribute != ""){
+				result.push(attribute);
+			}
+		}
+		return result;
+	}
+	
 	const allowList = parseList($dataWeapons[weaponId].meta.weaponAllowedOn);
 	const banList = parseList($dataWeapons[weaponId].meta.weaponBannedOn);
 	
+	const allowListByAttributeArray = parseAttributeList($dataWeapons[weaponId].meta.weaponAllowedOnAttributes);
+	const banListByAttributeArray = parseAttributeList($dataWeapons[weaponId].meta.weaponBannedOnAttributes);
+	
+
+	let tempList = {};
+	if(allowListByAttributeArray.length){
+		for (let i = 0; i < $dataClasses.length; i++){
+			for (let j = 0; j < allowListByAttributeArray.length; j++){
+				if($dataClasses[i].meta.mechAttribute1 === allowListByAttributeArray[j] || $dataClasses[i].meta.mechAttribute2 === allowListByAttributeArray[j]){
+					tempList[i] = true;
+				}				
+			}
+		}
+	}
+	const allowListByAttribute = tempList;
+	
+	tempList = {};
+	if(banListByAttributeArray.length){
+		for (let i = 0; i < $dataClasses.length; i++){
+			for (let j = 0; j < banListByAttributeArray.length; j++){
+				if($dataClasses[i].meta.mechAttribute1 === banListByAttributeArray[j] || $dataClasses[i].meta.mechAttribute2 === banListByAttributeArray[j]){
+					tempList[i] = true;
+				}				
+			}
+		}
+	}
+	const banListByAttribute = tempList;
+	
 	if(Object.keys(allowList).length){
-		return allowList;
+		if(allowListByAttributeArray.length){
+			tempList = Object.assign(allowList,allowListByAttribute);
+			return tempList;
+		} else {
+			return allowList;
+		}
+	}
+	
+	if(allowListByAttributeArray.length){
+		return allowListByAttribute;
 	}
 	
 	let result = {};
-	for(let i = 1; i < $dataActors.length; i++){
-		if(!banList[i]){
+	for(let i = 0; i < $dataClasses.length; i++){
+		if(!banList[i] && !banListByAttribute[i]){
 			result[i] = true;
 		}
 	}
