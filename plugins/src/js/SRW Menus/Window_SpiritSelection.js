@@ -437,6 +437,8 @@ Window_SpiritSelection.prototype.getSpiritEnabledState = function(listIdx, slot,
 	if(listIdx < list.length){	
 		var selectedSpirit = list[listIdx];
 		var spiritDisplayInfo = $spiritManager.getSpiritDisplayInfo(selectedSpirit.idx);
+		
+		//this is enabled handler check also filters out checks for invalid spirit ids! Without it further checks may crash!
 		if(!spiritDisplayInfo.enabledHandler(target)){
 			result = -1;
 		} else if(selectedSpirit.cost > $statCalc.getCalculatedPilotStats(caster).currentSP - pendingBatchCost && (this.getCurrentBatchedSpirits(slot)[selectedSpirit.idx] == null || this.getCurrentBatchedSpirits(slot)[selectedSpirit.idx].actor.actorId() != caster.actorId())){
@@ -454,7 +456,7 @@ Window_SpiritSelection.prototype.getSpiritEnabledState = function(listIdx, slot,
 		}
 		if(this._currentPlusSpirits[selectedSpirit.idx] != null && this._currentPlusSpirits[selectedSpirit.idx] != caster.actorId()){
 			result = -3;
-		}
+		}  
 	} else {
 		result = -1;
 	}
@@ -671,7 +673,9 @@ Window_SpiritSelection.prototype.redraw = function() {
 			
 			var displayClass = "";
 			var enabledState = _this.getSpiritEnabledState(i, slot);
-			if(enabledState == -1 || !isDisplayed || enabledState == -3){
+			if(enabledState == -4){
+				displayClass = "active";
+			} else if(enabledState == -1 || !isDisplayed || enabledState == -3){
 				displayClass = "disabled";
 			} else if(enabledState == -2){
 				displayClass = "insufficient";

@@ -58,9 +58,11 @@ APPSTRINGS.GENERAL = {
 	label_MP: "MP",
 	label_EN: "EN",
 	label_will: "Will",
+	label_score: "Score",
 	label_level: "Lv",
 	label_HP: "HP",
-	label_EN: "EN"
+	label_EN: "EN",
+	label_mode: "Mode",
 }
 
 APPSTRINGS.MAINMENU = {
@@ -168,11 +170,14 @@ APPSTRINGS.INTERMISSION = {
 		"data_load": "Load previous save data",
 		"options": "Manage Game Settings",
 		"deployment": "Manage Unit Deployment for the next stage",
-		"reassign": "Manage Pilot assignments to Mechs"
+		"reassign": "Manage Pilot assignments to Mechs",
+		"title": "Return to the title screen"
 	},
 	data_label: "Data",
 	data_save_label: "Save",
 	data_load_label: "Load",
+	data_title_label: "Title",
+	confirm_title: "Return to the title screen?",
 	stage_label: "Stage",
 	next_map_units: "Units for next map",
 	cleared_label: "Cleared",
@@ -200,7 +205,8 @@ APPSTRINGS.MECHLIST = {
 	column_kills: "Score",
 	column_support_attack: "Support ATK",
 	column_support_defend: "Support DEF",
-	column_slots: "Slots"
+	column_slots: "Slots",
+	column_attribute: "Attr."
 }
 
 APPSTRINGS.PILOTLIST = {
@@ -220,7 +226,7 @@ APPSTRINGS.DETAILPAGES = {
 	label_pilot_spirits: "Pilot Spirits",
 	label_pilot_stats: "Pilot Stats",
 	label_ability: "Ability",
-	label_cost: "Ability",
+	label_cost: "Cost",
 	label_attribute_1: "Attribute 1",
 	label_attribute_2: "Attribute 2",
 	label_pilot_level: "Lv",
@@ -333,6 +339,7 @@ APPSTRINGS.ATTACKLIST = {
 	label_no_all: "An ALL attack is required!",
 	label_no_regular: "A single target attack is required!",
 	label_no_map_support: "Can't support with a map attack!",
+	label_no_map_targets: "NO ",
 	label_HP_gated: "Can only be used when below {HP_THRESHOLD} percent HP!",
 	label_inner_combo: "The unit is participating in a combo attack!",
 	label_sub_twin_combo: "A sub twin cannot initiate a combo attack!",
@@ -345,7 +352,30 @@ APPSTRINGS.ATTACKLIST = {
 	label_target_enemies: "Enemy",
 	label_target_allies: "Ally",
 	title: "Select Attack",
-}
+	
+	hint_strings: {
+		subType: {
+			type: "The type determines which attacking stat of the Pilot is used.",
+			attribute: "The attribute of the weapon, determines super effective/not very effective damage against target.",
+			effect: "An S indicates that the weapon has one or more additional effects such as inflicting status.",
+			postMove: "A P indicates that the weapon can be used after moving.",			
+			usage: "This weapon has a special usage method or condition.",			
+			particle: "The sub-type of the weapon. Some abilities may affect weapons of specific sub-types.",
+			all: "An All weapon will hit both targets in an enemy Twin formation.",
+			power: "The base power of the weapon.",
+			range: "The mininum-maximum range of the weapon, this determines from how many spaces away an attack can hit a target.",
+			hit: "The weapon's bonus to hit rate when attacking using it.",
+			crit: "The weapon's bonus to critical hit rate when attacking using it.",
+		},
+		value: {
+			melee: "This is a Melee attack.",
+			ranged: "This is a Ranged attack.",
+			combination: "A T indicates that the weapon is a team-up weapon, it requires a parter to be available.",
+			counter: "A C indicates that the weapon will always go first, even when counter attacking.",
+		}
+	}
+}	
+	
 
 APPSTRINGS.REWARDS = {
 	label_funds_gained: "Funds gained",
@@ -385,6 +415,10 @@ APPSTRINGS.SEARCH = {
 	label_mech: "Mech"
 }
 
+APPSTRINGS.ATTR_CHART = {
+	title: "Effectiveness"
+}
+
 APPSTRINGS.OPTIONS = {
 	title: "Options",
 	label_game_options: "Game Options",
@@ -406,7 +440,15 @@ APPSTRINGS.OPTIONS = {
 	label_battle_speed: "Action Speed",
 	label_tweaks: "Game Tweaks",
 	label_button_set: "Button Display",
-	label_show_map_buttons: "Map Button Hints"
+	label_show_map_buttons: "Map Button Hints",
+	label_intermission_only: "Edit in Intermission"
+}
+
+APPSTRINGS.MODE_SELECTION = {
+	title: "Select Difficulty",
+	instructions: "Please select a Difficulty Mode to start the game with.<br>You can always change the difficulty later from the Options > Game Tweaks menu during the Intermission.",
+	label_automatic: "Automatic",
+	desc_automatic: "The difficulty will start at the lowest setting and increase based on how many Mastery Conditions are met.",
 }
 
 APPSTRINGS.GAME_MODES = {
@@ -415,6 +457,9 @@ APPSTRINGS.GAME_MODES = {
 	label_off: "Off",
 	label_infinite_funds: "Infinite Funds",
 	label_infinite_PP: "Infinite PP",
+	label_difficulty: "Difficulty",
+	label_auto: "Automatic",
+	desc_auto: "The difficulty level is set according to the number of SR points obtained.",
 	resources: "Resources"
 }
 
@@ -487,15 +532,18 @@ APPSTRINGS.BUTTON_HINTS = {
 	test2: {text: "This is a test action2", action: 'ok'},
 	test3: {text: "This is a test action3", action: 'escape'},
 	abi_details: {text: "Show Ability Details", action: 'menu'},
+	weap_details: {text: "Show Property Details", action: 'menu'},
 	tab_nav: {text: "Navigate Tabs", action: "d:left_right"},
 	previous_sub_pilot: {text: "Navigate Sub Pilot", action: "d:shoulder_triggers"},
 	//next_sub_pilot: {text: "Next Sub Pilot", action: "right_trigger"},
 	previous_twin_pilot: {text: "Navigate Twin Pilots", action: "d:shoulder_buttons"},
 	//next_twin_pilot: {text: "Next Twin Pilot", action: "pagedown"},
 	inspect_weap: {text: "View Weapon Info", action: "d:up_down"},
+	inspect_pilot_abilities: {text: "View All Abilities", action: "ok"},
 	
 	//options
 	select_option: {text: "Select an Option", action: "d:up_down"},
+	confirm_option: {text: "Confirm", action: "ok"},
 	toggle_option: {text: "Toggle Current Option", action: "d:left_right"},
 	enter_sub_menu: {text: "Enter Sub-menu", action: "ok"},
 	
@@ -786,6 +834,7 @@ EDITORSTRINGS.BG = {
 	label_fixed: "Fixed",
 	label_width: "Width",
 	label_height: "Height",
+	label_x_offset: "U Offset(0-1)",
 	label_y_offset: "Y Offset",
 	label_z_offset: "Z Offset",
 	
@@ -911,6 +960,7 @@ EDITORSTRINGS.MECH = {
 	label_stats_label: "Stats Label",
 	label_is_ship: "Is Ship",
 	label_can_equip: "Can Equip",
+	lavel_text_alias: "Text Alias",
 	label_can_hover: "Can Hover",
 	label_sync_parts: "Sync Parts With",
 	label_sync_equips: "Sync Equips With",
@@ -989,6 +1039,7 @@ EDITORSTRINGS.MECH = {
 	hint_default_size: "The width and height of the texture files for this sprite in pixels",
 	hint_3D_scale: "A scaling factor for the 3D model",
 	hint_3D_rotation: "The default rotation of the 3D model",
+	hint_shadow_parent: "The node that is use to parent the shadow to",
 	hint_shadow: "Scale for the shadow of the unit",
 	hint_world_size: "The size at which the sprite is displayed in World units(default 3)",
 	
@@ -999,6 +1050,7 @@ EDITORSTRINGS.MECH = {
 	label_source_size: "Source Size",
 	label_scale: "Scale",
 	label_rotation: "Rotation",
+	label_shadow_parent: "Shadow Parent",
 	label_y_offset: "Y Offset",
 	label_x_offset: "X Offset",
 	label_root_y_offset: "Root Y Offset",
@@ -1012,6 +1064,7 @@ EDITORSTRINGS.MECH = {
 	label_death_anim: "Death Animation",
 	label_system_default: "System Default",
 	label_default_attachments: "Default Attachments",
+	label_barrier_scale: "Barrier Scale",
 	
 	label_spawn: "Spawn",
 	label_animation: "Animation",

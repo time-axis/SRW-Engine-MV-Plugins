@@ -195,10 +195,14 @@ Window_SelectReassignPilot.prototype.update = function() {
 				if(target.type == "main"){
 					var targetPilot = this.getCurrentSelection().actor;
 					var currentPilot = $statCalc.getCurrentPilot(mechId);
+					let subTwinId;
 					if(currentPilot){
 						currentPilot._classId = 0;
+						currentPilot.isSubPilot = false;		
+						$statCalc.resetTwinState(currentPilot);
 						$statCalc.initSRWStats(currentPilot);						
 						$gameSystem.clearActorDeployInfo(currentPilot.actorId());
+						$gameSystem.overwritePilotFallbackInfo(currentPilot);
 					}					
 					
 					var previousMechs = $statCalc.getCurrentVariableSubPilotMechs(targetPilot.actorId());
@@ -207,27 +211,34 @@ Window_SelectReassignPilot.prototype.update = function() {
 						if(previousMech && previousMech.id != -1){
 							previousMech.subPilots[previousMech.subPilots.indexOf(targetPilot.actorId())] = 0;
 							$statCalc.storeMechData(previousMech);
-							
+							$gameSystem.overwriteMechFallbackInfo(previousMech.id, JSON.parse(JSON.stringify(previousMech.subPilots)));	
 							//ensure the live copy of the unit is also updated
 							var currentPilot = $statCalc.getCurrentPilot(previousMech.id);
 							if(currentPilot){
 								currentPilot.SRWStats.mech.subPilots[currentPilot.SRWStats.mech.subPilots.indexOf(targetPilot.actorId())] = 0;
+								$gameSystem.overwritePilotFallbackInfo(currentPilot);
 							}
 						}	
 					});	
 					
 					targetPilot._classId = mechId;
 					targetPilot.isSubPilot = false;
+					$statCalc.resetTwinState(targetPilot);
 					$statCalc.initSRWStats(targetPilot);
 					$gameSystem.clearActorDeployInfo(targetPilot.actorId());
+					$gameSystem.overwritePilotFallbackInfo(targetPilot);
+					const targetMech = $statCalc.getMechData($dataClasses[mechId], true);
+					$gameSystem.overwriteMechFallbackInfo(mechId, JSON.parse(JSON.stringify(targetMech.subPilots)));						
 					$gameTemp.popMenu = true;
 				} else {
 					var targetPilot = this.getCurrentSelection().actor;
 					if(targetPilot){
 						targetPilot._classId = 0;
 						targetPilot.isSubPilot = true;
+						$statCalc.resetTwinState(targetPilot);
 						$statCalc.initSRWStats(targetPilot);						
 						$gameSystem.clearActorDeployInfo(targetPilot.actorId());
+						$gameSystem.overwritePilotFallbackInfo(targetPilot);
 					}
 					var previousMechs = $statCalc.getCurrentVariableSubPilotMechs(targetPilot.actorId());
 					previousMechs.forEach(function(previousMechId){		
@@ -235,17 +246,19 @@ Window_SelectReassignPilot.prototype.update = function() {
 						if(previousMech && previousMech.id != -1){
 							previousMech.subPilots[previousMech.subPilots.indexOf(targetPilot.actorId())] = 0;
 							$statCalc.storeMechData(previousMech);
-							
+							$gameSystem.overwriteMechFallbackInfo(previousMech.id, JSON.parse(JSON.stringify(previousMech.subPilots)));	
 							//ensure the live copy of the unit is also updated
 							var currentPilot = $statCalc.getCurrentPilot(previousMech.id);
 							if(currentPilot){
 								currentPilot.SRWStats.mech.subPilots[currentPilot.SRWStats.mech.subPilots.indexOf(targetPilot.actorId())] = 0;
+								$gameSystem.overwritePilotFallbackInfo(currentPilot);
 							}
 						}	
 					});	
 					var targetMech = $statCalc.getMechData($dataClasses[$gameTemp.reassignTargetMech.id], true);
 					targetMech.subPilots[$gameTemp.reassignTargetMech.slot] = targetPilot.actorId();
 					$statCalc.storeMechData(targetMech);
+					$gameSystem.overwriteMechFallbackInfo(targetMech.id, JSON.parse(JSON.stringify(targetMech.subPilots)));	
 					
 					targetPilot._classId = $gameTemp.reassignTargetMech.id;
 					
@@ -253,6 +266,7 @@ Window_SelectReassignPilot.prototype.update = function() {
 					var currentPilot = $statCalc.getCurrentPilot(mechId);
 					if(currentPilot){
 						currentPilot.SRWStats.mech.subPilots[$gameTemp.reassignTargetMech.slot] = targetPilot.actorId();
+						$gameSystem.overwritePilotFallbackInfo(currentPilot);
 					}
 					
 					$gameTemp.popMenu = true;						
@@ -265,7 +279,7 @@ Window_SelectReassignPilot.prototype.update = function() {
 					$statCalc.unbindLinkedDeploySlots(this.getCurrentSelection().actor.actorId(), mechId, target.type, $gameTemp.reassignTargetMech.slot);
 				}			
 				
-				//$gameSystem.updateAvailableUnits(false, true);
+				$gameSystem.updateAvailableUnits(false, true);
 			} else {
 				SoundManager.playBuzzer();
 			}

@@ -1091,7 +1091,7 @@
 		}				
 		
 		//this.z = this._character.screenZ() - 1;
-		if($gameSystem.showWillIndicator){	
+		if(ConfigManager["willIndicator"]){	
 			var eventId = this._character.eventId();
 			var battlerArray = $gameSystem.EventToUnit(eventId);
 			if(battlerArray){
@@ -1145,7 +1145,7 @@
 	};
 
 	Sprite_AttributeIndicator.prototype.update = function() {
-		if(ENGINE_SETTINGS.USE_WEAPON_ATTRIBUTE){			
+		if(ENGINE_SETTINGS.ENABLE_ATTRIBUTE_SYSTEM){			
 			var type = this._character.isType();
 			this._isEnemy = type === 'enemy';
 			var eventId = this._character.eventId();
@@ -1180,7 +1180,7 @@
 				
 				//this.z = this._character.screenZ() - 1;
 			
-				if(unit && !this._character.isErased() && $gameSystem.showWillIndicator){
+				if(unit && !this._character.isErased() && ConfigManager["willIndicator"]){
 					this.opacity = 255;
 				} else {
 					this.opacity = 0;
@@ -1717,6 +1717,7 @@
 		if(this._animationFrame > this._frames){
 			this.visible = false;
 			this._character.isDoingDisappearAnim = false;
+			this._animationFrame = 0;
 		} else {
 			if(this._animationFrame == 3){
 				this._character.erase();
@@ -1850,7 +1851,7 @@
 	};
 
 	Sprite_SrpgGrid.prototype.update = function() {
-		if($gameSystem.enableGrid && !$gameSystem.optionDisableGrid){
+		if($gameSystem.enableGrid && !ConfigManager["disableGrid"]){
 			this.opacity = 128;
 		} else {
 			this.opacity = 0;

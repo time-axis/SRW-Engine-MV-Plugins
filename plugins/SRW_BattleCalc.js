@@ -3,7 +3,7 @@ function BattleCalc(){
 }
 
 BattleCalc.prototype.getWeaponTerrainValue = function(terrainRank){
-	let values =  ENGINE_SETTINGS.WEAP_TERRAIN_VALUES.DAMAGE || {
+	let values =  ENGINE_SETTINGS.WEAP_TERRAIN_VALUES || {
 		"S": 1.1,
 		"A": 1.0,
 		"B": 0.8,
@@ -14,7 +14,7 @@ BattleCalc.prototype.getWeaponTerrainValue = function(terrainRank){
 }
 
 BattleCalc.prototype.getMechTerrainValue = function(terrainRank){
-	let values =  ENGINE_SETTINGS.MECH_TERRAIN_VALUES.DAMAGE || {
+	let values =  ENGINE_SETTINGS.MECH_TERRAIN_VALUES || {
 		"S": 1.1,
 		"A": 1.0,
 		"B": 0.9,
@@ -53,10 +53,33 @@ BattleCalc.prototype.isTargetInRange = function(originPos, targetPos, range, min
 }
 
 BattleCalc.prototype.performPPCalculation = function(attacker, defender){
-	var attackerLevel = attacker.SRWStats.pilot.level;
+	/*var attackerLevel = attacker.SRWStats.pilot.level;
 	var defenderLevel = defender.SRWStats.pilot.level;
+	
+	if(ENGINE_SETTINGS.DIFFICULTY_MODS && ENGINE_SETTINGS.DIFFICULTY_MODS.enabled > 0){
+		const modSet = ENGINE_SETTINGS.DIFFICULTY_MODS.levels[$gameSystem.getCurrentDifficultyLevel()];
+		if(modSet && modSet.useOrigLevelForExp){
+			//only apply original level considerations to enemies. Works around issues where ally levels are not always set on init(like with sub pilots) and where ally pilot levels can update mid stage due to leveling up.
+			if(!attacker.isActor()){
+				attackerLevel = attacker.originalLevel;
+			}	
+			if(!defender.isActor()){
+				defenderLevel = defender.originalLevel;
+			}			
+		}
+	}*/
+	
 	var defenderTotalYield = defender.SRWStats.pilot.PPYield + defender.SRWStats.mech.PPYield ;
-	var totalExp = defenderTotalYield * (defenderLevel/attackerLevel);
+	//var totalExp = defenderTotalYield * (defenderLevel/attackerLevel);
+	var totalExp = defenderTotalYield;
+	
+	if(ENGINE_SETTINGS.DIFFICULTY_MODS && ENGINE_SETTINGS.DIFFICULTY_MODS.enabled > 0){
+		const modSet = ENGINE_SETTINGS.DIFFICULTY_MODS.levels[$gameSystem.getCurrentDifficultyLevel()];
+		if(modSet && modSet.PPMultiplier != null){
+			totalExp*=modSet.PPMultiplier;
+		}
+	}
+	
 	if(totalExp < 1){
 		totalExp = 1;
 	}
@@ -69,6 +92,18 @@ BattleCalc.prototype.performPPCalculation = function(attacker, defender){
 BattleCalc.prototype.performExpCalculation = function(attacker, defender){
 	var attackerLevel = attacker.SRWStats.pilot.level;
 	var defenderLevel = defender.SRWStats.pilot.level;
+	if(ENGINE_SETTINGS.DIFFICULTY_MODS && ENGINE_SETTINGS.DIFFICULTY_MODS.enabled > 0){
+		const modSet = ENGINE_SETTINGS.DIFFICULTY_MODS.levels[$gameSystem.getCurrentDifficultyLevel()];
+		if(modSet && modSet.useOrigLevelForExp){
+			//only apply original level considerations to enemies. Works around issues where ally levels are not always set on init(like with sub pilots) and where ally pilot levels can update mid stage due to leveling up.
+			if(!attacker.isActor()){
+				attackerLevel = attacker.originalLevel;
+			}	
+			if(!defender.isActor()){
+				defenderLevel = defender.originalLevel;
+			}			
+		}
+	}
 	var defenderTotalYield = defender.SRWStats.pilot.expYield + defender.SRWStats.mech.expYield ;
 	
 	var totalExp = eval(ENGINE_SETTINGS.EXP_YIELD.LEVEL_SCALING_FORMULA);
@@ -82,11 +117,11 @@ BattleCalc.prototype.performExpCalculation = function(attacker, defender){
 	return Math.floor(totalExp);
 }
 
-BattleCalc.prototype.performCritCalculation = function(attackerInfo, defenderInfo){
+BattleCalc.prototype.performCritCalculation = function(attackerInfo, defenderInfo, isSupportAttacker){
 	var result = 0;
 	var attackerAction = attackerInfo.action;
 	var activeSpirits = $statCalc.getActiveSpirits(attackerInfo.actor);
-	if(activeSpirits.valor || activeSpirits.soul){
+	if(!isSupportAttacker && (activeSpirits.valor || activeSpirits.soul)){
 		return -1;
 	}
 	if(attackerAction.type == "attack"){
@@ -317,7 +352,7 @@ BattleCalc.prototype.performDamageCalculation = function(attackerInfo, defenderI
 		//initial attack
 		var weaponInfo = attackerAction.attack;
 		var weaponPower = $statCalc.getWeaponPower(attackerInfo.actor, weaponInfo)*1;
-		var weaponTerrainRating = this.getWeaponTerrainValue($statCalc.getWeaponTerrainMod(defenderInfo.actor, weaponInfo)) || 0;
+		var weaponTerrainRating = this.getWeaponTerrainValue($statCalc.getWeaponTerrainMod(attackerInfo.actor, defenderInfo.actor, weaponInfo)) || 0;
 		
 		var attackerPilotOffense;
 		var attackerPilotStats = $statCalc.getCalculatedPilotStats(attackerInfo.actor);
@@ -367,11 +402,15 @@ BattleCalc.prototype.performDamageCalculation = function(attackerInfo, defenderI
 		}
 		armor = $statCalc.applyStatModsToValue(defenderInfo.actor, armor, ["armor"]);	
 
-		if($statCalc.applyStatModsToValue(attackerInfo.actor, 0, ["ignore_armor"])){
-			armor = 1;
+		const ignoreAmount = $statCalc.applyStatModsToValue(attackerInfo.actor, 0, ["ignore_armor"])
+		if(ignoreAmount){
+			armor-=ignoreAmount;
+			if(armor < 1){
+				armor = 1;
+			}			
 		}	
 		
-		var defenderTerrainRating = this.getMechTerrainValue(defenderMechStats.terrain[$statCalc.getCurrentAliasedTerrain(defenderInfo.actor)]) || 0;
+		var defenderTerrainRating = $statCalc.getTerrainMod(defenderInfo.actor) || 0;
 		
 		//final damage
 		var terrainDefenseFactor = $statCalc.getCurrentTerrainMods(defenderInfo.actor).defense || 0; 
@@ -392,7 +431,7 @@ BattleCalc.prototype.performDamageCalculation = function(attackerInfo, defenderI
 		
 		var finalDamage = (initialAttack - initialDefend) * (1 - terrainDefenseFactor/100);
 		var isCritical = false;
-		if(Math.random() < this.performCritCalculation(attackerInfo, defenderInfo)){
+		if(Math.random() < this.performCritCalculation(attackerInfo, defenderInfo, isSupportAttacker)){
 			isCritical = true;
 		}				
 		
@@ -439,6 +478,7 @@ BattleCalc.prototype.performDamageCalculation = function(attackerInfo, defenderI
 		if(isCritical && !noCrit && !isSupportDefender){
 			result.isCritical = isCritical;
 			finalDamage*=SRW_CONSTANTS.CRIT_DMG;
+			finalDamage =  $statCalc.applyStatModsToValue(attackerInfo.actor, finalDamage, ["crit_damage"]);
 		}
 		
 		if(defenderInfo.action.type == "defend"){
@@ -457,6 +497,9 @@ BattleCalc.prototype.performDamageCalculation = function(attackerInfo, defenderI
 		var vengeanceRatio = $statCalc.applyStatModsToValue(attackerInfo.actor, 0, ["vengeance"]);
 		if(vengeanceRatio){
 			var missingHP = attackerMechStats.maxHP - attackerMechStats.currentHP;		
+			if(finalDamage < 0){
+				finalDamage = 0;
+			}
 			finalDamage+=Math.floor(missingHP * vengeanceRatio);
 		}		
 		
@@ -494,6 +537,7 @@ BattleCalc.prototype.performDamageCalculation = function(attackerInfo, defenderI
 		}
 		
 		result.barrierNames = [];
+		result.barrierColors = [];
 		if(!noBarrier && (!$statCalc.applyStatModsToValue(attackerInfo.actor, 0, ["pierce_barrier"]) || $statCalc.applyStatModsToValue(defenderInfo.actor, 0, ["always_barrier"])) && !activeAttackerSpirits.fury){			
 			var totalBarrierCost = 0;
 			
@@ -501,6 +545,7 @@ BattleCalc.prototype.performDamageCalculation = function(attackerInfo, defenderI
 			var percentBarrierAmount = 1;
 			var percentBarrierCost = 0;
 			var barrierName = "";
+			var barrierColor = "";
 			
 			var percentEffect = $statCalc.getModDefinitions(defenderInfo.actor, ["percent_barrier"]); 
 			
@@ -513,6 +558,7 @@ BattleCalc.prototype.performDamageCalculation = function(attackerInfo, defenderI
 							percentBarrierAmount = effect.value;
 							percentBarrierCost = effect.cost;
 							barrierName = effect.name;
+							barrierColor = effect.color;
 						}						
 					}
 				}
@@ -530,6 +576,7 @@ BattleCalc.prototype.performDamageCalculation = function(attackerInfo, defenderI
 							percentBarrierAmount = effect.value;
 							percentBarrierCost = effect.cost;
 							barrierName = effect.name;
+							barrierColor = effect.color;
 						}						
 					}
 				}
@@ -541,6 +588,7 @@ BattleCalc.prototype.performDamageCalculation = function(attackerInfo, defenderI
 					result.hasPercentBarrier = true;
 					finalDamage = Math.floor(finalDamage * percentBarrierAmount);
 					result.barrierNames.push(barrierName);
+					result.barrierColors.push(barrierColor);
 				} 			
 			}
 			
@@ -560,6 +608,7 @@ BattleCalc.prototype.performDamageCalculation = function(attackerInfo, defenderI
 							reductionBarrierAmount = effect.value;
 							reductionBarrierCost = effect.cost || 0;
 							barrierName = effect.name;
+							barrierColor = effect.color;
 						}
 					}
 				}
@@ -577,6 +626,7 @@ BattleCalc.prototype.performDamageCalculation = function(attackerInfo, defenderI
 							reductionBarrierAmount = effect.value;
 							reductionBarrierCost = effect.cost;
 							barrierName = effect.name;
+							barrierColor = effect.color;
 						}
 					}
 				}
@@ -589,6 +639,7 @@ BattleCalc.prototype.performDamageCalculation = function(attackerInfo, defenderI
 					result.hasReductionBarrier = true;
 					finalDamage-=reductionBarrierAmount;
 					result.barrierNames.push(barrierName);
+					result.barrierColors.push(barrierColor);
 					if(finalDamage < 0){
 						finalDamage = 0;
 					}
@@ -614,6 +665,7 @@ BattleCalc.prototype.performDamageCalculation = function(attackerInfo, defenderI
 							thresholdBarrierAmount = effect.value;
 							thresholdBarrierCost = effect.cost;
 							barrierName = effect.name;
+							barrierColor = effect.color;
 						}
 					}
 				}
@@ -624,6 +676,7 @@ BattleCalc.prototype.performDamageCalculation = function(attackerInfo, defenderI
 				if(totalBarrierCost <= $statCalc.getCurrenEN(defenderInfo.actor)){
 					result.hasThresholdBarrier = true;
 					result.barrierNames.push(barrierName);
+					result.barrierColors.push(barrierColor);
 					if(finalDamage < thresholdBarrierAmount) {
 						finalDamage = 0;
 					} else {
@@ -706,6 +759,16 @@ BattleCalc.prototype.prepareBattleCache = function(actionObject, type){
 
 BattleCalc.prototype.generateBattleResult = function(isPrediction){
 	var _this = this;
+	
+	$statCalc.setCurrentAttack($gameTemp.currentBattleActor, $gameTemp.actorAction.attack);	
+	if($gameTemp.currentBattleActor.subTwin){
+		$statCalc.setCurrentAttack($gameTemp.currentBattleActor.subTwin, $gameTemp.actorTwinAction.attack);	
+	}
+	$statCalc.setCurrentAttack($gameTemp.currentBattleEnemy, $gameTemp.enemyAction.attack);	
+	if($gameTemp.currentBattleEnemy.subTwin){
+		$statCalc.setCurrentAttack($gameTemp.currentBattleEnemy.subTwin, $gameTemp.enemyTwinAction.attack);	
+	}
+	
 	$statCalc.invalidateAbilityCache($gameTemp.currentBattleEnemy);
 	$statCalc.invalidateAbilityCache($gameTemp.currentBattleActor);
 	
@@ -719,9 +782,16 @@ BattleCalc.prototype.generateBattleResult = function(isPrediction){
 	if($gameTemp.supportAttackCandidates){
 		supportAttacker = $gameTemp.supportAttackCandidates[$gameTemp.supportAttackSelected];
 	}
+	if(supportAttacker){
+		$statCalc.invalidateAbilityCache(supportAttacker.actor);
+		$statCalc.setCurrentAttack(supportAttacker.actor, supportAttacker.action.attack);	
+	}
 	var supportDefender; 
 	if($gameTemp.supportDefendCandidates){
 		supportDefender = $gameTemp.supportDefendCandidates[$gameTemp.supportDefendSelected];
+	}
+	if(supportDefender){
+		$statCalc.invalidateAbilityCache(supportDefender.actor);
 	}
 	
 	$gameVariables.setValue(_lastActorSupportAttackId, null);
@@ -897,6 +967,8 @@ BattleCalc.prototype.generateBattleResult = function(isPrediction){
 		
 		const isBuffingAttack = isBetweenFriendlies && interactionType == Game_System.INTERACTION_STATUS;
 		aCache.isBuffingAttack = isBuffingAttack;
+
+		aCache.actionOrder = orderIdx;
 		
 		aCache.side = this._side;
 		if(aCache.action.type != "attack"){
@@ -950,6 +1022,8 @@ BattleCalc.prototype.generateBattleResult = function(isPrediction){
 		}
 		defenders = tmp;
 		
+		
+		
 		for(var i = 0; i < defenders.length; i++){		
 			var attackedRef = "";
 			if(i == 1){
@@ -962,7 +1036,7 @@ BattleCalc.prototype.generateBattleResult = function(isPrediction){
 			}
 			//when making a prediction also resolve attacks from units that were previously predicted to be destroyed to account for potential misses
 			if(isPrediction || (!aCache.isDestroyed && !dCache.isDestroyed)) {
-				aCache.actionOrder = orderIdx;
+				
 				aCache.hasActed = true;
 				
 				aCache["attacked"+attackedRef] = dCache;
@@ -991,6 +1065,9 @@ BattleCalc.prototype.generateBattleResult = function(isPrediction){
 					hasPercentBarrier: false
 				};
 				var isSupportDefender = false;
+				if(sCache){
+					aCache["attacked_support"] = sCache;
+				}
 				if(isHit){
 					if(isHit && sCache && !sCache.hasActed){
 						isHit = 1;
@@ -1041,9 +1118,11 @@ BattleCalc.prototype.generateBattleResult = function(isPrediction){
 						//activeDefenderCache.attacked = aCache;
 					}
 				
-					if(this._isSupportAttack && !$statCalc.applyStatModsToValue(this._attacker.actor, 0, ["full_support_damage"])){
+					if(damageResult.damage > 0 && this._isSupportAttack && !$statCalc.applyStatModsToValue(this._attacker.actor, 0, ["full_support_damage"])){
 						damageResult.damage = Math.max(Math.floor(damageResult.damage * ENGINE_SETTINGS.SUPPORT_ATTACK_RATIO), 10);				
 					}
+					
+					
 				}
 				
 				
@@ -1060,6 +1139,9 @@ BattleCalc.prototype.generateBattleResult = function(isPrediction){
 				activeDefenderCache.barrierBroken = damageResult.thresholdBarrierBroken;
 				
 				dCache.barrierNames = damageResult.barrierNames;
+				dCache.barrierColors = damageResult.barrierColors;
+				
+				dCache.attackedBy = aCache;
 				
 				if(isBetweenFriendlies && interactionType == "status"){
 					dCache.receivedBuff = true;
@@ -1364,7 +1446,7 @@ BattleCalc.prototype.generateBattleResult = function(isPrediction){
 		$gameTemp.defenderCounterActivated = true;
 	
 		if(defenderTwin){
-			appendTargetingActions(defenderTwin, defenderTwinTarget, null, attackerSide);
+			appendTargetingActions(defenderTwin, defenderTwinTarget, null, defenderSide);
 		}
 		
 		appendTargetingActions(defender, defenderTarget, null, defenderSide);	
@@ -1426,13 +1508,14 @@ BattleCalc.prototype.generateBattleResult = function(isPrediction){
 	
 	for(var i = 0; i < actions.length; i++){
 		$statCalc.invalidateAbilityCache($gameTemp.currentBattleEnemy);
-		if($gameTemp.currentBattleEnemy.subTwin){
+		//subtwins are handled automatically when the main is invalidated, invalidating the subtwin breaks the invalidated event tracking causing the main twin to lose its abilities!
+		/*if($gameTemp.currentBattleEnemy.subTwin){
 			$statCalc.invalidateAbilityCache($gameTemp.currentBattleEnemy.subTwin);
-		}
+		}*/
 		$statCalc.invalidateAbilityCache($gameTemp.currentBattleActor);
-		if($gameTemp.currentBattleActor.subTwin){
+		/*if($gameTemp.currentBattleActor.subTwin){
 			$statCalc.invalidateAbilityCache($gameTemp.currentBattleActor.subTwin);
-		}
+		}*/
 		actions[i].execute(i);
 	}
 	
@@ -1484,7 +1567,16 @@ BattleCalc.prototype.generateBattleResult = function(isPrediction){
 					fundGain = 0;
 				} else {
 					fundGain = $statCalc.applyStatModsToValue(gainRecipient, fundGain, ["fund_gain_destroy"]);
+					
+					if(ENGINE_SETTINGS.DIFFICULTY_MODS && ENGINE_SETTINGS.DIFFICULTY_MODS.enabled > 0){
+						const modSet = ENGINE_SETTINGS.DIFFICULTY_MODS.levels[$gameSystem.getCurrentDifficultyLevel()];
+						if(modSet && modSet.fundsMultiplier != null){
+							fundGain*=modSet.fundsMultiplier;
+						}
+					}
 				}
+				
+				
 				
 				aCache.expGain+= expGain;
 				aCache.ppGain+= ppGain;
@@ -1551,6 +1643,7 @@ BattleCalc.prototype.generateMapBattleResult = function(){
 	var _this = this;
 	
 	
+	
 	$gameTemp.battleEffectCache = {};
 	$gameTemp.sortedBattleActorCaches = [];
 	var attacker;
@@ -1559,6 +1652,10 @@ BattleCalc.prototype.generateMapBattleResult = function(){
 	} else {
 		attacker = {actor: $gameTemp.currentBattleActor, action: $gameTemp.actorAction};
 	}
+	
+	$statCalc.setCurrentAttack(attacker.actor, attacker.action.attack);	
+	$statCalc.invalidateAbilityCache(attacker.actor);		
+	
 	var gainRecipient = attacker.actor;
 	
 	_this.prepareBattleCache(attacker, "initiator");
@@ -1573,6 +1670,7 @@ BattleCalc.prototype.generateMapBattleResult = function(){
 		aCache.ammoUsed = 1;
 	}
 	
+	
 	var MPCost = weaponref.MPCost;
 	if(MPCost != -1){
 		aCache.MPCost = MPCost;
@@ -1586,12 +1684,24 @@ BattleCalc.prototype.generateMapBattleResult = function(){
 	aCache.gainDonors = [];
 
 	let inflictedDamge = false;
+		
 	
 	var targets = $gameTemp.currentMapTargets;
 	targets.forEach(function(target){
+		$statCalc.invalidateAbilityCache(attacker.actor);
 		$statCalc.invalidateAbilityCache(target);
 		//temp variable used to resolve weapon effects per target in StatCalc.prototype.getActiveStatMods
 		$gameTemp.currentBattleTarget = target;
+		
+		if(aCache.action.attack && 
+			(
+				$statCalc.applyStatModsToValue(attacker.actor, 0, ["self_destruct"])
+			)	
+		){
+			aCache.isDestroyed = true;
+			aCache.selfDestructed = true;
+		}
+		
 		
 		var defender = {actor: target, action: {type: "none"}};
 		if(target != attacker.actor){
@@ -1661,7 +1771,16 @@ BattleCalc.prototype.generateMapBattleResult = function(){
 						false,
 						false	
 					);
-				}				
+				}	
+
+				if(aCache.action.attack && 
+						(
+							$statCalc.applyStatModsToValue(attacker.actor, 0, ["self_destruct_hit"])
+						)	
+					){
+						aCache.isDestroyed = true;
+						aCache.selfDestructed = true;
+					}				
 			} 
 			dCache.isHit = isHit;
 			dCache.type = "defender";
@@ -1675,15 +1794,17 @@ BattleCalc.prototype.generateMapBattleResult = function(){
 			
 			if(dCache.damageTaken >= dCache.currentAnimHP){
 				dCache.isDestroyed = true;
+				dCache.destroyer = aCache.ref;
 			}	
 			
 			gainDonor = defender.actor;
 					
-			if(aCache && dCache){			
+			if(aCache && dCache && !$gameSystem.isFriendly(aCache.ref, $gameSystem.getFactionId(dCache.ref))){			
 				var expGain = _this.performExpCalculation(gainRecipient, gainDonor);
 				expGain = $statCalc.applyStatModsToValue(gainRecipient, expGain, ["exp"]);
 				if($statCalc.getActiveSpirits(gainRecipient).gain){
 					expGain*=2;
+					aCache.isGainBoosted = true;
 				}
 				var ppGain = _this.performPPCalculation(gainRecipient, gainDonor);
 				var fundGain = $statCalc.getAwardedFunds(gainDonor);
@@ -1696,6 +1817,13 @@ BattleCalc.prototype.generateMapBattleResult = function(){
 					fundGain = 0;
 				} else {
 					fundGain = $statCalc.applyStatModsToValue(gainRecipient, fundGain, ["fund_gain_destroy"]);
+
+					if(ENGINE_SETTINGS.DIFFICULTY_MODS && ENGINE_SETTINGS.DIFFICULTY_MODS.enabled > 0){
+						const modSet = ENGINE_SETTINGS.DIFFICULTY_MODS.levels[$gameSystem.getCurrentDifficultyLevel()];
+						if(modSet && modSet.fundsMultiplier != null){
+							fundGain*=modSet.fundsMultiplier;
+						}
+					}
 				}
 				
 				aCache.expGain+= expGain;
@@ -1707,8 +1835,8 @@ BattleCalc.prototype.generateMapBattleResult = function(){
 	});
 	
 	if(inflictedDamge){
-		if($statCalc.getActiveSpirits(aCache).fortune){
-			$statCalc.clearSpirit(attacker.actor, "fortune");
+		if($statCalc.getActiveSpirits(gainRecipient).fortune){
+			$statCalc.clearSpirit(gainRecipient, "fortune");
 		}	
 		
 		if($statCalc.getActiveSpirits(gainRecipient).gain){
@@ -1724,7 +1852,7 @@ BattleCalc.prototype.generateMapBattleResult = function(){
 	}
 	
 	
-	var mapRewardsScaling = 1 / (targets.length / 2);
+	var mapRewardsScaling = 1;//1 / (targets.length / 2);
 	aCache.expGain = Math.floor(aCache.expGain * mapRewardsScaling);
 	aCache.ppGain = Math.floor(aCache.ppGain * mapRewardsScaling);
 	aCache.fundGain = Math.floor(aCache.fundGain * mapRewardsScaling);
@@ -1820,6 +1948,8 @@ BattleCalc.prototype.updateTwinActions = function(){
 		};
 	}
 	
+	
+	
 	var allAttackUsed = false;
 	
 	if($gameTemp.actorAction && $gameTemp.actorAction.attack){
@@ -1847,6 +1977,9 @@ BattleCalc.prototype.updateTwinActions = function(){
 		}
 	}
 	
+	const isBetweenFriendlies = $gameSystem.areUnitsFriendly($gameTemp.currentBattleActor, $gameTemp.currentBattleEnemy);
+	
+	
 	/*if(allAttackUsed){
 		$gameTemp.supportAttackCandidates = [];
 		$gameTemp.supportAttackSelected = -1;
@@ -1864,6 +1997,16 @@ BattleCalc.prototype.updateTwinActions = function(){
 	var isEnemyPostMove = $gameTemp.isEnemyAttack && $gameTemp.isPostMove;	
 	
 	if($statCalc.isMainTwin($gameTemp.currentBattleActor)){
+		
+		let isBuffingAttack = false;
+		if(isBetweenFriendlies){
+			let interactionType;
+			if($gameTemp.actorAction.attack){
+			 	interactionType = $gameTemp.actorAction.attack.alliesInteraction;				
+			}
+			isBuffingAttack = interactionType == Game_System.INTERACTION_STATUS;
+		}
+		
 		var twinInfo = {
 			actor: $gameTemp.currentBattleActor.subTwin,
 			pos: {x: $gameTemp.currentBattleActor.event.posX(), y: $gameTemp.currentBattleActor.event.posY()}
@@ -1885,7 +2028,7 @@ BattleCalc.prototype.updateTwinActions = function(){
 		
 		var isInnerComboParticipant = $statCalc.isInnerComboParticipant($gameTemp.currentBattleActor.subTwin);	
 		
-		if(!isInnerComboParticipant && !$statCalc.isDisabled($gameTemp.currentBattleActor.subTwin)){
+		if(!isInnerComboParticipant && !$statCalc.isDisabled($gameTemp.currentBattleActor.subTwin) && !isBuffingAttack){
 			var weaponResult = this.getBestWeaponAndDamage(twinInfo, targetInfo, false, false, isActorPostMove, allRequired);
 			if(weaponResult.weapon){
 				if(allRequired == 1){
@@ -1898,37 +2041,57 @@ BattleCalc.prototype.updateTwinActions = function(){
 		} else {
 			actorTwinAction = {type: "none"};	
 		}		
+	} else {
+		$gameTemp.currentTargetingSettings.enemyTwin = "main";
+		$gameTemp.currentTargetingSettings.enemy = "main";
 	}
 	
 	if($statCalc.isMainTwin($gameTemp.currentBattleEnemy)){
-		var twinInfo = {
-			actor: $gameTemp.currentBattleEnemy.subTwin,
-			pos: {x: $gameTemp.currentBattleEnemy.event.posX(), y: $gameTemp.currentBattleEnemy.event.posY()}
-		};
 		
-		var targetActor;
-		if($gameTemp.currentTargetingSettings.enemyTwin == "twin" && $statCalc.isMainTwin($gameTemp.currentBattleActor)){
-			targetActor = $gameTemp.currentBattleActor.subTwin;
-		} else {
-			$gameTemp.currentTargetingSettings.enemyTwin = "main";
-			targetActor = $gameTemp.currentBattleActor;
-		}
-		
-		var targetInfo = {
-			actor: targetActor,
-			pos: {x: $gameTemp.currentBattleActor.event.posX(), y: $gameTemp.currentBattleActor.event.posY()}
-		};
-		var allRequired = $gameTemp.currentTargetingSettings.enemy == "all" ? 1 : -1;
-		
-		var weaponResult = this.getBestWeaponAndDamage(twinInfo, targetInfo, false, false, isEnemyPostMove, allRequired);
-		if(weaponResult.weapon){
-			if(allRequired == 1){
-				$gameTemp.currentTargetingSettings.enemyTwin = "all";
+		let isBuffingAttack = false;
+		if(isBetweenFriendlies){
+			let interactionType;
+			if($gameTemp.actorAction.attack){
+			 	interactionType = $gameTemp.actorAction.attack.alliesInteraction;				
 			}
-			enemyTwinAction = {type: "attack", attack: weaponResult.weapon};												
-		} else {
-			enemyTwinAction = {type: "defend"};				
+			isBuffingAttack = interactionType == Game_System.INTERACTION_STATUS;
 		}
+		
+		if(isBuffingAttack){
+			enemyTwinAction = {type: "defend"};		
+		} else {			
+			var twinInfo = {
+				actor: $gameTemp.currentBattleEnemy.subTwin,
+				pos: {x: $gameTemp.currentBattleEnemy.event.posX(), y: $gameTemp.currentBattleEnemy.event.posY()}
+			};
+			
+			var targetActor;
+			if($gameTemp.currentTargetingSettings.enemyTwin == "twin" && $statCalc.isMainTwin($gameTemp.currentBattleActor)){
+				targetActor = $gameTemp.currentBattleActor.subTwin;
+			} else {
+				$gameTemp.currentTargetingSettings.enemyTwin = "main";
+				targetActor = $gameTemp.currentBattleActor;
+			}
+			
+			var targetInfo = {
+				actor: targetActor,
+				pos: {x: $gameTemp.currentBattleActor.event.posX(), y: $gameTemp.currentBattleActor.event.posY()}
+			};
+			var allRequired = $gameTemp.currentTargetingSettings.enemy == "all" ? 1 : -1;
+			
+			var weaponResult = this.getBestWeaponAndDamage(twinInfo, targetInfo, false, false, isEnemyPostMove, allRequired);
+			if(weaponResult.weapon){
+				if(allRequired == 1){
+					$gameTemp.currentTargetingSettings.enemyTwin = "all";
+				}
+				enemyTwinAction = {type: "attack", attack: weaponResult.weapon};												
+			} else {
+				enemyTwinAction = {type: "defend"};				
+			}
+		}
+	} else {
+		$gameTemp.currentTargetingSettings.actorTwin = "main";
+		$gameTemp.currentTargetingSettings.actor = "main";
 	}
 	
 	$gameTemp.actorTwinAction = actorTwinAction;

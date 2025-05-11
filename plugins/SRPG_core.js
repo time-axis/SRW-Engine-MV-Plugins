@@ -324,6 +324,18 @@ var _defaultPlayerSpeed = parameters['defaultPlayerSpeed'] || 4;
 		this.frameCount++;
 	};
 	
+	Graphics._centerElement = function(element) {
+		var width = Math.ceil(element.width * this._realScale);
+		var height = Math.ceil(element.height * this._realScale);
+		element.style.position = 'absolute';
+		element.style.margin = 'auto';
+		element.style.top = 0;
+		element.style.left = 0;
+		element.style.right = 0;
+		element.style.bottom = 0;
+		element.style.width = width + 'px';
+		element.style.height = height + 'px';
+	};
 
 	var Graphics_updateCanvas = Graphics._updateCanvas;
 	Graphics._updateCanvas = function(windowId){
@@ -353,6 +365,12 @@ var _defaultPlayerSpeed = parameters['defaultPlayerSpeed'] || 4;
 				battleSceneUILayer.height = this._height;
 				this._centerElement(battleSceneUILayer);
 			}	
+			var battleSceneTextLayer = document.querySelector("#battle_scene_text_layer");
+			if(battleSceneTextLayer){
+				battleSceneTextLayer.width = this._width;
+				battleSceneTextLayer.height = this._height;
+				this._centerElement(battleSceneTextLayer);
+			}			
 			var fadeContainer = document.querySelector("#fade_container");
 			if(fadeContainer){
 				fadeContainer.width = this._width;
@@ -440,6 +458,8 @@ var _defaultPlayerSpeed = parameters['defaultPlayerSpeed'] || 4;
 		return bitmap;
 	};
 	
+	ImageCache.limit = 100 * 1000 * 1000;
+	
 	ImageCache.prototype.removeBlobs = function(key, value){
 		let tmp = {};
 		for(let key in this._items){
@@ -453,6 +473,10 @@ var _defaultPlayerSpeed = parameters['defaultPlayerSpeed'] || 4;
 	
 	ImageManager.resetBlobCache = async function() {
 		this._imageCache.removeBlobs();
+	}
+	
+	ImageManager.clearFullCache = async function() {
+		this._imageCache._truncateCache(true);
 	}
 		
 	ImageCache.prototype._truncateCache = function(force){
@@ -778,6 +802,7 @@ SceneManager.isInSaveScene = function(){
 		this.createDeploySelectionWindow();
 		this.createSearchWindow();
 		this.createOptionsWindow();
+		this.createAttrChartWindow();
 		this.createGameModesWindow();
 		this.createMapButtonsWindow();
 		this.createOpeningCrawlWindow();
@@ -785,6 +810,7 @@ SceneManager.isInSaveScene = function(){
 		this.createZoneStatusWindow();
 		this.createButtonHintsWindow();
 		this.createZoneSummaryWindow();
+		this.createModeSelectionWindow();
 		$battleSceneManager.init();	
     };
 	
@@ -812,8 +838,12 @@ SceneManager.isInSaveScene = function(){
 		//hacky way to restore compatibility with plugins that still rely on scene_menu being used for the map menu		
 		Scene_Map.prototype.createCommandWindow.call(this)
 			
+		if(ENGINE_SETTINGS.DIFFICULTY_MODS && ENGINE_SETTINGS.DIFFICULTY_MODS.displayInMenus){
+			this._commandWindow.y = 34;
+		} else {
+			this._commandWindow.y = 50;
+		}
 		
-		this._commandWindow.y = 50;
 		this._commandWindow.x = 800;
 		this.addWindow(this._commandWindow);	
 		this._goldWindow = new Window_StageInfo(0, 0);
@@ -907,15 +937,15 @@ SceneManager.isInSaveScene = function(){
 	
 	Scene_Map.prototype.commandGameEnd = function() {
 		//this.closePauseMenu();
+		$gameTemp.buttonHintManager.hide();
+		this._mapButtonsWindow.hide();
+		this._mapButtonsWindow.close();
 		SceneManager.push(Scene_GameEnd);
 	};
 	
 	Scene_GameEnd.prototype.commandToTitle = function() {
 		this.fadeOutAll();
-		//SceneManager.goto(Scene_Disclaimer);
-		//if (Utils.isNwjs()) {
-			location.reload();
-		//}
+		SceneManager.goto(Scene_Title);		
 	};
 	
 	Scene_Map.prototype.commandSave = function() {
@@ -1067,6 +1097,22 @@ SceneManager.isInSaveScene = function(){
 		
 		$gameTemp.buttonHintManager = this._buttonHintsWindow;
     };	
+	
+	Scene_Map.prototype.createModeSelectionWindow = function() {
+		var _this = this;
+		this._modeSelectionWindow = new Window_ModeSelection(0, 0, Graphics.boxWidth, Graphics.boxHeight);
+		this._modeSelectionWindow.close();
+		this.addWindow(this._modeSelectionWindow);
+		this._modeSelectionWindow.registerCallback("closed", function(){
+			if($gameTemp.modeSelectionWindowCallback){
+				$gameTemp.modeSelectionWindowCallback();
+			}
+		});
+	
+		this._modeSelectionWindow.hide();
+		this.idToMenu["mode_selection"] = this._modeSelectionWindow;
+    };
+	
 	
 	Scene_Map.prototype.createMechListDeployedWindow = function() {
 		var _this = this;
@@ -1323,6 +1369,20 @@ SceneManager.isInSaveScene = function(){
 		this.addWindow(this._optionsWindow);
 		this._optionsWindow.hide();
 		this.idToMenu["options"] = this._optionsWindow;
+    };
+	
+	Scene_Map.prototype.createAttrChartWindow = function() {
+		var _this = this;
+		this._attrChartWindow = new Window_Attribute_Chart(0, 0, Graphics.boxWidth, Graphics.boxHeight);
+		this._attrChartWindow.registerCallback("closed", function(){
+			if($gameTemp.attrWindowCancelCallback){
+				$gameTemp.attrWindowCancelCallback();
+			}
+		});
+		this._attrChartWindow.close();
+		this.addWindow(this._attrChartWindow);
+		this._attrChartWindow.hide();
+		this.idToMenu["attr_chart"] = this._attrChartWindow;
     };
 	
 	Scene_Map.prototype.createGameModesWindow = function() {
@@ -1849,18 +1909,44 @@ SceneManager.isInSaveScene = function(){
     var _SRPG_SceneMap_update = Scene_Map.prototype.update;
     Scene_Map.prototype.update = function() {
 		var _this = this;
-			
+		if($gameTemp.doingSoftRestFade){
+			this.updateFade();
+			return;
+		}	
 		//Soft Reset
-		if(!$gameSystem.isIntermission() && Input.isPressed("ok") && Input.isPressed("cancel") && Input.isPressed("pageup") && Input.isPressed("pagedown")){
-			Input.clear();
-			$gameSystem.setSubBattlePhase("normal");
+		if(!$gameSystem.isIntermission() && Input.isPressed("ok") && Input.isPressed("cancel") && Input.isPressed("pageup") && Input.isPressed("pagedown")){			
+			let continueSlotIsPopulated = false;
 			try {
 				JsonEx.parse(StorageManager.load("continue"));//check if the continue slot exists first by trying to parse it
-				DataManager.loadContinueSlot();
+				continueSlotIsPopulated = true;
 			} catch(e){
 				
+			}
+			if(continueSlotIsPopulated){
+				this.fadeOutAll();
+				$gameTemp.buttonHintManager.hide();
+				this._mapButtonsWindow.hide();
+				this._mapButtonsWindow.close();
+				
+				this._summaryWindow.hide();
+				this._summaryWindow.close();
+				
+				this._zoneSummaryWindow.hide();
+				this._zoneSummaryWindow.close();
+				
+				this._terrainDetailsWindow.hide();
+				this._terrainDetailsWindow.close();
+				
+				$gameTemp.doingSoftRestFade = true;
+				setTimeout(function(){
+					$gameTemp.doingSoftRestFade = false;
+					Input.clear();
+					$gameSystem.setSubBattlePhase("normal");				
+					DataManager.loadContinueSlot();							
+				}, 1000);
+				
+				return;
 			}			
-			return;
 		}				
 		
 		if(Input.isTriggered("left") || Input.isTriggered("right") || Input.isTriggered("up") || Input.isTriggered("down")){
@@ -1960,6 +2046,7 @@ SceneManager.isInSaveScene = function(){
 			Scene_Base.prototype.update.call(this);
 			if($gameTemp.scaledTextUpdateRequested){
 				$gameTemp.scaledTextUpdateRequested = false;
+				CSSUIManager.cacheKeyCtr = 0;
 				$CSSUIManager.doUpdateScaledText();
 			}
 			return;			
@@ -2017,13 +2104,38 @@ SceneManager.isInSaveScene = function(){
 			}				
 		}
 		
+		if (!$gameMap.isEventRunning()) {		
+			if ($gameSystem.isBattlePhase() === 'AI_phase') {
+				$gameTemp.summaryUnit = null;					
+			}
+							
+			//the normal and actor_map_target_confirm states do their own summary unit handling
+			if($gameSystem.isSubBattlePhase() !== 'normal' && $gameSystem.isSubBattlePhase() !== 'actor_map_target_confirm'){		
+				if ($SRWGameState.canShowSummaries() && $gameTemp.summariesTimeout <= 0 && !$gameTemp.isDraggingMap) {
+					var currentPosition = {x: $gamePlayer.posX(), y: $gamePlayer.posY()};
+					$gameTemp.previousCursorPosition = currentPosition;
+					var summaryUnit = $statCalc.activeUnitAtPosition(currentPosition);
+					if(summaryUnit && ($gameSystem.isSubBattlePhase() !== 'actor_map_target_confirm' || $gameTemp.isMapTarget(summaryUnit.event.eventId()))){
+						var previousUnit = $gameTemp.summaryUnit;
+						$gameTemp.summaryUnit = summaryUnit;	
+						if(!_this._summaryWindow.visible || $gameTemp.summaryUnit != previousUnit){
+							_this._summaryWindow.show();
+						}											
+					}
+				}
+			}
+		}
+		
 	
 		let SRWStateResult = $SRWGameState.update(this);
+		
+		
 		
 		//update of scene base updates menus etc.
 		Scene_Base.prototype.update.call(this);
 		if($gameTemp.scaledTextUpdateRequested){
 			$gameTemp.scaledTextUpdateRequested = false;
+			CSSUIManager.cacheKeyCtr = 0;
 			$CSSUIManager.doUpdateScaledText();
 		}
 		
@@ -2114,24 +2226,7 @@ SceneManager.isInSaveScene = function(){
         }      
        	
 		
-        //エネミーフェイズの処理
-        if ($gameSystem.isBattlePhase() === 'AI_phase') {
-			$gameTemp.summaryUnit = null;					
-        }
-						
-		//$gameSystem.isSubBattlePhase() === 'actor_target' || $gameSystem.isSubBattlePhase() === 'actor_target_spirit' || $gameSystem.isSubBattlePhase() === 'actor_map_target_confirm'
-		if ($SRWGameState.canShowSummaries() && $gameTemp.summariesTimeout <= 0 && !$gameTemp.isDraggingMap) {
-			var currentPosition = {x: $gamePlayer.posX(), y: $gamePlayer.posY()};
-			$gameTemp.previousCursorPosition = currentPosition;
-			var summaryUnit = $statCalc.activeUnitAtPosition(currentPosition);
-			if(summaryUnit && ($gameSystem.isSubBattlePhase() !== 'actor_map_target_confirm' || $gameTemp.isMapTarget(summaryUnit.event.eventId()))){
-				var previousUnit = $gameTemp.summaryUnit;
-				$gameTemp.summaryUnit = summaryUnit;	
-				if(!_this._summaryWindow.visible || $gameTemp.summaryUnit != previousUnit){
-					_this._summaryWindow.show();
-				}											
-			}
-		}
+       
 		
     };
 	
@@ -2244,11 +2339,13 @@ SceneManager.isInSaveScene = function(){
 				if(gainDonor.isDestroyed){
 					var items = $statCalc.getEquipInfo(gainDonor.ref);
 					if(items){
+						let slot = 0;
 						items.forEach(function(item){
-							if(item){
+							if(item && !$gameSystem.isFriendly(gainDonor.ref, "player") && (!gainDonor.ref.lockedDropSlots || !gainDonor.ref.lockedDropSlots[slot])){
 								$inventoryManager.addItem(item.idx);
 								itemDrops.push(item.idx);	
-							}							
+							}		
+							slot++;	
 						});
 					}					
 				}
@@ -2363,8 +2460,16 @@ SceneManager.isInSaveScene = function(){
 		}
 		$gameTemp.clearMoveTable();
 		if($gameTemp.mapAttackOccurred){
+			let actorIsDestroyed = false;
 			Object.keys($gameTemp.battleEffectCache).forEach(function(cacheRef){
 				var battleEffect = $gameTemp.battleEffectCache[cacheRef];
+				
+				if(battleEffect.isActor && (battleEffect.type == "initiator" || battleEffect.type == "defender")){
+					if(battleEffect.isDestroyed) {
+						actorIsDestroyed = true;
+					} 					
+				}
+				
 				if(battleEffect.ref && !battleEffect.ref.isActor()){
 					battleEffect.ref.setSquadMode("normal");
 				}
@@ -2422,14 +2527,19 @@ SceneManager.isInSaveScene = function(){
 				}
 			});	
 			$gameTemp.mapAttackOccurred = false;
-			if($gameTemp.isEnemyAttack){
-				this.srpgAfterAction();
+			if(actorIsDestroyed){
+				this.srpgPrepareNextAction();
 			} else {
-				$gameParty.gainGold($gameTemp.rewardsInfo.fundGain);	
-				$gameTemp.rewardsDisplayTimer = 20;	
-				$gameSystem.setSubBattlePhase("rewards_display");				
-				$gameTemp.pushMenu = "rewards";
-			}			
+				if($gameTemp.isEnemyAttack){
+					this.srpgAfterAction();
+				} else {
+					$gameParty.gainGold($gameTemp.rewardsInfo.fundGain);	
+					$gameTemp.rewardsDisplayTimer = 20;	
+					$gameSystem.setSubBattlePhase("rewards_display");				
+					$gameTemp.pushMenu = "rewards";
+				}
+			}
+						
 		} else if($gameTemp.battleOccurred){
 			var actorIsDestroyed = false;
 			if($gameTemp.supportAttackCandidates){
@@ -2496,7 +2606,11 @@ SceneManager.isInSaveScene = function(){
 						if(battleEffect.damageInflicted > 0|| battleEffect.attacked.receivedBuff){
 							applyStatusConditions(battleEffect.statusEffects, battleEffect.attacked.ref, battleEffect.hasFury);
 						}
-						
+						if(battleEffect.attacked_all_sub){
+							if(battleEffect.damageInflicted_all_sub > 0|| battleEffect.attacked_all_sub.receivedBuff){
+								applyStatusConditions(battleEffect.statusEffects, battleEffect.attacked_all_sub.ref, battleEffect.hasFury);
+							}
+						}						
 					} else {
 						
 						$statCalc.modifyWill(battleEffect.attacked.ref, defenderPersonalityInfo.evade || 0)
@@ -2562,6 +2676,7 @@ SceneManager.isInSaveScene = function(){
 	Scene_Map.prototype.srpgPrepareNextAction = function(){
 		$gameTemp.rewardsInfo = null;	
 		var battler = $gameSystem.EventToUnit($gameTemp.activeEvent().eventId())[1];
+		$statCalc.invalidateAbilityCache(battler);
 		$gameTemp.activeEvent().lastMoveCount = 0;
 		if(!$gameTemp.eraseActorAfterTurn && (battler.SRPGActionTimes() >= 1 && !$gameTemp.isPostMove && $statCalc.applyStatModsToValue(battler, 0, ["hit_and_away"])) && $gameSystem.isBattlePhase() != "AI_phase"){
 			$gameTemp.isHitAndAway = true;
@@ -2592,10 +2707,15 @@ SceneManager.isInSaveScene = function(){
 		
 		if(hasDefeatedOpponent && hasContinuousAction){
 			$statCalc.setHasUsedContinuousAction(battler);
+			battler.setSrpgTurnEnd(false);		
 		} else if($statCalc.getActiveSpirits(battler).zeal){
 			$statCalc.clearSpirit(battler, "zeal");
+			//ensure the unit can act after zeal
+			//circumvents issue with pilots that start as subpilots still being marked as turn ended from the previous stage when swapping into them
+			battler.setSrpgTurnEnd(false);		
 		} else if($statCalc.consumeAdditionalAction(battler)){
 			//do not end turn if an action could be consumed
+			battler.setSrpgTurnEnd(false);		
 		} else {
 			if (battler.SRPGActionTimes() <= 1) {
 				battler.setSrpgTurnEnd(true);
@@ -2611,16 +2731,19 @@ SceneManager.isInSaveScene = function(){
         $gameTroop.clearSrpgBattleEnemys();
 		
 		//delete stale battle cache references from previous participants
+		//set didEnemyAttack flag for checks in after_action scripts
 		if($gameTemp.battleEffectCache){
 			for(let refKey in $gameTemp.battleEffectCache){
 				const ref = $gameTemp.battleEffectCache[refKey].ref;
 				if(ref){
+					if(!ref.isActor() && $gameTemp.battleEffectCache[refKey].attacked){
+						$gameTemp.didEnemyAttack = true;
+					}
 					delete ref._cacheReference;
 					delete ref._supportCacheReference;
 				}
 			}
-		}		
-		
+		}				
 		$gameTemp.battleEffectCache = null;
        
 	   $gameSystem.setSubBattlePhase('check_item_pickup');	
@@ -3286,6 +3409,29 @@ SceneManager.isInSaveScene = function(){
 		}
 		return result;
 	}
+
+	Scene_Map.prototype.actorMapWeaponHasTargets = function(actor, weapon) {
+		if(!actor){
+			return false;
+		}
+		if(!weapon){
+			return false;
+		}
+		const event = $statCalc.getReferenceEvent(actor);
+		if(!event){
+			return false;
+		}
+		let targetString;
+		if(!weapon.ignoresEnemies && !weapon.ignoresFriendlies){
+			targetString = null;//either
+		} else if(!weapon.ignoresFriendlies){
+			targetString = "actor";
+		} else if(!weapon.ignoresEnemies){
+			targetString = "enemy";
+		}
+		var targetInfo = this.getBestMapAttackTargets(event, weapon, targetString);
+		return !!targetInfo.targets.length;
+	}
 	
 	Scene_Map.prototype.getBestMapAttackTargets = function(originEvent, attack, type) {
 		var _this = this;				
@@ -3296,7 +3442,7 @@ SceneManager.isInSaveScene = function(){
 		var bestPosition;
 		var bestTargets = [];
 		
-		directions.forEach(function(direction){		
+		directions.forEach(function(direction){
 			var targetResults = _this.getMapAttackTargets(originEvent, attack, type, direction);
 			targetResults.forEach(function(targetResult){
 				if(targetResult.targets.length > maxTargets){
@@ -3644,7 +3790,7 @@ SceneManager.isInSaveScene = function(){
 				tileCoordinates[i][0]+=deltaX;
 				tileCoordinates[i][1]+=deltaY;
 				$gameTemp.pushMoveList(tileCoordinates[i]);	
-				$gameSystem.highlightedTiles.push({x: tileCoordinates[i][0], y: tileCoordinates[i][1], color: "#ff3a3a"});					
+				$gameSystem.highlightedTiles.push({x: tileCoordinates[i][0], y: tileCoordinates[i][1], color: bestMapAttack.attack.ignoresFriendlies ? "#3a69ff" : "#ff3a3a"});					
 			}
 				
 			$statCalc.setCurrentAttack(enemy, bestMapAttack.attack);
@@ -4696,7 +4842,7 @@ SceneManager.isInSaveScene = function(){
 					}
 				}
 				$gameTemp.supportDefendCandidates = supporters;
-				if($gameSystem.optionDefaultSupport){
+				if(ConfigManager["defaultSupport"]){
 					$gameTemp.supportDefendSelected = supporterSelected;
 				} else {
 					$gameTemp.supportDefendSelected = -1;
@@ -4778,14 +4924,7 @@ SceneManager.isInSaveScene = function(){
 
     //戦闘処理の実行
     Scene_Map.prototype.srpgBattleStart = function(actionArray, targetArray) {		
-		$statCalc.setCurrentAttack($gameTemp.currentBattleActor, $gameTemp.actorAction.attack);	
-		if($gameTemp.currentBattleActor.subTwin){
-			$statCalc.setCurrentAttack($gameTemp.currentBattleActor.subTwin, $gameTemp.actorTwinAction.attack);	
-		}
-		$statCalc.setCurrentAttack($gameTemp.currentBattleEnemy, $gameTemp.enemyAction.attack);	
-		if($gameTemp.currentBattleEnemy.subTwin){
-			$statCalc.setCurrentAttack($gameTemp.currentBattleEnemy.subTwin, $gameTemp.enemyTwinAction.attack);	
-		}
+		
 		$battleCalc.generateBattleResult();
 		
 				
@@ -4973,7 +5112,7 @@ SceneManager.isInSaveScene = function(){
 		this._transitionSprite.filters = [filter];
 		this.addChild(this._transitionSprite);
 		
-		if($gameSystem.optionBattleBGM){
+		if(ConfigManager["battleBGM"]){
 			$songManager.playBattleSong($gameTemp.currentBattleActor, $gameTemp.currentBattleEnemy);
 		}		
     };

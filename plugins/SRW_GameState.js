@@ -114,7 +114,7 @@ function GameStateManager(){
 GameStateManager.prototype.updateStateButtonPrompts = function(items, displayKey){
 	let hasBlockingMenu = ($gameTemp.menuStack && $gameTemp.menuStack.length > 0);
 	if($gameTemp && $gameTemp.buttonHintManager){		
-		if($gameSystem && $gameSystem.getOptionMapHints()){
+		if($gameSystem && ConfigManager["mapHints"]){
 			if(!hasBlockingMenu){
 				$gameTemp.buttonHintManager.setHelpButtons(items);
 				$gameTemp.buttonHintManager.show(displayKey);
@@ -573,10 +573,15 @@ GameState_actor_map_target.prototype.update = function(scene){
 			SoundManager.playCancel();
 			var event = $gameTemp.activeEvent();
 			var battlerArray = $gameSystem.EventToUnit(event.eventId());
-			$gameTemp.clearMoveTable();
-			
+			$gameTemp.clearMoveTable();		
+
 			$gameTemp.pushRangeListToMoveList();
 			$gameTemp.setResetMoveList(true);
+
+			$gameSystem.highlightedActionTiles = [];
+			$gameSystem.reloadMoveHighlights();
+			$gameSystem.highlightsRefreshed = true;
+
 			$gameSystem.setSrpgActorCommandWindowNeedRefresh(battlerArray);
 			if($gameTemp.isPostMove){
 				$gameSystem.setSubBattlePhase('post_move_command_window');
@@ -624,7 +629,7 @@ GameState_actor_map_target.prototype.update = function(scene){
 			tileCoordinates[i][0]+=deltaX;
 			tileCoordinates[i][1]+=deltaY;
 			//$gameTemp.pushMoveList(tileCoordinates[i]);		
-			$gameSystem.highlightedTiles.push({x: tileCoordinates[i][0], y: tileCoordinates[i][1], color: "#ff3a3a"});	
+			$gameSystem.highlightedTiles.push({x: tileCoordinates[i][0], y: tileCoordinates[i][1], color: attack.ignoresFriendlies ? "#3a69ff" : "#ff3a3a"});	
 		}							
 		$gameTemp.currentMapTargetTiles = JSON.parse(JSON.stringify(tileCoordinates));
 	}
@@ -872,22 +877,35 @@ GameState_actor_support.prototype.updateMapEvent = function(x, y, triggers){
 					$gameTemp.spiritWindowDoneHandler = function(){
 						var actor = $gameSystem.EventToUnit($gameTemp.activeEvent().eventId())[1];
 						
-						var attackerLevel = actor.SRWStats.pilot.level;
-						var defenderLevel = candidate.SRWStats.pilot.level;
-						var defenderTotalYield = baseYield;
 						
-						var totalExp = eval(ENGINE_SETTINGS.EXP_YIELD.LEVEL_SCALING_FORMULA);
-						if(totalExp < ENGINE_SETTINGS.EXP_YIELD.MIN){
-							totalExp = ENGINE_SETTINGS.EXP_YIELD.MIN;
-						}
-						if(totalExp > ENGINE_SETTINGS.EXP_YIELD.MAX){
-							totalExp = ENGINE_SETTINGS.EXP_YIELD.MAX;
-						}
-						totalExp = Math.floor(totalExp);
-						var gainResults = [{actor: actor, expGain: totalExp, ppGain: 0}];			
-
-						var expResults = [{actor: actor, details: $statCalc.addExp(actor, totalExp)}];
-									
+						let gainRecipientIds = [actor.actorId()].concat($statCalc.getSubPilots(actor));
+						
+						var gainResults = [];	
+						var expResults = [];		
+						//lock in the referenced level beforehand to avoid issues for units with self healing capabilities leveling up in the middle of calculating results which may affect sub pilot gains.
+						const supportTargetLevel = candidate.SRWStats.pilot.level;
+						for(let id of gainRecipientIds){
+							const actor = $gameActors.actor(id);							
+							if(actor){
+								var attackerLevel = actor.SRWStats.pilot.level;
+								var defenderLevel = supportTargetLevel;
+								var defenderTotalYield = baseYield;
+								
+								var totalExp = eval(ENGINE_SETTINGS.EXP_YIELD.LEVEL_SCALING_FORMULA);
+								if(totalExp < ENGINE_SETTINGS.EXP_YIELD.MIN){
+									totalExp = ENGINE_SETTINGS.EXP_YIELD.MIN;
+								}
+								if(totalExp > ENGINE_SETTINGS.EXP_YIELD.MAX){
+									totalExp = ENGINE_SETTINGS.EXP_YIELD.MAX;
+								}
+								totalExp = Math.floor(totalExp);
+							
+							
+								gainResults.push({actor: actor, expGain: totalExp, ppGain: 0});
+								expResults.push({actor: actor, details: $statCalc.addExp(actor, totalExp)});
+							}							
+						}							
+														
 						
 						$gameTemp.rewardsInfo = {
 							//actor: battleEffect.ref,
@@ -1286,7 +1304,7 @@ GameState_after_battle.prototype = Object.create(GameState.prototype);
 GameState_after_battle.prototype.constructor = GameState_after_battle;
 
 GameState_after_battle.prototype.update = function(scene){
-	if(!$gameSystem.optionAfterBattleBGM){
+	if(!ConfigManager["afterBattleBGM"]){
 		$songManager.playStageSong();
 	}
 	if($gameTemp.playingBattleDemo){
@@ -1318,28 +1336,58 @@ GameState_auto_spirits.prototype.update = function(scene){
 		$gameTemp.spiritWindowDoneHandler = function(){
 			handleAutoSpirits()
 		}	
+
+		$gameTemp.autoMapSpiritDoneHandler = function(){
+			handleAutoSpirits()
+		}	
 		function handleAutoSpirits(){
 			$gameTemp.popMenu = true;
+			
+
 			if($gameTemp.autoSpirits.length){
-				$gameTemp.queuedActorEffects = [];
-				var currentActor = $gameTemp.autoSpirits[0].actor;
+				let currentMapSpirit;
+				let currentMapSpiritTargetingInfo;
 				var remaining = [];
-				$gameTemp.autoSpirits.forEach(function(autoSpirit){
-					if(autoSpirit.actor == currentActor){							
-						$gameTemp.spiritTargetActor = autoSpirit.actor;
-						$gamePlayer.locate(autoSpirit.actor.event.posX(), autoSpirit.actor.event.posY());
-						$spiritManager.applyEffect(autoSpirit.spirit, autoSpirit.actor, [autoSpirit.actor], 0);
-						$gameTemp.queuedActorEffects.push({type: "spirit", parameters: {idx: autoSpirit.spirit, target: autoSpirit.actor}})
+				$gameTemp.autoSpirits.forEach(function(autoSpirit){				
+					var initialTargetingResult = $spiritManager.performInitialTargeting(autoSpirit.spirit, null, {x: 0, y: 0});
+					if(!currentMapSpirit && (initialTargetingResult.type == "enemy_all" || initialTargetingResult.type == "ally_all")){
+						currentMapSpirit = autoSpirit;
+						currentMapSpiritTargetingInfo = initialTargetingResult;
 					} else {
 						remaining.push(autoSpirit);
 					}
+					$gameTemp.autoSpirits = remaining;
 				});
-				
-				$gameTemp.autoSpirits = remaining;
-				
-				
-				$gameSystem.setSubBattlePhase('spirit_activation');				
-				$gameTemp.pushMenu = "spirit_activation";		
+
+				if(currentMapSpirit){
+					$gameTemp.setActiveEvent($statCalc.getReferenceEvent(currentMapSpirit.actor));	
+					$spiritManager.applyEffect(currentMapSpirit.spirit, currentMapSpirit.actor, currentMapSpiritTargetingInfo.targets, 0);
+					$gameTemp.queuedEffectSpiritId = currentMapSpirit.spirit; 
+					$gameTemp.mapSpiritContext = "auto";
+					$gameTemp.mapSpiritAnimationStarted = false;
+					$gameSystem.setSubBattlePhase("map_spirit_animation");		
+				} else {
+					$gameTemp.queuedActorEffects = [];
+					var currentActor = $gameTemp.autoSpirits[0].actor;
+					var remaining = [];
+					$gameTemp.autoSpirits.forEach(function(autoSpirit){					
+						if(autoSpirit.actor == currentActor){							
+							$gameTemp.spiritTargetActor = autoSpirit.actor;
+							$gamePlayer.locate(autoSpirit.actor.event.posX(), autoSpirit.actor.event.posY());
+							$spiritManager.applyEffect(autoSpirit.spirit, autoSpirit.actor, [autoSpirit.actor], 0);
+							$gameTemp.queuedActorEffects.push({type: "spirit", parameters: {idx: autoSpirit.spirit, target: autoSpirit.actor}})
+						} else {
+							remaining.push(autoSpirit);
+						}
+					});
+					
+					$gameTemp.autoSpirits = remaining;
+					
+					
+					$gameSystem.setSubBattlePhase('spirit_activation');				
+					$gameTemp.pushMenu = "spirit_activation";	
+				}
+					
 			} else {
 				scene.handlingAutoSpirits = false;
 				if($gameTemp.AIActors.length){
@@ -1599,7 +1647,7 @@ GameState_normal.prototype.update = function(scene){
 		$gameTemp.isPendingSaveMenu = false;
 		return;
 	}*/
-	
+	$gameTemp.didEnemyAttack = false;
 	$gameTemp.activeShip = null;
 	$gameTemp.actorAction = {};
 	$gameTemp.enemyAction = {};
@@ -1707,14 +1755,14 @@ GameState_normal.prototype.update = function(scene){
 		let displayKey = "GameState_normal_";
 		if(summaryUnit.isActor()){
 			if(summaryUnit.canInput()){
-				items = [["actor_menu"], ["move_cursor", "speed_up_cursor"], ["navigate_units"], [menuAction]];
+				items = [["actor_menu"], ["move_cursor", "speed_up_cursor"], ["navigate_units", "navigate_enemies"], [menuAction]];
 				displayKey+="acting_unit";
 			} else {
-				items = [["show_actor"], ["move_cursor", "speed_up_cursor"], ["navigate_units"], [menuAction]];
+				items = [["show_actor"], ["move_cursor", "speed_up_cursor"], ["navigate_units", "navigate_enemies"], [menuAction]];
 				displayKey+="waiting_unit";
 			}			
 		} else {
-			items = [["show_enemy"], ["move_cursor", "speed_up_cursor"], ["navigate_units"], [menuAction]];
+			items = [["show_enemy"], ["move_cursor", "speed_up_cursor"], ["navigate_units", "navigate_enemies"], [menuAction]];
 			displayKey+="enemy";
 		}		
 
@@ -1745,11 +1793,18 @@ GameState_normal.prototype.update = function(scene){
 		}
 		
 		if(Input.isTriggered('menu') && !hasActiveZones){
-			$gameSystem.showWillIndicator = !$gameSystem.showWillIndicator;
+			ConfigManager["willIndicator"] = !ConfigManager["willIndicator"];
+			ConfigManager.save();
 		}
 
-		$SRWGameState.updateStateButtonPrompts([["pause_menu"], ["move_cursor", "speed_up_cursor"], ["navigate_units"], [menuAction]], "GameState_normal_empty"+menuAction);
+		$SRWGameState.updateStateButtonPrompts([["pause_menu"], ["move_cursor", "speed_up_cursor"], ["navigate_units", "navigate_enemies"], [menuAction]], "GameState_normal_empty"+menuAction);
 	}	
+	
+	if(TouchInput.isCancelled()){
+		$gameSystem.setSubBattlePhase('pause_menu');		
+		scene._mapButtonsWindow.requestRedraw();	
+		return;	
+	}
 	
 	var regionId = $gameMap.regionId(currentPosition.x, currentPosition.y);
 	var terrainDetails;
@@ -1814,6 +1869,12 @@ GameState_normal.prototype.update = function(scene){
 		} else if (Input.isTriggered('pagedown')) {      
 			$gameSystem.getNextRActor();
 		}
+		
+		if (Input.isTriggered('left_trigger')) {                   
+			$gameSystem.getNextLTarget(true);
+		} else if (Input.isTriggered('right_trigger')) {      
+			$gameSystem.getNextRTarget(true);
+		}
 	}
 	return true;
 }
@@ -1835,7 +1896,7 @@ GameState_normal.prototype.updateMapEvent = function(x, y, triggers){
 			if ((event.isType() === 'actor' || event.isType() === 'ship' || event.isType() === 'ship_event') && !$statCalc.isAI(battlerArray[1])) {
 				SoundManager.playOk();
 				$gameTemp.setActiveEvent(event);								
-				if (battlerArray[1].canInput() == true) {
+				if (battlerArray[1].canInput() == true || (ENGINE_SETTINGS.ALLOW_POST_TURN_DEPLOY && $statCalc.isShip(battlerArray[1]) && $statCalc.hasBoardedUnits(battlerArray[1]))) {
 					$gameSystem.highlightedTiles = [];
 					$gameSystem.highlightsRefreshed = true;
 					$gameTemp.commanderAuraVisible = false;
@@ -1965,7 +2026,7 @@ GameState_enemy_command.prototype.constructor = GameState_enemy_command;
 
 GameState_enemy_command.prototype.update = function(scene){
 	if (!$gameMap.isEventRunning()) {
-		
+		$gameTemp.didEnemyAttack = false;
 		$gameTemp.AIWaitTimer--;
 		if($gameTemp.AIWaitTimer < 0){		
 			$gameTemp.unitHitInfo = {};
@@ -1984,6 +2045,7 @@ GameState_enemy_move.prototype.constructor = GameState_enemy_move;
 
 GameState_enemy_move.prototype.update = function(scene){
 	if (!$gameMap.isEventRunning()) {
+		
 		$gameTemp.AIWaitTimer--;
 		if($gameTemp.AIWaitTimer < 0){	
 			scene.srpgInvokeAIMove();			
@@ -2351,13 +2413,19 @@ GameState_map_spirit_animation.prototype.update = function(scene){
 		$gameTemp.animCharacter = activeEvent;
 		activeEvent.requestAnimation(spiritInfo.animId);
 	} else {
+		
 		if(!$gameTemp.animCharacter.isAnimationPlaying()){
-			$gameTemp.animCharacter = null;
-			$gameTemp.mapSpiritAnimationStarted = false;
-			$gameSystem.setSubBattlePhase("actor_command_window");
-			$gameSystem.setSrpgActorCommandWindowNeedRefresh($gameSystem.EventToUnit($gameTemp.activeEvent().eventId()));
-			scene._mapSrpgActorCommandWindow.activate();	
-			scene._mapSrpgActorCommandWindow.show()
+			if($gameTemp.mapSpiritContext == "auto"){
+				$gameTemp.mapSpiritContext = null;//hacky state flow control used when doing auto map spirits
+				$gameTemp.autoMapSpiritDoneHandler();
+			} else {
+				$gameTemp.animCharacter = null;
+				$gameTemp.mapSpiritAnimationStarted = false;
+				$gameSystem.setSubBattlePhase("actor_command_window");
+				$gameSystem.setSrpgActorCommandWindowNeedRefresh($gameSystem.EventToUnit($gameTemp.activeEvent().eventId()));
+				scene._mapSrpgActorCommandWindow.activate();	
+				scene._mapSrpgActorCommandWindow.show()
+			}			
 		}
 		$gameTemp.mapSpiritAnimationDuration--;
 	}	
@@ -2372,7 +2440,30 @@ GameState_pause_menu.prototype = Object.create(GameState.prototype);
 GameState_pause_menu.prototype.constructor = GameState_pause_menu;
 
 GameState_pause_menu.prototype.update = function(scene){
-	$SRWGameState.updateStateButtonPrompts([["select_action"], ["confirm_action"]], "pause_menu");
+	if(ENGINE_SETTINGS.ENABLE_ATTRIBUTE_SYSTEM){
+		$SRWGameState.updateStateButtonPrompts([["select_action"], ["confirm_action"], ["show_attr_window"]], "pause_menu");
+	} else {
+		$SRWGameState.updateStateButtonPrompts([["select_action"], ["confirm_action"]], "pause_menu");
+	}
+	
+	if(!$gameTemp.displayingAttrChart && ENGINE_SETTINGS.ENABLE_ATTRIBUTE_SYSTEM){
+		if(Input.isTriggered('L3')){
+			$gameTemp.attrWindowCancelCallback = function(){
+				$gameTemp.attrWindowCancelCallback = null;
+				scene._commandWindow.activate();
+				$gameTemp.deactivatePauseMenu = false;
+				$gameTemp.displayingAttrChart = false;
+				Input.clear();//ensure the B press from closing the list does not propagate to the pause menu
+			}
+			
+			$gameTemp.displayingAttrChart = true;
+			scene._commandWindow.deactivate();
+			$gameTemp.pushMenu = "attr_chart";
+			$gameTemp.deactivatePauseMenu = true;
+			return;
+		}
+	}	
+	
 	if(!scene._mapButtonsWindow.visible){
 		scene._mapButtonsWindow.open();
 		scene._mapButtonsWindow.show();

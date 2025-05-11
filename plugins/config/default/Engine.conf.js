@@ -11,10 +11,19 @@ var ENGINE_SETTINGS = {
 	DISABLE_TOUCH: false,
 	PRELOAD_AUDIO: true,
 	DEFAULT_BASIC_ANIM_RATE: 4,
+	BASIC_BATTLE_ANIM_MODE: "normal", //normal = use anims set in editor, none = do not use, attribute = use animation linked to weapon attribute
+	USE_CUSTOM_BASIC_BATTLE_BGS: true, //if true using the scrolling backgrounds from BasicBattleBgs.conf. If false default colors are used, additionally shadows are forced to enabled.
+	GRADIENT_BATTLE_BG_COLORS: {//the colors used for the different factions if USE_CUSTOM_BASIC_BATTLE_BGS is set to false.
+		ally: "linear-gradient(0deg, rgba(3,58,122,1) 0%, rgba(109,141,249,1) 100%)",
+		enemy: "linear-gradient(0deg, rgba(122,3,3,1) 0%, rgba(249,109,109,1) 100%)",
+		green:"linear-gradient(0deg, rgba(0,89,15,1) 0%, rgba(106,222,96,1) 100%)",
+		yellow: "linear-gradient(0deg, rgba(83,89,0,1) 0%, rgba(210,222,96,1) 100%)",
+	},
 	RPG_MAKER_INV_LIMIT: 1,
 	ENABLE_EQUIPABLES: true,
 	ALLOW_DUPLICATE_EQUIPS: false,
 	MAX_UNIT_EQUIPABLES: 5, //the number of equipable weapon slots a unit has by default
+	DEFAULT_PILOT_ABI_COUNT: 6,
 	DEFAULT_CARRYING_CAPACITY: 150,		
 	LOCK_CAMERA_TO_CURSOR: false,
 	BEFORE_BATTLE_SPIRITS: false,
@@ -28,6 +37,7 @@ var ENGINE_SETTINGS = {
 	PERSIST_CLEARS_ON_HIT: false,//if true persist clears after taking one attack, otherwise it affects all attacks in one battle phase(support attacks, etc.)
 	ALLOW_MAP_CHARGE: false, //if true the charge spirit effect also affects MAP attacks
 	DISABLE_EVASION_DECAY: false,
+	ALLOW_POST_TURN_DEPLOY: true,
 	CURSOR_TINT_INFO: {//a blend color set for the cursor when hovering units of a certain faction
 		enabled: false,
 		colors: {
@@ -38,7 +48,15 @@ var ENGINE_SETTINGS = {
 		}
 	},	
 	TINT_CURSOR_PER_FACTION: true,
+	HIDE_WAIT_COMMAND: true,
 	CURSOR_OFFSET: 0,
+	HP_BAR_COLORS: {
+		full: {color: "#58b3ff", percent: 85},
+		high: {color: "#49d38b", percent: 50},
+		med: {color: "#f7ec05", percent: 30},
+		low: {color: "#eda316", percent: 15},
+		critical: {color: "#e11515", percent: 0}
+	},
 	USE_SINGLE_MAP_SPRITE: false,
 	MAP_BUTTON_CONFIG: {
 		SPRITE_SHEET: {
@@ -98,6 +116,13 @@ var ENGINE_SETTINGS = {
 			"2L": 1.4
 		}
 	},	
+	TERRAIN_PERFORMANCE: {
+		"S": 1.1,
+		"A": 1,
+		"B": 0.9,
+		"C": 0.8,
+		"D": 0.6
+	},
 	DISABLE_FULL_BATTLE_SCENE: false,// if true the option to show the battle DEMO will not be available
 	BATTLE_SCENE: {
 		FXAA_ON: false,
@@ -116,7 +141,11 @@ var ENGINE_SETTINGS = {
 		/*DAMAGE_OFFSETS: {top: 20, left: 62},
 		DAMAGE_TWIN_OFFSET: {top: 10, left: 40},*/
 		RENDER_WIDTH: 1110,
-		RENDER_HEIGHT: 624
+		RENDER_HEIGHT: 624,
+		SHOW_FADE_BELOW_TEXTBOX: false,
+		DEFAULT_BARRIER_COLOR: "#7c00e6",
+		FADE_BARRIER_DURING_NEXT_PHASE: true,//if true the barrier will only be shown briefly during the next phase command
+		NOISE_PIXEL_SIZE: 1
 	},
 	MASTERY_REWARDS: {
 		PP: {AMOUNT: 5, SCOPE: "deployed"}, //scope is deployed, unlocked, or all
@@ -167,6 +196,7 @@ var ENGINE_SETTINGS = {
 		2: {basic_anim: "no_damage", full_anim: null, full_anim_return: null, se: "SRWParry"},
 		3: {basic_anim: "no_damage", full_anim: null, full_anim_return: null, se: "SRWJamming"},
 		4: {basic_anim: "no_damage", full_anim: null, full_anim_return: null, se: "SRWShootDown"},		
+		5: {basic_anim: "no_damage", full_anim: null, full_anim_return: null, se: "SRWShootDown", treat_as_block: true},//use the treat as block setting to force a hit animation to play instead of a miss animation
 	},
 	PURCHASABLE_ABILITIES: [
 		11, //support attack
@@ -210,6 +240,7 @@ var ENGINE_SETTINGS = {
 	MAX_DEPLOY_SIZE: 36, //the number of slots shown in the deploy window if TWIN mode is not enabled
 	MAX_DEPLOY_SIZE_TWIN: 40, //the number of slots shown in the deploy window if TWIN mode is enabled
 	SINGLE_BATTLE_SPRITE_MODE: false,
+	ENABLE_TWEAKS_MENU: true,
 	ENABLE_TWEAKS_OPTION: false,
 	MERGE_ATTACK_UPGRADES: false,
 	ENABLE_ATTRIBUTE_SYSTEM: false,
@@ -412,5 +443,109 @@ var ENGINE_SETTINGS = {
 		
 		//example return value, optional. This example makes every unit in the game deal double the regular damage.
 		//return [{type: "final_damage", modType: "mult", value: 2}];
+	},
+	DIFFICULTY_MODS: {
+		enabled: 3,//0: off, 1: selectable, 2: enable automatic scaling with SR points, 3: enable both
+		displayInMenus: true,
+		autoLevelFunc: function(){
+			const padding = 10; //the amount to pad the ref count to, to avoid putting the player on hard mode after doing one stage
+			let awarded = 0;
+			let missed = 0;
+			let total = 0;
+			for(let mapId in $gameSystem.awardedSRPoints){
+				if($gameSystem.awardedSRPoints[mapId] != null){
+					total++;
+					if($gameSystem.awardedSRPoints[mapId]){
+						awarded++;
+					} else {
+						missed++;
+					}
+				}
+			}
+			if(total < padding){
+				total = padding;
+			}
+			const ratio = awarded / total;
+			if(ratio >= 0.6){
+				return 1;//hard
+			}
+			return 0;//normal
+		},
+		default: 1,//idx into levels
+		levels: [
+			{
+				name: "Normal",
+				description: "A difficulty recommended for beginner players.",
+				color: "#FFFFFF",
+				useOrigLevelForExp: true,
+				mods: {				
+					mech: {//only applied to enemy side mechs, this includes faction 3/4 units!
+						"-1": {//global
+							HP: -2000,
+							EN: -60,
+							weapon: -300,
+							armor: -200,
+							mobility: -20,
+							accuracy: -20,
+							move: -1	
+						},
+						"10": {
+							HP: -500,
+							EN: -20,
+							weapon: -300,
+							armor: -0,
+							mobility: -20,
+							accuracy: -20,
+							move: -2	
+						}
+					},
+					pilot: {//only applied to enemy side pilots
+						"-1": {//global
+							SP: -10,
+							MP: -10,
+							melee: -20,
+							ranged: -20,
+							skill: -10,
+							defense: -30,
+							evade: -30,
+							hit: -20
+						},
+						"3": {
+							SP: -15,
+							MP: -15,
+							melee: -25,
+							ranged: -25,
+							skill: -15,
+							defense: -35,
+							evade: -35,
+							hit: -25,
+							//level: 10
+						}
+					}
+				}
+			},
+			{
+				name: "Hard",
+				description: "A difficulty recommended experienced players.",
+				color: "#FF2222",
+				useOrigLevelForExp: true,
+				mods: {				
+					mech: {//only applied to enemy side mechs, this includes faction 3/4 units!
+						
+					},
+					pilot: {//only applied to enemy side pilots
+						
+					}
+				}
+			}
+		]
 	}
+	/*
+	//map a face file to another face file based on a deployed unit
+	//used to automatically change portraits after mech transformation
+	variableUnitPortraits: {
+	"Original_face_name": [
+		{deployedId: 56, filename: "Changed_face_name"},
+	],
+} */
 }

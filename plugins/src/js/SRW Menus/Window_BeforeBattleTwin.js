@@ -548,7 +548,7 @@ Window_BeforebattleTwin.prototype.update = function() {
 		}		
 		
 		if(!Input.isTriggered('ok') && !Input.isLongPressed('ok') && !Input.isPressed('ok')){
-			if(!$statCalc.isAI($gameTemp.currentBattleActor)){			
+			if(!$statCalc.isAI($gameTemp.currentBattleActor) && !$statCalc.isDisabled($gameTemp.currentBattleActor)){			
 				if(Input.isTriggered('pageup') || Input.isRepeated('pageup')){
 					this.requestRedraw();
 					if(this._currentUIState == "main_selection"){
@@ -704,6 +704,7 @@ Window_BeforebattleTwin.prototype.update = function() {
 						} else {
 							$gameTemp.allAttackSelectionRequired = -1;
 						}
+						$gameTemp.isSupportAttackSelection = true;
 						$gameTemp.currentMenuUnit = {
 							actor: supporter.actor,
 							mech: supporter.actor.SRWStats.mech
@@ -733,18 +734,21 @@ Window_BeforebattleTwin.prototype.update = function() {
 										$gameTemp.popMenu = true;	
 										$gameTemp.twinSupportAttack = {actor: supporter.actor.subTwin, action: {type: "attack", attack: attack}}
 										$gameTemp.allAttackSelectionRequired = false;
+										$gameTemp.isSupportAttackSelection = false;
 										_this._currentSelection = 0;
 										_this.requestRedraw();	
 									};
 									$gameTemp.pushMenu = "attack_list";
 								} else {
 									$gameTemp.allAttackSelectionRequired = false;
+									$gameTemp.isSupportAttackSelection = false;
 									$gameTemp.twinSupportAttack = null;
 									_this._currentSelection = 0;
 									_this.requestRedraw();	
 								}								
 							} else {
 								$gameTemp.allAttackSelectionRequired = false;
+								$gameTemp.isSupportAttackSelection = false;
 								$gameTemp.twinSupportAttack = null;
 								_this._currentSelection = 0;
 								_this.requestRedraw();	
@@ -753,6 +757,7 @@ Window_BeforebattleTwin.prototype.update = function() {
 						};	
 						$gameTemp.attackWindowCancelCallback = function(){
 							$gameTemp.allAttackSelectionRequired = false;
+							$gameTemp.isSupportAttackSelection = false;
 						}	
 						$gameTemp.pushMenu = "attack_list";
 						return;
@@ -1000,10 +1005,10 @@ Window_BeforebattleTwin.prototype.update = function() {
 };
 
 
-Window_BeforebattleTwin.prototype.createPercentIndicator = function(allyOrEnemy, action, ref, cssClass){
+Window_BeforebattleTwin.prototype.createPercentIndicator = function(allyOrEnemy, action, ref, isSupport){
 	var _this = this;
 	var content = "";
-	content+="<div class='scaled_text percent_indicator "+cssClass+"'>";
+	content+="<div class='scaled_text percent_indicator'>";
 	var hitRates = [];
 	var critRates = [];
 	if(action.type == "attack"){	
@@ -1113,12 +1118,14 @@ Window_BeforebattleTwin.prototype.createPercentIndicator = function(allyOrEnemy,
 				if(allyOrEnemy == "ally"){				
 					critRate = $battleCalc.performCritCalculation(
 						{actor: initiator, action: initiatorAction, isInitiator: !$gameTemp.isEnemyAttack},
-						{actor: defenderInfo[i].defender, action: defenderInfo[i].defenderAction, isInitiator: $gameTemp.isEnemyAttack}
+						{actor: defenderInfo[i].defender, action: defenderInfo[i].defenderAction, isInitiator: $gameTemp.isEnemyAttack},
+						isSupport == "support"
 					);					
 				} else {				
 					critRate = $battleCalc.performCritCalculation(				
 						{actor: initiator, action: initiatorAction, isInitiator: $gameTemp.isEnemyAttack},
-						{actor: defenderInfo[i].defender, action: defenderInfo[i].defenderAction, isInitiator: !$gameTemp.isEnemyAttack}
+						{actor: defenderInfo[i].defender, action: defenderInfo[i].defenderAction, isInitiator: !$gameTemp.isEnemyAttack},
+						isSupport == "support"
 					);			
 				}			
 				critRates[realIdx] = critRate;					
@@ -1240,9 +1247,23 @@ Window_BeforebattleTwin.prototype.createParticipantBlock = function(ref, action,
 	content+="<div class='scaled_text action_row'>";
 	if(this.isBuffingAttack()){
 		if(allyOrEnemy == "ally"){
-			content+="Buffing";
+			let actorStatus = "---";
+			if(!ref.isSubTwin){
+				if($gameTemp.actorAction && $gameTemp.actorAction.type == 'attack'){
+					actorStatus = "Buffing";
+				}
+			} else {
+				if($gameTemp.actorTwinAction && $gameTemp.actorTwinAction.type == 'attack'){
+					actorStatus = "Buffing";
+				}
+			}		
+			content+=actorStatus;
 		} else {
-			content+="Receiving";
+			if($gameTemp.currentTargetingSettings.actor == "all" || (!ref.isSubTwin && $gameTemp.currentTargetingSettings.actor == "main") || (ref.isSubTwin && $gameTemp.currentTargetingSettings.actor == "twin")){
+				content+="Receiving";
+			} else {
+				content+="---";
+			}			
 		}
 	} else {
 		if(!isSupport){
@@ -1277,11 +1298,11 @@ Window_BeforebattleTwin.prototype.createParticipantBlock = function(ref, action,
 	content+="</div>";
 	content+="<div class='main_row'>";
 	if(allyOrEnemy == "ally"){
-		content+=this.createPercentIndicator(allyOrEnemy, action, ref);
+		content+=this.createPercentIndicator(allyOrEnemy, action, ref, isSupport);
 		content+=createMainContent();
 	} else {
 		content+=createMainContent();
-		content+=this.createPercentIndicator(allyOrEnemy, action, ref);		
+		content+=this.createPercentIndicator(allyOrEnemy, action, ref, isSupport);		
 	}
 	
 	content+=this.createAttributeEffectivenessBlock(ref, "attribute1");
@@ -1343,8 +1364,7 @@ Window_BeforebattleTwin.prototype.createParticipantBlock = function(ref, action,
 		
 		content+="</div>";
 		
-		var hpPercent = Math.floor(calculatedStats.currentHP / calculatedStats.maxHP * 100);
-		content+="<div class='hp_bar'><div style='width: "+hpPercent+"%;' class='hp_bar_fill'></div></div>";
+		content+=_this.createHPBarContent(calculatedStats);
 		
 		var enPercent = Math.floor(calculatedStats.currentEN / calculatedStats.maxEN * 100);
 		content+="<div class='en_bar'><div style='width: "+enPercent+"%;' class='en_bar_fill'></div></div>";

@@ -33,6 +33,7 @@ body {
 	font-family: GameFont;
 	--fontsize: 2px; /*percent of GameCanvas width*/
 	overflow: hidden;
+	container-type: size;
 }
 
 .svg_text {
@@ -446,6 +447,11 @@ to {background-position: -182px -95px;}
 	display: inline-block;
 }
 
+.upgrade_bar_part.parts_15 {
+	margin-left: 1%;
+	margin-right: 1%;
+}
+
 .upgrade_bar_part.active {
 	background-color: #e5406e;
 }
@@ -471,6 +477,10 @@ to {background-position: -182px -95px;}
 
 .inactive {
 	color: #888888;
+}
+
+.no_drop {
+	color: #a47777;
 }
 
 .faction_color.ally {
@@ -546,4 +556,39 @@ to {background-position: -182px -95px;}
 
 .unique_skill_mark {
 	--widthscaling: 1px;
+}
+
+.confirm .content {
+	color: #FFFFFF;
+	position: relative;
+	--widthpixels: 500;
+	--heightpixels: 157;
+	background-color: var(--menu-bg-color);
+	border: 0.4vw solid #FFFFFF;
+	border-radius: 10px;
+	padding: 1%; 
+}
+
+.confirm .content .buttons {
+	display: flex;
+    justify-content: center;  
+	align-items: center;
+	margin-top: 3%;
+}
+
+.confirm .content .button {
+	padding: 1%;
+    margin-right: auto;
+    margin-left: auto;
+    border: 0.1vw solid rgba(0,0,0,0);
+    border-radius: 10px;
+    width: 10%;
+    text-align: center;
+}
+
+.confirm .content .button.active {
+	
+	background-color: rgba(255,255,255,0.5);
+	/*border: 0.1vw solid #FFFFFF;
+	color: var(--menu-bg-color);*/
 }

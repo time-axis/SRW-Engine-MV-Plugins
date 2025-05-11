@@ -113,6 +113,10 @@ SRWEditor.prototype.init = function(){
 		{name: "Destroy", id: "onDestroy"},
 		{name: "Destroy Overwrite", id: "onDestroyOverwrite"},
 		{name: "Destroy Twin", id: "onDestroyTwin"},
+		
+		{name: "No Destroy(after hit)", id: "onNoDestroy"},
+		{name: "No Destroy(after hit) Overwrite", id: "onNoDestroyOverwrite"},
+		{name: "No Destroy Twin(after hit)", id: "onNoDestroyTwin"},
 	];
 	
 	_this._specialTargets = [
@@ -209,13 +213,18 @@ SRWEditor.prototype.init = function(){
 		},
 		shake: {
 			hasTarget: true,
-			params: ["magnitude_x", "speed_x", "magnitude_y", "speed_y", "duration", "fadeInTicks", "fadeOutTicks"],
+			params: ["magnitude_x", "speed_x", "magnitude_y", "speed_y", "magnitude_z", "speed_z", "duration", "fadeInTicks", "fadeOutTicks", "magnitude_variance", "speed_variance"],
 			desc: "Shake the screen on the x and y axis with the specified magnitude."
 		},
 		set_opacity_texture: {
 			hasTarget: true,
 			params: ["path"],
 			desc: "Set an opacity texture for the target."
+		},
+		register_alias: {
+			hasTarget: true,
+			params: ["id"],
+			desc: "Register an alias for the target."
 		},
 		clear_opacity_texture: {
 			hasTarget: true,
@@ -288,6 +297,11 @@ SRWEditor.prototype.init = function(){
 			params: ["startFade", "endFade", "duration", "easingFunction", "easingMode"],
 			desc: "Fade in the unit shadows."
 		},				
+		set_hard_shadows: {
+			hasTarget: false,
+			params: ["hard"],
+			desc: "If set to 1 shadows will render without alpha blending."
+		},	
 		fade_swipe: {
 			hasTarget: false,
 			params: ["time"],
@@ -348,10 +362,15 @@ SRWEditor.prototype.init = function(){
 		},
 		create_bg: {
 			hasTarget: true,
-			params: ["isPilotCutin", "path", "parent", "position", "size", "alpha", "billboardMode", "rotation", "lineCount", "columnCount", "animationLoop", "animationFrames", "animationDelay", "holdFrame", "scrollSpeed", "clamp", "uScale", "vScale", "uOffset", "vOffset"],//, "unlit", "frameSize", 
+			params: ["isPilotCutin", "renderTargetId", "path", "parent", "position", "size", "alpha", "billboardMode", "rotation", "lineCount", "columnCount", "animationLoop", "animationFrames", "animationDelay", "holdFrame", "scrollSpeed", "clamp", "uScale", "vScale", "uOffset", "vOffset"],//, "unlit", "frameSize", 
 			aliases: {"animationLoop": "loopFromFrame", "animationFrames": "loopToFrame"},
 			desc: "Create a new background."
 		},
+		create_render_target: {
+			hasTarget: true,
+			params: ["position", "rotation"],//, "unlit", "frameSize", 
+			desc: "Create a new render target + camera."
+		},		
 		set_bg_scroll_speed: {
 			hasTarget: true,
 			params: ["scrollSpeed", "duration", "easingFunction", "easingMode"],
@@ -399,6 +418,11 @@ SRWEditor.prototype.init = function(){
 			aliases: {"moveOriginToParent": "syncOrigin"},
 			desc: "Create a new model."
 		},	
+		create_unit_model: {
+			hasTarget: true,
+			params: ["mechId", "position"],//"animGroup",  "animName", , "unlit"
+			desc: "Spawn a new model for the specified mech id."
+		},
 		create_model_instance: {
 			hasTarget: true,
 			params: ["parent"],
@@ -451,9 +475,14 @@ SRWEditor.prototype.init = function(){
 		},	
 		play_effekseer: {
 			hasTarget: true,
-			params: ["path", "position", "scale", "speed", "rotation", "parent", "isBackground", "autoRotate", "flipZ"],
+			params: ["path", "position", "scale", "speed", "rotation", "parent", "attachForShake", "isForeground", "autoRotate", "flipZ", "ignoreParentRotation"],
 			desc: "Play a predefined effekseer effect."
 		},
+		set_effekseer_color: {
+			hasTarget: true,
+			params: ["r", "g", "b", "a"],
+			desc: "Set the global color of an effekseer effect."
+		},		
 		remove_effekseer_parent: {
 			hasTarget: true,
 			params: [],
@@ -479,10 +508,20 @@ SRWEditor.prototype.init = function(){
 			params: [],
 			desc: "Stop the root of the effekseer effect, letting the particle system fade out."
 		},
+		set_effekseer_paused:{
+			hasTarget: true,
+			params: ["paused"],
+			desc: "Pause or unpause the effekseer effect."
+		}, 
 		send_effekseer_trigger: {
 			hasTarget: true,
 			params: ["id"],
 			desc: "Send the trigger with the specified id to the target effekseer effect."
+		},
+		set_effekseer_frame: {
+			hasTarget: true,
+			params: ["frame"],
+			desc: "Set the target effekseer effect to the specified frame."
 		},
 		set_effekseer_attract_point: {
 			hasTarget: true,
@@ -596,7 +635,7 @@ SRWEditor.prototype.init = function(){
 		},
 		reset_position: {
 			hasTarget: true,
-			params: ["duration", "noDamage", "noDamageText"],
+			params: ["duration", "noDamage", "noDamageText", "noReposition"],
 			desc: "Reset the position of the target to the default position."
 		},
 		destroy: {
@@ -625,9 +664,9 @@ SRWEditor.prototype.init = function(){
 			desc: "Play a sound effect."
 		},
 		kill_se:  {
-			hasTarget: false,
+			hasTarget: true,
 			params: [],
-			desc: "Mute all playing sound effects."
+			desc: "Mute the target sound effect or all playing sound effects if none specified."
 		},
 		show_portrait_noise: {
 			hasTarget: false,
@@ -649,6 +688,11 @@ SRWEditor.prototype.init = function(){
 			params: ["ratio", "smooth", "duration(ms)", "easingFunction", "easingMode"],
 			desc: "Set the speed at the scene is animated."
 		},
+		hold_tick: {
+			hasTarget: false,
+			params: ["duration(ms)"],
+			desc: "This animation tick will be held for the specified duration."
+		},
 		toggle_bg_scroll: {
 			hasTarget: false,
 			params: [],
@@ -656,9 +700,22 @@ SRWEditor.prototype.init = function(){
 		},
 		include_animation: {
 			hasTarget: false,
-			params: ["battleAnimId"],
+			params: ["battleAnimId", "sequenceId"],
 			desc: "Include the main track of the animation with id battleAnimId starting at the current tick +1."
-		}
+		},
+		merge_complete_animation: {
+			hasTarget: false,
+			params: ["battleAnimId"],
+		},
+		set_shadow_floor: {
+			hasTarget: false,
+			params: ["floor"],
+		},		
+		set_text_provider: {
+			hasTarget: false,
+			params: ["id"],
+			desc: "Set the actor id used for fetching text to specified id for the remainder of the animation."
+		},
 	};
 	
 
@@ -673,6 +730,7 @@ SRWEditor.prototype.init = function(){
 		r: "The red component of a color 0-255",
 		g: "The green component of a color 0-255",
 		b: "The blue component of a color 0-255",
+		a: "The alpha component of a color 0-255",
 		x_fraction: "A screen space position defined by a percentage of the width of the screen.",
 		y_fraction: "A screen space position defined by a percentage of the height of the screen.",
 		shaderName: "The name of the shader effect to apply",
@@ -697,6 +755,7 @@ SRWEditor.prototype.init = function(){
 		animGroup: "The name of the group of the model's animations",
 		animName: "The name of the animation that will be shown",
 		moveOriginToParent: "If 1 set the origin of the object to the parent's absolute position",
+		mechId: "The numeric id of the target mech.",
 		unlit: "If 1 the target will not receive influence from lights",
 		canvasWidth: "The width of the rendering surface for the external renderer", 
 		canvasHeight: "The height of the rendering surface for the external renderer",
@@ -718,11 +777,16 @@ SRWEditor.prototype.init = function(){
 		y: "If 1 the object will be flipped along its y-axis.",
 		magnitude_x: "The severity of the shaking effect along the x-axis.",
 		magnitude_y: "The severity of the shaking effect along the y-axis.",
+		magnitude_z: "The severity of the shaking effect along the z-axis.",
 		speed_x: "The speed of the shaking effect along the x-axis",
 		speed_y: "The speed of the shaking effect along the y-axis",
+		speed_z: "The speed of the shaking effect along the z-axis",
 		fadeInTicks: "The number of ticks the shake effect will ramp up for",
 		fadeOutTicks: "The number of ticks the shake effect will ramp down for",
+		magnitude_variance: "How much the magnitude varies over time",
+		speed_variance: "With what speed the magnitude variance is applied",
 		startFade: "The initial opacity of the object, between 0-1.",
+		hard: "If 1 alphablending will be turned off, otherwise alphablending will be enabled",
 		endFade: "The final opacity of the object, between 0-1.",
 		time: "The duration of the command in ticks.",
 		speed: "The speed of the effect.",
@@ -747,19 +811,24 @@ SRWEditor.prototype.init = function(){
 		noWait: "If 1 the engine will not wait for the destruction animation to complete.",
 		noDamage: "If 1 the damage number will not be shown",
 		noDamageText: "If 1 the quote for taking damage will not be shown",
+		noReposition: "If 1 the unit will not be moved back to its origin point(in screen space) and its sprite_frame will not be changed.",
 		animationLoop: "The animation frame from where to loop. 0 or empty to not loop.",
 		animationDelay: "The time between animation frames in ticks.",
 		path: "The file path of the asset.",
-		size: "The size of the asset.",
+		size: "The size of the asset. Use comma separated x,y dimensions for non-square sizes.",
 		alpha: "The alpha of the object.",
 		billboardMode: "Set the billboarding mode for the object: 'none' or 'full'",
 		isPilotCutin: "If 1, path is ignored and the active main pilot's defined cutin is used",
+		renderTargetId: "The id of the render target + camera that will render to this texture",
 		frameSize: "The size of the frames in the spritesheet.",
 		lineCount: "The number of lines in the spritesheet.",
 		columnCount: "The number of columns in the spritesheet.",
 		isBackground: "If 1 the layer will be a background layer.",
+		isForeground: "If 1 the layer will render as render group 4, otherwise render group 2. Higher number render groups are drawn last.",
+		attachForShake: "If 1 effect will be attached to the node that gets shaken during shake animations instead of the parent node.",
 		autoRotate: "If 1 the effect will be automatically rotated for enemies.",
 		flipZ: "If 1 the effect will have its z scale inverted.",
+		ignoreParentRotation: "If 1 the parent node's rotation will not be applied.",
 		color: "The blend color for the skybox.",
 		scale: "A scaling factor for the effect.",
 		scaleX: "A scaling factor for the width of the effect.",
@@ -772,15 +841,19 @@ SRWEditor.prototype.init = function(){
 		ratio: "The factor by which the scroll speed is multiplied.",
 		smooth: "If set to 1 the ratio change will be smoothed out over the specified duration.",
 		battleAnimId: "The id of the battle animation",
+		sequenceId: "The attack animation sequence.",
 		animId: "The id of the RMMV animation.",
 		loop: "If set to 1 the animation will continue looping.",
 		noFlash: "If set to 1 the flashing effects of the RMMV animation are not shown.",
+		frame: "Specify a frame for an animation",
 		noSfx: "If set to 1 the built in sound effects of the animation will not play.",
 		delay: "The delay between frames of the animation, default 4.",
 		fps: "The frames per second of the movie file",
 		muted: "If set to 1 the audio of the video is not played",
 		fade_in: "Number of frames the movie will fade in for",
-		isFront: "If set to 1 the element will be shown in front of the units, otherwise behind."
+		isFront: "If set to 1 the element will be shown in front of the units, otherwise behind.",
+		paused: "The new pause state, 1 to pause 0 to resume.",
+		floor: "The y coordinate where the shadows will be drawn"
 	}
 	
 	_this._paramDisplayHandlers = {
@@ -791,6 +864,9 @@ SRWEditor.prototype.init = function(){
 			
 		},
 		b: function(value){
+			
+		},
+		a: function(value){
 			
 		},
 		x_fraction: function(value){
@@ -858,6 +934,9 @@ SRWEditor.prototype.init = function(){
 			
 		},
 		moveOriginToParent: function(value){
+			
+		},
+		mechId: function(value){
 			
 		},
 		animGroup: function(value){
@@ -958,6 +1037,15 @@ SRWEditor.prototype.init = function(){
 			result+="</select>";
 			return result;
 		},
+		sequenceId: function(value){
+			var result = "";			
+			result+="<select class='sequence_mode_select param_select'>";
+			Object.keys(_this._sequenceTypes).sort().forEach(function(type){
+				result+="<option "+(value == _this._sequenceTypes[type].id ? "selected" : "")+" value='"+_this._sequenceTypes[type].id+"'>"+_this._sequenceTypes[type].name+"</option>";
+			});
+			result+="</select>";
+			return result;
+		},
 		catmullRom: function(value){		
 			if(!value){
 				value = {
@@ -965,20 +1053,28 @@ SRWEditor.prototype.init = function(){
 					pos4: {}
 				};
 			}
+			
+			function getDisplayValue(val){
+				if(val == null){
+					return "";
+				}
+				return val;
+			}
+			
 			var result = "";
 			result+="<div class='catmullrom_block' style=''>";
 			result+="<div data-catmullpos='pos1' class='param_values pos1'>";
-			result+="x1: <input data-dataid='x' class='param_value param_coord' value='"+(value.pos1.x || "")+"'></input>";
-			result+="y1: <input data-dataid='y' class='param_value param_coord' value='"+(value.pos1.y || "")+"'></input>";
-			result+="z1: <input data-dataid='z' class='param_value param_coord' value='"+(value.pos1.z || "")+"'></input>";	
+			result+="x1: <input data-dataid='x' class='param_value param_coord' value='"+getDisplayValue(value.pos1.x)+"'></input>";
+			result+="y1: <input data-dataid='y' class='param_value param_coord' value='"+getDisplayValue(value.pos1.y)+"'></input>";
+			result+="z1: <input data-dataid='z' class='param_value param_coord' value='"+getDisplayValue(value.pos1.z)+"'></input>";	
 
 			
 			result+="</div>";
 			
 			result+="<div data-catmullpos='pos4' class='param_values pos4'>";
-			result+="x2: <input data-dataid='x' class='param_value param_coord' value='"+(value.pos4.x || "")+"'></input>";
-			result+="y2: <input data-dataid='y' class='param_value param_coord' value='"+(value.pos4.y || "")+"'></input>";
-			result+="z2: <input data-dataid='z' class='param_value param_coord' value='"+(value.pos4.z || "")+"'></input>";	
+			result+="x2: <input data-dataid='x' class='param_value param_coord' value='"+getDisplayValue(value.pos4.x)+"'></input>";
+			result+="y2: <input data-dataid='y' class='param_value param_coord' value='"+getDisplayValue(value.pos4.y)+"'></input>";
+			result+="z2: <input data-dataid='z' class='param_value param_coord' value='"+getDisplayValue(value.pos4.z)+"'></input>";	
 
 			result+="</div>";
 			result+="</div>";
@@ -1027,10 +1123,16 @@ SRWEditor.prototype.init = function(){
 		magnitude_y: function(value){
 		
 		},
+		magnitude_z: function(value){
+		
+		},
 		speed_x: function(value){
 		
 		},
 		speed_y: function(value){
+		
+		},
+		speed_z: function(value){
 		
 		},
 		fadeInTicks: function(value){
@@ -1039,7 +1141,16 @@ SRWEditor.prototype.init = function(){
 		fadeOutTicks: function(value){
 		
 		},
+		magnitude_variance: function(value){
+		
+		},
+		speed_variance: function(value){
+		
+		},
 		startFade: function(value){
+		
+		},
+		hard: function(value){
 		
 		},
 		endFade: function(value){
@@ -1131,6 +1242,9 @@ SRWEditor.prototype.init = function(){
 		noDamageText: function(value){
 		
 		}, 
+		noReposition: function(value){
+		
+		}, 
 		animationDelay: function(value){
 		
 		},
@@ -1152,6 +1266,9 @@ SRWEditor.prototype.init = function(){
 		isPilotCutin: function(value){
 		
 		}, 
+		renderTargetId: function(value){
+		
+		}, 
 		frameSize: function(value){
 		
 		},
@@ -1164,10 +1281,19 @@ SRWEditor.prototype.init = function(){
 		isBackground: function(value){
 		
 		},
+		isForeground: function(value){
+		
+		},
+		attachForShake: function(value){
+		
+		},
 		autoRotate: function(value){
 		
 		},
 		flipZ: function(value){
+		
+		},
+		ignoreParentRotation: function(value){
 		
 		},
 		color: function(value){
@@ -1200,6 +1326,9 @@ SRWEditor.prototype.init = function(){
 		battleAnimId: function(value){
 			
 		},
+		floor: function(value){
+			
+		},		
 		animId: function(value){
 			
 		},
@@ -1218,6 +1347,9 @@ SRWEditor.prototype.init = function(){
 		noFlash: function(value){
 			
 		},
+		frame: function(value){
+			
+		},
 		delay: function(value){
 			
 		},
@@ -1229,7 +1361,10 @@ SRWEditor.prototype.init = function(){
 		},
 		noSfx: function(value){
 			
-		}
+		},
+		paused: function(value){
+			
+		},
 	}
 	
 	_this._currentSequenceType = "mainAnimation";
@@ -1452,6 +1587,10 @@ SRWEditor.prototype.prepareBattleScenePreview = function(){
 	document.querySelector("#attack_editor .preview_window").appendChild($battleSceneManager._swipeContainer);
 	$battleSceneManager._swipeContainer.style.width = "";
 	$battleSceneManager._swipeContainer.style.height = "";
+
+	document.querySelector("#attack_editor .preview_window").appendChild($battleSceneManager._TextContainer);
+	$battleSceneManager._TextContainer.style.width = "";
+	$battleSceneManager._TextContainer.style.height = "";
 	
 	//$battleSceneManager.init(true);	
 	
@@ -2655,6 +2794,9 @@ SRWEditor.prototype.showEnvironmentEditorControls = function(){
 			content+="<div class='bg_label'>"+EDITORSTRINGS.BG.label_height+": </div><input data-dataid='height' class='param_value' value='"+(bg.height || 0)+"'></input>";
 			content+="</div>";
 			content+="<div class='param_values'>";
+			content+="<div class='bg_label'>"+EDITORSTRINGS.BG.label_x_offset+": </div><input data-dataid='xoffset' class='param_value' value='"+(bg.xoffset || 0)+"'></input>";
+			content+="</div>";
+			content+="<div class='param_values'>";
 			content+="<div class='bg_label'>"+EDITORSTRINGS.BG.label_y_offset+": </div><input data-dataid='yoffset' class='param_value' value='"+(bg.yoffset || 0)+"'></input>";
 			content+="<div class='bg_label'>"+EDITORSTRINGS.BG.label_z_offset+": </div><input data-dataid='zoffset' class='param_value' value='"+(bg.zoffset || 0)+"'></input>";
 			content+="</div>";
@@ -2666,6 +2808,8 @@ SRWEditor.prototype.showEnvironmentEditorControls = function(){
 		content+="</div>";
 		
 		content+="</div>";
+		
+		
 		
 		containerNode.querySelector(".edit_controls").innerHTML = content;
 		
@@ -2967,10 +3111,12 @@ SRWEditor.prototype.showAttackEditor = function(){
 	content+="<div title='"+EDITORSTRINGS.ATTACKS.hint_attack+"' class='extra_control'>";
 	content+="<div class='editor_label'>"+EDITORSTRINGS.ATTACKS.label_attack+"</div>";
 	content+="<select class='has_preference' id='quote_set'>";
+	let ctr = 0;
 	$dataWeapons.forEach(function(weapon){
 		if(weapon && weapon.name){
-			content+="<option value='"+weapon.id+"'>"+weapon.name+"</option>"
+			content+="<option value='"+weapon.id+"'>["+String(ctr).padStart(3, "0")+"] "+weapon.name+"</option>"
 		}
+		ctr++;
 	});
 	content+="</select>"
 
@@ -3298,12 +3444,18 @@ SRWEditor.prototype.showCameraState = function(){
 			content+="</div>"
 			content+="<div>"
 			content+="x: <input data-type='position' data-prop='x' value='"+position.x.toFixed(3)+"'></input>";
+			content+="<img data-direction=1 class='prop_control increase_prop' src='svg/plus.svg'>";
+			content+="<img data-direction=-1 class='prop_control decrease_prop' src='svg/minus.svg'>";
 			content+="</div>"
 			content+="<div>"
 			content+="y: <input data-type='position' data-prop='y' value='"+position.y.toFixed(3)+"'></input>";
+			content+="<img data-direction=1 class='prop_control increase_prop' src='svg/plus.svg'>";
+			content+="<img data-direction=-1 class='prop_control decrease_prop' src='svg/minus.svg'>";
 			content+="</div>"
 			content+="<div>"
 			content+="z: <input data-type='position' data-prop='z' value='"+position.z.toFixed(3)+"'></input>";
+			content+="<img data-direction=1 class='prop_control increase_prop' src='svg/plus.svg'>";
+			content+="<img data-direction=-1 class='prop_control decrease_prop' src='svg/minus.svg'>";
 			content+="</div>"
 			
 			var rotation = targetObj.rotation;
@@ -3321,12 +3473,18 @@ SRWEditor.prototype.showCameraState = function(){
 				content+="</div>"
 				content+="<div>"
 				content+="x: <input data-type='rotation' data-prop='x' value='"+rotation.x.toFixed(3)+"'></input>";
+				content+="<img data-direction=1 class='prop_control increase_prop' src='svg/plus.svg'>";
+				content+="<img data-direction=-1 class='prop_control decrease_prop' src='svg/minus.svg'>";
 				content+="</div>"
 				content+="<div>"
 				content+="y: <input data-type='rotation' data-prop='y' value='"+rotation.y.toFixed(3)+"'></input>";
+				content+="<img data-direction=1 class='prop_control increase_prop' src='svg/plus.svg'>";
+				content+="<img data-direction=-1 class='prop_control decrease_prop' src='svg/minus.svg'>";
 				content+="</div>"
 				content+="<div>"
 				content+="z: <input data-type='rotation' data-prop='z' value='"+rotation.z.toFixed(3)+"'></input>";
+				content+="<img data-direction=1 class='prop_control increase_prop' src='svg/plus.svg'>";
+				content+="<img data-direction=-1 class='prop_control decrease_prop' src='svg/minus.svg'>";
 				content+="</div>"
 			}	
 
@@ -3338,12 +3496,18 @@ SRWEditor.prototype.showCameraState = function(){
 					content+="</div>"
 					content+="<div>"
 					content+="x: <input data-type='pivot_rotation' data-prop='x' value='"+rotation.x.toFixed(3)+"'></input>";
+					content+="<img data-direction=1 class='prop_control increase_prop' src='svg/plus.svg'>";
+					content+="<img data-direction=-1 class='prop_control decrease_prop' src='svg/minus.svg'>";
 					content+="</div>"
 					content+="<div>"
 					content+="y: <input data-type='pivot_rotation' data-prop='y' value='"+rotation.y.toFixed(3)+"'></input>";
+					content+="<img data-direction=1 class='prop_control increase_prop' src='svg/plus.svg'>";
+					content+="<img data-direction=-1 class='prop_control decrease_prop' src='svg/minus.svg'>";
 					content+="</div>"
 					content+="<div>"
 					content+="z: <input data-type='pivot_rotation' data-prop='z' value='"+rotation.z.toFixed(3)+"'></input>";
+					content+="<img data-direction=1 class='prop_control increase_prop' src='svg/plus.svg'>";
+					content+="<img data-direction=-1 class='prop_control decrease_prop' src='svg/minus.svg'>";
 					content+="</div>"
 				}
 			}	
@@ -3358,7 +3522,7 @@ SRWEditor.prototype.showCameraState = function(){
 					if(targetObj.handle){
 						if(type == "rotation"){
 							var newVector;
-							if(targetObj.parent){
+							if(targetObj.parent && !targetObj.ignoreParentRotation){
 								var scale = new BABYLON.Vector3(0, 0, 0);
 								var rotation = new BABYLON.Quaternion();
 								var position = new BABYLON.Vector3(0,0,0);
@@ -3416,8 +3580,8 @@ SRWEditor.prototype.showCameraState = function(){
 								newVector.z
 							);							
 						}
-						targetObj.context.update();
-						targetObj.context.draw();
+						//targetObj.context.update();
+						//targetObj.context.draw();
 					} else {
 						if(type == "pivot_rotation"){
 							var newVector = new BABYLON.Vector3().copyFrom(pivotHelper.rotation);
@@ -3443,6 +3607,41 @@ SRWEditor.prototype.showCameraState = function(){
 					}
 				});
 			});
+			
+			
+			let intervalId;
+			const clickDelta = 0.1;
+			var controls = cameraInfoContainer.querySelectorAll(".prop_control");
+			for(let control of controls){
+				control.addEventListener("mousedown", function(){
+					const direction = this.getAttribute("data-direction");
+					const delta = clickDelta * direction;
+					const targetElem = this.closest("div").querySelector("input");
+					intervalId = setInterval(function(){
+						targetElem.value= (targetElem.value * 1 + delta * 1).toFixed(3);
+						targetElem.dispatchEvent(new Event('blur', {}))
+					}, 40);
+				});
+				
+				control.addEventListener("click", function(){
+					const direction = this.getAttribute("data-direction");
+					const delta = clickDelta * direction;
+					const targetElem = this.closest("div").querySelector("input");
+					targetElem.value= (targetElem.value * 1 + delta * 1).toFixed(3);
+					targetElem.dispatchEvent(new Event('blur', {}))
+				});
+				
+				control.addEventListener("mouseup", function(){
+					if(intervalId){
+						clearInterval(intervalId);
+					}
+				});
+				control.addEventListener("mouseleave", function(){
+					if(intervalId){
+						clearInterval(intervalId);
+					}
+				});
+			}
 		} else {
 			cameraInfoContainer.innerHTML = EDITORSTRINGS.ATTACKS.label_missing_object.replace("[NAME]", name);
 		}
@@ -3859,6 +4058,9 @@ SRWEditor.prototype.showAttackEditorControls = function(){
 				const name = document.querySelector("#helper_target").value;
 				let targetObj = $battleSceneManager.getTargetObject(name);
 				if(targetObj){
+					if(targetObj.parent_handle){
+						targetObj = targetObj.parent_handle;
+					}
 					var data = targetObj[prop]; 
 				
 					if(targetObj.handle){
@@ -3879,12 +4081,21 @@ SRWEditor.prototype.showAttackEditorControls = function(){
 					
 			
 					var xInput = referenceNode.querySelector(".param_value[data-dataid='x']");	
-					xInput.value = ((data.x || data._x || 0).toFixed(3)) * $battleSceneManager.getAnimationDirection();
+					if(prop == "position"){
+						xInput.value = ((data.x || data._x || 0).toFixed(3)) * $battleSceneManager.getAnimationDirection();
+					}	else {
+						xInput.value = ((data.x || data._x || 0).toFixed(3));
+					}		
 					var event = new Event('change');
 					xInput.dispatchEvent(event);
 					
 					var yInput = referenceNode.querySelector(".param_value[data-dataid='y']");	
-					yInput.value = (data.y || data._y || 0).toFixed(3);
+					if(prop == "rotation"){
+						yInput.value = (data.y || data._y || 0).toFixed(3) * $battleSceneManager.getAnimationDirection();;
+					} else {
+						yInput.value = (data.y || data._y || 0).toFixed(3);
+					}	
+					
 					var event = new Event('change');
 					yInput.dispatchEvent(event);
 					
@@ -4111,14 +4322,23 @@ SRWEditor.prototype.processParamInput = function(input){
 		catmullRom: function(input){
 			var container = input.closest(".command_param ");
 			var pos1 = {};
-			pos1.x = container.querySelector("div[data-catmullpos='pos1'] input[data-dataid='x']").value*1;
-			pos1.y = container.querySelector("div[data-catmullpos='pos1'] input[data-dataid='y']").value*1;
-			pos1.z = container.querySelector("div[data-catmullpos='pos1'] input[data-dataid='z']").value*1;
+			
+			function parseValue(val){
+				if(val === ""){
+					return val;
+				} else {
+					return val * 1;
+				}
+			}
+			
+			pos1.x = parseValue(container.querySelector("div[data-catmullpos='pos1'] input[data-dataid='x']").value);
+			pos1.y = parseValue(container.querySelector("div[data-catmullpos='pos1'] input[data-dataid='y']").value);
+			pos1.z = parseValue(container.querySelector("div[data-catmullpos='pos1'] input[data-dataid='z']").value);
 			
 			var pos4 = {};
-			pos4.x = container.querySelector("div[data-catmullpos='pos4'] input[data-dataid='x']").value*1;
-			pos4.y = container.querySelector("div[data-catmullpos='pos4'] input[data-dataid='y']").value*1;
-			pos4.z = container.querySelector("div[data-catmullpos='pos4'] input[data-dataid='z']").value*1;
+			pos4.x = parseValue(container.querySelector("div[data-catmullpos='pos4'] input[data-dataid='x']").value);
+			pos4.y = parseValue(container.querySelector("div[data-catmullpos='pos4'] input[data-dataid='y']").value);
+			pos4.z = parseValue(container.querySelector("div[data-catmullpos='pos4'] input[data-dataid='z']").value);
 			return {pos1: pos1, pos4: pos4};
 		}
 	};
@@ -4271,7 +4491,8 @@ SRWEditor.prototype.playBattleScene = function(){
 			mapId: -1,
 			isCombination: 0,
 			combinationWeapons: null,
-			combinationType: null
+			combinationType: null,
+			textAlias: parseInt($dataWeapons[_this._currentQuoteSet].meta["weaponTextAlias"] || -1)
 		}			
 		
 		if(_this._currentQuoteSet){
@@ -4279,7 +4500,12 @@ SRWEditor.prototype.playBattleScene = function(){
 		}
 		let songId = "";
 		if(_this._playBGM){
-			songId = $songManager.getActorSongInfo(_this._currentActor) || "Battle1";			
+			if(_this._enemySideAttack){
+				songId = $songManager.getEnemySongInfo(_this._currentEnemy) || "Battle1";	
+			} else {
+				songId = $songManager.getActorSongInfo(_this._currentActor) || "Battle1";	
+			}
+					
 		}
 		var demoConfig = {
 			enemyFirst: _this._enemySideAttack, // if 0 the actor will move first, if 1 the enemy will move first. This also affects the supports. If 0, the actor support will be attacking otherwise defending. If 1, the enemy support will be attacking otherwise defending.

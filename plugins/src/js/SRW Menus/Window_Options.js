@@ -26,7 +26,7 @@ Window_Options.prototype.initialize = function() {
 	
 	this._titleInfo = {};
 	this._titleInfo[0] = APPSTRINGS.OPTIONS.label_game_options;
-	if(ENGINE_SETTINGS.ENABLE_TWEAKS_OPTION){
+	if(ENGINE_SETTINGS.ENABLE_TWEAKS_MENU){
 		this._titleInfo[9] = APPSTRINGS.OPTIONS.label_sound_options;
 	} else {
 		this._titleInfo[8] = APPSTRINGS.OPTIONS.label_sound_options;
@@ -45,7 +45,7 @@ Window_Options.prototype.initialize = function() {
 			} else {
 				Graphics._cancelFullScreen();
 			}
-			ConfigManager.save();
+			
 		}
 	});
 	
@@ -59,11 +59,11 @@ Window_Options.prototype.initialize = function() {
 		update: function(){
 			const padSet = $gameSystem.getOptionPadSet();
 			if(padSet == "xbox"){
-				$gameSystem.optionPadSet = "ds";
+				ConfigManager["padSet"] = "ds";
 			} else if(padSet == "ds"){
-				$gameSystem.optionPadSet = "nin";
+				ConfigManager["padSet"] = "nin";
 			} else if(padSet == "nin"){
-				$gameSystem.optionPadSet = "xbox";
+				ConfigManager["padSet"] = "xbox";
 			}
 			if($gameTemp.buttonHintManager){
 				$gameTemp.buttonHintManager.redraw();
@@ -74,10 +74,10 @@ Window_Options.prototype.initialize = function() {
 	this._optionInfo.push({
 		name: APPSTRINGS.OPTIONS.label_show_map_buttons,
 		display: function(){
-			return $gameSystem.getOptionMapHints() ? "ON" : "OFF";
+			return ConfigManager["mapHints"] ? "ON" : "OFF";
 		},
 		update: function(){
-			$gameSystem.setOptionMapHints(!$gameSystem.getOptionMapHints())
+			ConfigManager["mapHints"] = !ConfigManager["mapHints"];
 		}
 	});
 	
@@ -85,40 +85,40 @@ Window_Options.prototype.initialize = function() {
 	this._optionInfo.push({
 		name: APPSTRINGS.OPTIONS.label_grid,
 		display: function(){
-			return $gameSystem.optionDisableGrid ? "OFF" : "ON";
+			return ConfigManager["disableGrid"] ? "OFF" : "ON";
 		},
 		update: function(){
-			$gameSystem.optionDisableGrid = !$gameSystem.optionDisableGrid;
+			ConfigManager["disableGrid"]= !ConfigManager["disableGrid"];
 		}
 	});
 	
 	this._optionInfo.push({
 		name: APPSTRINGS.OPTIONS.label_will,
-		display: function(){
-			return $gameSystem.showWillIndicator ? "ON" : "OFF";
+		display: function(){			
+			return ConfigManager["willIndicator"] ? "ON" : "OFF";
 		},
 		update: function(){
-			$gameSystem.showWillIndicator = !$gameSystem.showWillIndicator;
+			ConfigManager["willIndicator"] = !ConfigManager["willIndicator"];
 		}
 	});
 	
 	this._optionInfo.push({
 		name: APPSTRINGS.OPTIONS.label_default_support,
 		display: function(){
-			return $gameSystem.optionDefaultSupport ? APPSTRINGS.OPTIONS.label_default_support_on : APPSTRINGS.OPTIONS.label_default_support_off;
+			return ConfigManager["defaultSupport"] ? APPSTRINGS.OPTIONS.label_default_support_on : APPSTRINGS.OPTIONS.label_default_support_off;
 		},
 		update: function(){
-			$gameSystem.optionDefaultSupport = !$gameSystem.optionDefaultSupport;
+			ConfigManager["defaultSupport"] = !ConfigManager["defaultSupport"];
 		}
 	});
 	
 	this._optionInfo.push({
 		name: APPSTRINGS.OPTIONS.label_skip_move,
 		display: function(){
-			return $gameSystem.optionSkipUnitMoving ? "ON" : "OFF";
+			return ConfigManager["skipUnitMove"] ? "ON" : "OFF";
 		},
 		update: function(){
-			$gameSystem.optionSkipUnitMoving = !$gameSystem.optionSkipUnitMoving;
+			ConfigManager["skipUnitMove"] = !ConfigManager["skipUnitMove"];
 		}
 	});
 	
@@ -157,15 +157,20 @@ Window_Options.prototype.initialize = function() {
 			}
 		}
 	});
-	if(ENGINE_SETTINGS.ENABLE_TWEAKS_OPTION){
+	if(ENGINE_SETTINGS.ENABLE_TWEAKS_MENU){
 		this._optionInfo.push({
 			name: APPSTRINGS.OPTIONS.label_tweaks,
 			isSubMenu: true,
 			display: function(){
+				if(!$gameSystem._isIntermission){
+					return APPSTRINGS.OPTIONS.label_intermission_only;
+				}
 				return "";
 			},
 			update: function(){
-				$gameTemp.pushMenu = "game_modes";
+				if($gameSystem._isIntermission){
+					$gameTemp.pushMenu = "game_modes";
+				}
 			}
 		});
 	}
@@ -173,20 +178,20 @@ Window_Options.prototype.initialize = function() {
 	this._optionInfo.push({
 		name: APPSTRINGS.OPTIONS.label_battle_bgm,
 		display: function(){
-			return $gameSystem.optionBattleBGM ? APPSTRINGS.OPTIONS.label_bgm_unit : APPSTRINGS.OPTIONS.label_bgm_map;
+			return ConfigManager["battleBGM"] ? APPSTRINGS.OPTIONS.label_bgm_unit : APPSTRINGS.OPTIONS.label_bgm_map;
 		},
 		update: function(){
-			$gameSystem.optionBattleBGM = !$gameSystem.optionBattleBGM;
+			ConfigManager["battleBGM"] = !ConfigManager["battleBGM"];
 		}
 	});
 	
 	this._optionInfo.push({
 		name: APPSTRINGS.OPTIONS.label_after_battle_bgm,
 		display: function(){
-			return $gameSystem.optionAfterBattleBGM ? APPSTRINGS.OPTIONS.label_bgm_unit : APPSTRINGS.OPTIONS.label_bgm_map;
+			return ConfigManager["afterBattleBGM"] ? APPSTRINGS.OPTIONS.label_bgm_unit : APPSTRINGS.OPTIONS.label_bgm_map;
 		},
 		update: function(){
-			$gameSystem.optionAfterBattleBGM = !$gameSystem.optionAfterBattleBGM;
+			ConfigManager["afterBattleBGM"] = !ConfigManager["afterBattleBGM"];
 		}
 	});
 	
@@ -212,7 +217,7 @@ Window_Options.prototype.initialize = function() {
 			}			
 			ConfigManager["bgmVolume"] = current;
 			ConfigManager["bgsVolume"] = current;
-			ConfigManager.save();
+	
 		}
 	});
 	
@@ -238,7 +243,7 @@ Window_Options.prototype.initialize = function() {
 			}			
 			ConfigManager["seVolume"] = current;
 			ConfigManager["meVolume"] = current;
-			ConfigManager.save();
+	
 		}
 	});
 	
@@ -366,6 +371,7 @@ Window_Options.prototype.update = function() {
 		
 		if(Input.isTriggered('cancel') || TouchInput.isCancelled()){	
 			SoundManager.playCancel();			
+			ConfigManager.save();
 			$gameTemp.popMenu = true;		
 			$gameTemp.buttonHintManager.hide();	
 			if(this._callbacks["closed"]){
@@ -382,7 +388,7 @@ Window_Options.prototype.update = function() {
 Window_Options.prototype.redraw = function() {
 	var _this = this;
 	
-	if(ENGINE_SETTINGS.ENABLE_TWEAKS_OPTION){
+	if(ENGINE_SETTINGS.ENABLE_TWEAKS_MENU){
 		$gameTemp.buttonHintManager.setHelpButtons([["select_option"], ["toggle_option"], ["enter_sub_menu"]]);
 	} else {
 		$gameTemp.buttonHintManager.setHelpButtons([["select_option"], ["toggle_option"]]);
@@ -430,4 +436,8 @@ Window_Options.prototype.redraw = function() {
 	
 	this.loadImages();
 	Graphics._updateCanvas();
+	
+	if(this._callbacks["redraw"]){
+		this._callbacks["redraw"]();
+	}	
 }

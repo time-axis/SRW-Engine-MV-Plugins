@@ -151,6 +151,16 @@
 	margin: 1px;
 }
 
+#camera_info_content .prop_control{
+	width: 12px;
+	margin-left: 0px;
+	cursor: pointer;
+}
+
+#camera_info_content input{
+	width: 80%;
+}
+
 #refresh_camera {
 	width: 14px;
 	margin-left: auto;
@@ -231,6 +241,12 @@
 }
 
 #srw_editor #battle_scene_ui_layer {
+	width: 100%;
+	height: 100%;
+	position: absolute;
+}
+
+#srw_editor #battle_scene_text_layer {
 	width: 100%;
 	height: 100%;
 	position: absolute;

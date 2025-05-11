@@ -43,7 +43,8 @@ Window_SpiritActivation.prototype.initialize = function() {
 	this._finishTimer = 0;
 	
 	Object.keys($spiritManager.getSpiritDefinitions()).forEach(function(id){
-		var spiritAnimInfo = $spiritManager.getSpiritDisplayInfo(id).animInfo;		
+		var spiritAnimInfo = $spiritManager.getSpiritDisplayInfo(id).animInfo;	
+		console.log("Loading Spirit Assets: " + id)	
 		if(spiritAnimInfo.name){
 			ImageManager.loadNormalBitmap('img/SRWMapEffects/'+spiritAnimInfo.name+".png");
 		} else if(spiritAnimInfo.src){
@@ -221,6 +222,20 @@ Window_SpiritActivation.prototype.getHPAnimInfo = function(action) {
 	return {startPercent: startPercent, endPercent: endPercent};
 }
 
+Window_SpiritActivation.prototype.updateHPBarColor = function(fillElem, percent) {
+	if(percent >= ENGINE_SETTINGS.HP_BAR_COLORS.full.percent){
+		fillElem.style.backgroundColor = ENGINE_SETTINGS.HP_BAR_COLORS.full.color;
+	} else if(percent >= ENGINE_SETTINGS.HP_BAR_COLORS.high.percent){
+		fillElem.style.backgroundColor = ENGINE_SETTINGS.HP_BAR_COLORS.high.color;
+	} else if(percent >= ENGINE_SETTINGS.HP_BAR_COLORS.med.percent){
+		fillElem.style.backgroundColor = ENGINE_SETTINGS.HP_BAR_COLORS.med.color;
+	} else if(percent >= ENGINE_SETTINGS.HP_BAR_COLORS.low.percent){
+		fillElem.style.backgroundColor = ENGINE_SETTINGS.HP_BAR_COLORS.low.color;
+	} else {
+		fillElem.style.backgroundColor = ENGINE_SETTINGS.HP_BAR_COLORS.critical.color;
+	}
+}
+
 Window_SpiritActivation.prototype.animateHP = function(elem, fillElem, startPercent, endPercent) {
 	var _this = this;
 	elem.style.display = "block";
@@ -237,11 +252,16 @@ Window_SpiritActivation.prototype.animateHP = function(elem, fillElem, startPerc
 		} else {
 			fillElem.style.width=endPercent;
 		}
+		if(ctr >= steps + 50){//linger a bit on the final hp value
+			_this.updateHPBarColor(fillElem, fillElem.style.width.replace("%", ""));
+		}
 		if(ctr >= steps + 100){//linger a bit on the final hp value
 			clearInterval(hpDrainInterval);
 			elem.style.display = "none";
 		}
+		//_this.updateHPBarColor(fillElem, fillElem.style.width.replace("%", ""));
 	}, stepDuration);
+	_this.updateHPBarColor(fillElem, fillElem.style.width.replace("%", ""));
 }
 
 /*Window_SpiritActivation.prototype.hide = function() {

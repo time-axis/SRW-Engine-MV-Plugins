@@ -946,6 +946,34 @@ MechList.prototype.defineContent = function(){
 			]
 		},
 	}
+	
+	function generateAttributeColumnConfig(){
+		return {
+			title: APPSTRINGS.MECHLIST.column_attribute,
+			contentFunction: function(pilot, mech){
+				let content = "";
+				let attr1 = $statCalc.getParticipantAttribute(pilot, "attribute1");
+				if(attr1){
+					let attrInfo = ENGINE_SETTINGS.ATTRIBUTE_DISPLAY_NAMES[attr1] || {};
+					content+="<div class='attribute_indicator scaled_text fitted_text'>";		
+					content+="<img data-img='img/system/attribute_"+attr1+".png'>";		
+					//content+=attrInfo.name || attr1;
+					content+="</div>";
+				}
+				return content;
+			},
+			compareFunction: function(a, b){
+				let attrA = String($statCalc.getParticipantAttribute(a, "attribute1") || "");
+				let attrB = String($statCalc.getParticipantAttribute(b, "attribute1") || "");
+				return attrA.localeCompare(attrB);
+			}
+		};
+	}
+	
+	if(ENGINE_SETTINGS.ENABLE_ATTRIBUTE_SYSTEM){
+		this._pageInfo[0].content.push(generateAttributeColumnConfig());
+		this._pageInfo[5].content.push(generateAttributeColumnConfig());
+	}
 }
 
 MechList.prototype.setUnitModeActor = function(){
@@ -969,7 +997,7 @@ MechList.prototype.getCurrentSelection = function(){
 	
 	if(unit){
 		let mech;
-		if(unit.isSubPilot){
+		if(unit.isSubPilot && unit.mainPilot){
 			mech = unit.mainPilot.SRWStats.mech;
 		} else {
 			mech = unit.SRWStats.mech;
@@ -1235,12 +1263,12 @@ MechList.prototype.redraw = function() {
 			if(idx != null){
 				idx*=1;
 				if(idx == _this._currentSelection){
-					_this.notifyTouchObserver("ok");				
+					_this.notifyTouchObserver("ok");	
+			
 				} else {
 					_this._currentSelection = idx;
-					_this.redraw();
-					_this.notifyObserver("redraw");
-					Graphics._updateCanvas();
+					_this.requestRedraw();
+					_this.notifyObserver("redraw");					
 				}
 			}						
 		});		
@@ -1253,5 +1281,6 @@ MechList.prototype.redraw = function() {
 	windowNode.querySelector("#next_page").addEventListener("click", function(){
 		_this.notifyTouchObserver("right");
 	});
+	Graphics._updateCanvas();
 }
 

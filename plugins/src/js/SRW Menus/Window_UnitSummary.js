@@ -51,7 +51,7 @@ Window_UnitSummary.prototype.refresh = function() {
 }
 
 Window_UnitSummary.prototype.redraw = async function() {	
-	var _this = this;
+	const _this = this;
 	var content = "";
 	if($gameTemp.summaryUnit){
 		var actors = [$gameTemp.summaryUnit];
@@ -71,11 +71,11 @@ Window_UnitSummary.prototype.redraw = async function() {
 				
 			content+="<div data-idx='"+ctr+"' class='summary'>";		
 			
+			content+="<div class='pilot_stats scaled_text'>";	
 			content+="<div class='pilot_name scaled_text fitted_text'>";
 			content+=actor.name();
 			content+="</div>";
 			
-			content+="<div class='pilot_stats scaled_text'>";	
 			content+="<div class='level scaled_width'>";
 			content+="<div class='label'>";
 			content+=APPSTRINGS.GENERAL.label_level;
@@ -84,6 +84,10 @@ Window_UnitSummary.prototype.redraw = async function() {
 			content+=$statCalc.getCurrentLevel(actor);
 			content+="</div>";
 			content+="</div>";
+			content+="</div>";
+			
+			content+="<div class='pilot_stats scaled_text'>";	
+			
 			content+="<div class='will scaled_width'>";
 			content+="<div class='label'>";
 			content+=APPSTRINGS.GENERAL.label_will;
@@ -92,6 +96,19 @@ Window_UnitSummary.prototype.redraw = async function() {
 			content+=$statCalc.getCurrentWill(actor);
 			content+="</div>";
 			content+="</div>";
+			
+			const kills =$statCalc.getKills(actor);
+			if(kills){
+				content+="<div class='score scaled_width'>";
+				content+="<div class='label'>";
+				content+=APPSTRINGS.GENERAL.label_score;
+				content+="</div>";
+				content+="<div class='value'>";
+				content+=$statCalc.getKills(actor);
+				content+="</div>";
+				content+="</div>";
+			}		
+			
 			content+="</div>";
 			
 			var calculatedStats = $statCalc.getCalculatedMechStats(actor);
@@ -169,8 +186,7 @@ Window_UnitSummary.prototype.redraw = async function() {
 			content+="</div>";
 			
 			
-			var hpPercent = Math.floor(calculatedStats.currentHP / calculatedStats.maxHP * 100);
-			content+="<div class='hp_bar'><div style='width: "+hpPercent+"%;' class='hp_bar_fill'></div></div>";
+			content+=_this.createHPBarContent(calculatedStats);
 			
 			var enPercent = Math.floor(calculatedStats.currentEN / calculatedStats.maxEN * 100);
 			content+="<div class='en_bar'><div style='width: "+enPercent+"%;' class='en_bar_fill'></div></div>";
