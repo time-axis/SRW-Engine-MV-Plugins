@@ -4,7 +4,7 @@
 
 /*:
  * @plugindesc Displays detailed statuses of items.
- * @author Yoji Ojima
+ * @author Yoji Ojima edited by TimeAxis
  *
  * @param Unknown Data
  * @desc The index name for an unknown item.
@@ -33,6 +33,9 @@
  *   ItemBook complete        # Complete the item book
  *   ItemBook clear           # Clear the item book
  *
+ * Item Note:
+ *   <desc:Description>		  # You must use this for it to have a description. It will not use the default one.
+ *   <img:Name>				  # This must be the name of an image in the pictures folder. No file extension
  * Item (Weapon, Armor) Note:
  *   <book:no>                # This item does not appear in the item book
  */
@@ -87,8 +90,8 @@
         if (command === 'ItemBook') {
             switch (args[0]) {
             case 'open':
-                SceneManager.push(Scene_ItemBook);
-                break;
+				SceneManager.push(Scene_ItemBook);
+				break;
             case 'add':
                 $gameSystem.addToItemBook(args[1], Number(args[2]));
                 break;
@@ -143,12 +146,6 @@
         for (i = 1; i < $dataItems.length; i++) {
             this._ItemBookFlags[0][i] = true;
         }
-        for (i = 1; i < $dataWeapons.length; i++) {
-            this._ItemBookFlags[1][i] = true;
-        }
-        for (i = 1; i < $dataArmors.length; i++) {
-            this._ItemBookFlags[2][i] = true;
-        }
     };
 
     Game_System.prototype.clearItemBook = function() {
@@ -182,15 +179,11 @@
             var type;
             if (DataManager.isItem(item)) {
                 type = 'item';
-            } else if (DataManager.isWeapon(item)) {
-                type = 'weapon';
-            } else if (DataManager.isArmor(item)) {
-                type = 'armor';
             }
             $gameSystem.addToItemBook(type, item.id);
         }
     };
-
+	
     function Scene_ItemBook() {
         this.initialize.apply(this, arguments);
     }
@@ -200,20 +193,35 @@
 
     Scene_ItemBook.prototype.initialize = function() {
         Scene_MenuBase.prototype.initialize.call(this);
+		this._iconsLoaded = false;
     };
 
     Scene_ItemBook.prototype.create = function() {
         Scene_MenuBase.prototype.create.call(this);
-        this._indexWindow = new Window_ItemBookIndex(0, 0);
-        this._indexWindow.setHandler('cancel', this.popScene.bind(this));
-        var wy = this._indexWindow.height;
-        var ww = Graphics.boxWidth;
-        var wh = Graphics.boxHeight - wy;
-        this._statusWindow = new Window_ItemBookStatus(0, wy, ww, wh);
-        this.addWindow(this._indexWindow);
-        this.addWindow(this._statusWindow);
-        this._indexWindow.setStatusWindow(this._statusWindow);
+		
+		// Start preloading the iconset
+		this._iconBitmap = ImageManager.loadSystem('IconSet');
     };
+	
+	Scene_ItemBook.prototype.update = function() {
+		Scene_MenuBase.prototype.update.call(this);
+
+		if (!this._iconsLoaded && this._iconBitmap.isReady()) {
+			this._iconsLoaded = true;
+			
+			this._indexWindow = new Window_ItemBookIndex(0, 0);
+			this._indexWindow.setHandler('cancel', this.popScene.bind(this));
+			
+			var wy = this._indexWindow.height;
+			var ww = Graphics.boxWidth;
+			var wh = Graphics.boxHeight - wy;
+			this._statusWindow = new Window_ItemBookStatus(0, wy, ww, wh);
+		
+			this.addWindow(this._indexWindow);
+			this.addWindow(this._statusWindow);
+			this._indexWindow.setStatusWindow(this._statusWindow);
+		}
+	};
 
     function Window_ItemBookIndex() {
         this.initialize.apply(this, arguments);
@@ -227,7 +235,7 @@
 
     Window_ItemBookIndex.prototype.initialize = function(x, y) {
         var width = Graphics.boxWidth;
-        var height = this.fittingHeight(6);
+        var height = this.fittingHeight(3);
         Window_Selectable.prototype.initialize.call(this, x, y, width, height);
         this.refresh();
         this.setTopRow(Window_ItemBookIndex.lastTopRow);
@@ -269,18 +277,6 @@
                 this._list.push(item);
             }
         }
-        for (i = 1; i < $dataWeapons.length; i++) {
-            item = $dataWeapons[i];
-            if (item.name && item.meta.book !== 'no') {
-                this._list.push(item);
-            }
-        }
-        for (i = 1; i < $dataArmors.length; i++) {
-            item = $dataArmors[i];
-            if (item.name && item.meta.book !== 'no') {
-                this._list.push(item);
-            }
-        }
         this.createContents();
         this.drawAllItems();
     };
@@ -312,19 +308,37 @@
 
     Window_ItemBookStatus.prototype.initialize = function(x, y, width, height) {
         Window_Base.prototype.initialize.call(this, x, y, width, height);
+		this._imageLoading = false;
+		this._currentImage = null;
     };
 
     Window_ItemBookStatus.prototype.setItem = function(item) {
         if (this._item !== item) {
             this._item = item;
-            this.refresh();
+			if(item.meta.img){ // Wait for image to load
+				this.contents.clear();
+				this._imageLoading = true;
+				this._currentImage = ImageManager.loadPicture(item.meta.img);
+			} else {
+				this._currentImage = null;
+				this.refresh();
+			}
         }
     };
-
-    Window_ItemBookStatus.prototype.refresh = function() {
+	
+	Window_ItemBookStatus.prototype.update = function() {
+		if(this._imageLoading){
+			if(this._currentImage.isReady()){
+				this._imageLoading = false;
+				this.refresh();
+			}
+		}
+	};
+	
+	Window_ItemBookStatus.prototype.refresh = function() {
         var item = this._item;
-        var x = 0;
-        var y = 0;
+        var leftX = 0;
+        var startY = 0;
         var lineHeight = this.lineHeight();
 
         this.contents.clear();
@@ -333,51 +347,75 @@
             return;
         }
 
-        this.drawItemName(item, x, y);
-
-        x = this.textPadding();
-        y = lineHeight + this.textPadding();
-
-        var price = item.price > 0 ? item.price : '-';
-        this.changeTextColor(this.systemColor());
-        this.drawText(priceText, x, y, 120);
-        this.resetTextColor();
-        this.drawText(price, x + 120, y, 120, 'right');
-        y += lineHeight;
-
-        if (DataManager.isWeapon(item) || DataManager.isArmor(item)) {
-            var etype = $dataSystem.equipTypes[item.etypeId];
-            this.changeTextColor(this.systemColor());
-            this.drawText(equipText, x, y, 120);
-            this.resetTextColor();
-            this.drawText(etype, x + 120, y, 120, 'right');
-            y += lineHeight;
-
-            var type;
-            if (DataManager.isWeapon(item)) {
-                type = $dataSystem.weaponTypes[item.wtypeId];
-            } else {
-                type = $dataSystem.armorTypes[item.atypeId];
-            }
-            this.changeTextColor(this.systemColor());
-            this.drawText(typeText, x, y, 120);
-            this.resetTextColor();
-            this.drawText(type, x + 120, y, 120, 'right');
-
-            x = this.textPadding() + 300;
-            y = lineHeight + this.textPadding();
-            for (var i = 2; i < 8; i++) {
-                this.changeTextColor(this.systemColor());
-                this.drawText(TextManager.param(i), x, y, 160);
-                this.resetTextColor();
-                this.drawText(item.params[i], x + 160, y, 60, 'right');
-                y += lineHeight;
-            }
-        }
-
-        x = 0;
-        y = this.textPadding() * 2 + lineHeight * 7;
-        this.drawTextEx(item.description, x, y);
+        this.drawItemName(item, 0, 0);
+		
+		leftX = this.textPadding();
+        startY = lineHeight + this.textPadding();      
+		
+		if (item.meta.img && this._currentImage) {
+			const imgWidth = this._currentImage.width * 1;
+			const imgHeight = this._currentImage.height * 1;
+			var indentedX = leftX + imgWidth;
+			var imgBottom = startY + imgHeight;
+			var fullWidth = this.contents.width - leftX;
+			
+			// Draw the image at (x, y)
+			this.contents.blt(this._currentImage, 0, 0, this._currentImage.width, this._currentImage.height,leftX,startY,imgWidth,imgHeight);
+		} else {
+			const imgWidth = 0;
+			const imgHeight = 0;
+			var indentedX = leftX + imgWidth;
+			var imgBottom = startY + imgHeight + lineHeight;
+			var fullWidth = this.contents.width - leftX;
+		}
+		const text = (item.meta.desc ? this.convertEscapeCharacters(item.meta.desc) : '');
+		this.drawWrappedText(text,indentedX,startY,imgBottom,leftX,fullWidth);
+		
     };
+	
+	Window_ItemBookStatus.prototype.drawWrappedText = function(text, startX, startY, imgBottom, leftX, fullWidth) {
+		var paragraphs = text.split('\n'); // Split text into paragraphs by explicit newlines
+		var currentY = startY; // Start at the initial y-position
+		
+		paragraphs.forEach(function(paragraph) {
+			var words = paragraph.split(' '); // Split paragraph into words
+			var currentLine = ''; // Build the current line of text
+			// Set initial x and width based on whether we're beside or below the image
+			var currentX = (currentY < imgBottom) ? startX : leftX;
+			var currentMaxWidth = (currentY < imgBottom) ? this.contents.width - startX : fullWidth;
+			
+			words.forEach(function(word) {
+				var testLine = currentLine + word + ' '; // Test adding the word to the line
+				var testWidth = this.textWidth(testLine); // Measure the width
+				
+				if (testWidth > currentMaxWidth) {
+					// If the line exceeds the max width, draw it and start a new line
+					if (currentLine !== '') {
+						this.drawText(currentLine.trim(), currentX, currentY, currentMaxWidth);
+						currentY += this.lineHeight(); // Move to the next line
+						// Adjust x and width for the new line based on its y-position
+						currentX = (currentY < imgBottom) ? startX : leftX;
+						currentMaxWidth = (currentY < imgBottom) ? this.contents.width - startX : fullWidth;
+						currentLine = word + ' '; // Start the new line with the current word
+					} else {
+						// If the word alone is too long, draw it and move to the next line
+						this.drawText(word, currentX, currentY, currentMaxWidth);
+						currentY += this.lineHeight();
+						currentX = (currentY < imgBottom) ? startX : leftX;
+						currentMaxWidth = (currentY < imgBottom) ? this.contents.width - startX : fullWidth;
+						currentLine = '';
+					}
+				} else {
+					currentLine = testLine; // Add the word to the current line
+				}
+			}, this);
+			
+			// Draw any remaining text in the paragraph
+			if (currentLine !== '') {
+				this.drawText(currentLine.trim(), currentX, currentY, currentMaxWidth);
+				currentY += this.lineHeight(); // Move to the next line for the next paragraph
+			}
+		}, this);
+	};
 
 })();
