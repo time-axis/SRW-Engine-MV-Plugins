@@ -211,17 +211,33 @@
 			
 			this._indexWindow = new Window_ItemBookIndex(0, 0);
 			this._indexWindow.setHandler('cancel', this.popScene.bind(this));
+            this._indexWindow.setHandler('ok', this.onIndexOk.bind(this));
 			
 			var wy = this._indexWindow.height;
 			var ww = Graphics.boxWidth;
 			var wh = Graphics.boxHeight - wy;
 			this._statusWindow = new Window_ItemBookStatus(0, wy, ww, wh);
+            this._statusWindow.setHandler('cancel', this.onStatusCancel.bind(this));
 		
 			this.addWindow(this._indexWindow);
 			this.addWindow(this._statusWindow);
 			this._indexWindow.setStatusWindow(this._statusWindow);
 		}
 	};
+
+    Scene_ItemBook.prototype.onIndexOk = function() {
+        this._indexWindow.deactivate();
+        this._statusWindow.select(0);
+        this._statusWindow.activate();
+    };
+
+    Scene_ItemBook.prototype.onStatusCancel = function() {
+        this._statusWindow.deselect();
+        this._statusWindow.origin.y = 0;
+        this._statusWindow.refresh();
+        this._statusWindow.deactivate();
+        this._indexWindow.activate();
+    };
 
     function Window_ItemBookIndex() {
         this.initialize.apply(this, arguments);
@@ -303,19 +319,71 @@
         this.initialize.apply(this, arguments);
     }
 
-    Window_ItemBookStatus.prototype = Object.create(Window_Base.prototype);
+    Window_ItemBookStatus.prototype = Object.create(Window_Selectable.prototype);
     Window_ItemBookStatus.prototype.constructor = Window_ItemBookStatus;
 
     Window_ItemBookStatus.prototype.initialize = function(x, y, width, height) {
-        Window_Base.prototype.initialize.call(this, x, y, width, height);
+        Window_Selectable.prototype.initialize.call(this, x, y, width, height);
 		this._imageLoading = false;
 		this._currentImage = null;
+        this._item = null;
+        this._windowContentsSprite.width = this.innerWidth;
+        this._windowContentsSprite.height = this.innerHeight;
+    };
+    
+    Window_ItemBookStatus.prototype.updateArrows = function() {
+        this.upArrowVisible = this.origin.y > 0;
+        this.downArrowVisible = this.origin.y + this.innerHeight < this.contents.height;
+    };
+
+    Window_ItemBookStatus.prototype.updateCursor = function() {
+        this.setCursorRect(0, 0, 0, 0);
+    };
+
+    Window_ItemBookStatus.prototype.maxItems = function() {
+        return 1;
+    };
+
+    Window_ItemBookStatus.prototype.maxCols = function() {
+        return 1;
+    };
+
+    Window_ItemBookStatus.prototype.processCursorMove = function() {
+        if (this.isCursorMovable()) {
+            var lastOrigin = this.origin.y;
+            if (Input.isRepeated('down')) {
+                this.scrollDown();
+            }
+            if (Input.isRepeated('up')) {
+                this.scrollUp();
+            }
+            if (this.origin.y !== lastOrigin) {
+                SoundManager.playCursor();
+            }
+        }
+    };
+
+    Window_ItemBookStatus.prototype.scrollDown = function() {
+        this.origin.y += this.lineHeight();
+        this.clampOrigin();
+    };
+
+    Window_ItemBookStatus.prototype.scrollUp = function() {
+        this.origin.y -= this.lineHeight();
+        this.clampOrigin();
+    };
+
+    Window_ItemBookStatus.prototype.clampOrigin = function() {
+        var max = Math.max(0, this.contents.height - this.innerHeight);
+        this.origin.y = Math.max(0, Math.min(this.origin.y, max));
+        this.updateArrows();
     };
 
     Window_ItemBookStatus.prototype.setItem = function(item) {
         if (this._item !== item) {
             this._item = item;
-			if(item.meta.img){ // Wait for image to load
+            this.origin.y = 0;
+			if(item && item.meta.img){ // Wait for image to load
 				this.contents.clear();
 				this._imageLoading = true;
 				this._currentImage = ImageManager.loadPicture(item.meta.img);
@@ -327,50 +395,104 @@
     };
 	
 	Window_ItemBookStatus.prototype.update = function() {
+        Window_Selectable.prototype.update.call(this);
 		if(this._imageLoading){
 			if(this._currentImage.isReady()){
 				this._imageLoading = false;
 				this.refresh();
 			}
 		}
+        this._windowContentsSprite.setFrame(this.origin.x, this.origin.y, this.innerWidth, this.innerHeight);
+        this.updateArrows();
 	};
+	
+	Window_ItemBookStatus.prototype.calculateRequiredHeight = function(item) {
+        if (!item) return this.innerHeight;
+        var lineHeight = this.lineHeight();
+        var textPadding = this.textPadding();
+        var startY = lineHeight + textPadding;
+        var leftX = textPadding;
+        var fullWidth = this.innerWidth - leftX;
+        var imgWidth = 0;
+        var imgHeight = 0;
+        if (item.meta.img && this._currentImage) {
+            imgWidth = this._currentImage.width;
+            imgHeight = this._currentImage.height;
+        }
+        var indentedX = leftX + imgWidth;
+        var imgBottom = startY + imgHeight;
+        var text = item.meta.desc ? this.convertEscapeCharacters(item.meta.desc) : '';
+        var textHeight = this.calculateWrappedTextHeight(text, startY, imgBottom, leftX, indentedX, fullWidth);
+        var contentBottom = startY + Math.max(textHeight, imgHeight);
+        return contentBottom + textPadding;
+    };
+
+    Window_ItemBookStatus.prototype.calculateWrappedTextHeight = function(text, startY, imgBottom, leftX, indentedX, fullWidth) {
+        var paragraphs = text.split('\n');
+        var currentY = startY;
+        paragraphs.forEach(function(paragraph) {
+            var words = paragraph.split(' ');
+            var currentLine = '';
+            words.forEach(function(word) {
+                var testLine = currentLine + word + ' ';
+                var testWidth = this.textWidth(testLine);
+                var currentMaxWidth = (currentY < imgBottom) ? this.innerWidth - indentedX : fullWidth;
+                if (testWidth > currentMaxWidth) {
+                    if (currentLine !== '') {
+                        currentY += this.lineHeight();
+                        currentLine = word + ' ';
+                    } else {
+                        currentY += this.lineHeight();
+                        currentLine = '';
+                    }
+                } else {
+                    currentLine = testLine;
+                }
+            }, this);
+            if (currentLine !== '') {
+                currentY += this.lineHeight();
+            }
+        }, this);
+        return currentY - startY;
+    };
 	
 	Window_ItemBookStatus.prototype.refresh = function() {
         var item = this._item;
-        var leftX = 0;
-        var startY = 0;
-        var lineHeight = this.lineHeight();
-
         this.contents.clear();
-
         if (!item || !$gameSystem.isInItemBook(item)) {
             return;
         }
-
-        this.drawItemName(item, 0, 0);
-		
-		leftX = this.textPadding();
-        startY = lineHeight + this.textPadding();      
-		
-		if (item.meta.img && this._currentImage) {
-			const imgWidth = this._currentImage.width * 1;
-			const imgHeight = this._currentImage.height * 1;
-			var indentedX = leftX + imgWidth;
-			var imgBottom = startY + imgHeight;
-			var fullWidth = this.contents.width - leftX;
-			
+        var requiredHeight = this.calculateRequiredHeight(item);
+        var contentHeight = Math.max(requiredHeight, this.innerHeight);
+        if (this.contents.height !== contentHeight) {
+            this.contents.resize(this.innerWidth, contentHeight);
+            this.contents._baseTexture.width = this.contents.width;
+            this.contents._baseTexture.height = this.contents.height;
+            this.contents._setDirty();
+            this._windowContentsSprite.texture.baseTexture.update();
+        }
+        this._windowContentsSprite.width = this.innerWidth;
+        this._windowContentsSprite.height = this.innerHeight;
+        var leftX = this.textPadding();
+        var lineHeight = this.lineHeight();
+        var startY = lineHeight + this.textPadding();      
+        var imgWidth = 0;
+        var imgHeight = 0;
+        var indentedX = leftX;
+        var imgBottom = startY;
+        var fullWidth = this.contents.width - leftX;
+        if (item.meta.img && this._currentImage) {
+			imgWidth = this._currentImage.width * 1;
+			imgHeight = this._currentImage.height * 1;
+			indentedX = leftX + imgWidth;
+			imgBottom = startY + imgHeight;
 			// Draw the image at (x, y)
-			this.contents.blt(this._currentImage, 0, 0, this._currentImage.width, this._currentImage.height,leftX,startY,imgWidth,imgHeight);
-		} else {
-			const imgWidth = 0;
-			const imgHeight = 0;
-			var indentedX = leftX + imgWidth;
-			var imgBottom = startY + imgHeight + lineHeight;
-			var fullWidth = this.contents.width - leftX;
+			this.contents.blt(this._currentImage, 0, 0, this._currentImage.width, this._currentImage.height, leftX, startY, imgWidth, imgHeight);
 		}
+        this.drawItemName(item, 0, 0);
 		const text = (item.meta.desc ? this.convertEscapeCharacters(item.meta.desc) : '');
-		this.drawWrappedText(text,indentedX,startY,imgBottom,leftX,fullWidth);
-		
+		this.drawWrappedText(text, indentedX, startY, imgBottom, leftX, fullWidth);
+        this._windowContentsSprite.setFrame(this.origin.x, this.origin.y, this.innerWidth, this.innerHeight);
     };
 	
 	Window_ItemBookStatus.prototype.drawWrappedText = function(text, startX, startY, imgBottom, leftX, fullWidth) {
@@ -417,5 +539,19 @@
 			}
 		}, this);
 	};
+
+    Object.defineProperty(Window_ItemBookStatus.prototype, 'innerHeight', {
+        get: function() {
+            return this.height - this.standardPadding() * 2;
+        },
+        configurable: true
+    });
+
+    Object.defineProperty(Window_ItemBookStatus.prototype, 'innerWidth', {
+        get: function() {
+            return this.width - this.standardPadding() * 2;
+        },
+        configurable: true
+    });
 
 })();
