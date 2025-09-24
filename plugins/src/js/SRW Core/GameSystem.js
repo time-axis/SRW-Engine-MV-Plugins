@@ -419,6 +419,18 @@
 					$statCalc.initSRWStats(actor);		
 				}
 			});
+
+			//sanity sub twin assignments, reset sub twin state if an actor does not have a main twin
+			//hacky fix for issues where some unts would end up in an instable subtwin state after event slot reassignments
+			this._availableUnits.forEach(function(actor){
+				if(actor.isSubTwin){
+					if(!$statCalc.getMainTwin(actor)){
+						actor.isSubTwin = false;
+						actor.subTwin = null;
+						actor.subTwinId = null;
+					}
+				}
+			});
 			
 			var tmp = Object.keys($SRWSaveManager.getUnlockedUnits());			
 			for(var i = 0; i < tmp.length; i++){
@@ -513,10 +525,13 @@
 			$gameSystem.incrementSaveTurn();//increment for turn 1
 			$gameVariables.setValue(_turnVarID, 1); 
 			$gameSystem.resetSearchedItemList();
-			$gameSystem.textLog = [];			
+			$gameSystem.textLog = [];
 			$gameSystem._specialTheme = -1;
 			$gameSystem.highlightedTiles = [];
+
 			$gameSystem.regionHighlights = {};
+			
+
 			$gameSystem.enemyUpgradeLevel = 0;
 			$gameSystem.persuadeOptions = {};
 			$gameTemp.currentSwapSource = -1;
@@ -543,23 +558,8 @@
 			$gameVariables.setValue(_victoryConditionText, APPSTRINGS.GENERAL.label_default_victory_condition);	
 			$gameVariables.setValue(_defeatConditionText, APPSTRINGS.GENERAL.label_default_defeat_condition);
 			
-			$gameSystem.factionConfig = {
-				0: {
-					attacksPlayers:true,
-					attacksFactions: [1,2],
-					active: true
-				},
-				1: {
-					attacksPlayers:false,
-					attacksFactions: [0],
-					active: false
-				},
-				2: {
-					attacksPlayers:false,
-					attacksFactions: [0],
-					active: false
-				}
-			};
+			this.initFactionInfo();
+			
 			$gameTemp.preventedDeathQuotes = {};
 			$gameTemp.updatePlayerSpriteVisibility();
 			
@@ -577,11 +577,32 @@
 			}
 			
 			if($gameMap){
+				$gameSystem.regionHighlightsRefreshed = true;
 				$gameMap.clearRegionTiles();
 				$gameMap._SRWTileProperties = null;
 				$gameMap.initSRWTileProperties();
 			}			
 		};		
+
+		Game_System.prototype.initFactionInfo = function(id) {
+			this.factionConfig = {
+				0: {
+					attacksPlayers:true,
+					attacksFactions: [1,2],
+					active: true
+				},
+				1: {
+					attacksPlayers:false,
+					attacksFactions: [0],
+					active: false
+				},
+				2: {
+					attacksPlayers:false,
+					attacksFactions: [0],
+					active: false
+				}
+			};		
+		}
 		
 		Game_System.prototype.enableFaction = function(id) {
 			if(this.factionConfig[id]){
@@ -896,8 +917,10 @@
 			var bitmap = ImageManager.loadFace(actor_unit.faceName()); //顔グラフィックをプリロードする
 			var oldValue = $gameVariables.value(_existActorVarID);
 			
-			
-			actor_unit.isSubPilot = false;
+			actor_unit.isSubPilot = false;			
+			actor_unit.isSubTwin = false;	
+			actor_unit.subTwin = null;
+			actor_unit.subTwinId = null;
 			
 			$statCalc.initSRWStats(actor_unit);
 			
@@ -909,6 +932,7 @@
 			_this.setEventToUnit(event.eventId(), 'actor', actor_unit.actorId());
 			
 			$statCalc.applyDeployActions(actor_unit.SRWStats.pilot.id, actor_unit.SRWStats.mech.id);
+			
 			
 			if($statCalc.isShip(actor_unit)){
 				var oldValue = $gameVariables.value(_existShipVarId);
@@ -936,7 +960,7 @@
 			}
 		
 			
-			if(subId != null){
+			if(subId != null && subId != actor_unit.actorId()){
 				actor_unit.subTwinId = subId;
 			}
 			
@@ -957,6 +981,21 @@
 			$statCalc.applyRelativeTransforms();
 			
 			event.isShip = $statCalc.isShip(actor_unit);
+
+			if(actor_unit.subTwin){
+				actor_unit.subTwin.SRPGActionTimesSet($statCalc.applyStatModsToValue(actor_unit.subTwin, 1, ["extra_action"]));
+				actor_unit.subTwin.setSrpgTurnEnd(false);	
+				actor_unit.subTwin.setBattleMode("");
+			}
+			const subPilots = $statCalc.getSubPilots(actor_unit);
+			for(let subPilotId of subPilots){
+				const subPilot = $gameActors.actor(subPilotId);
+				if(subPilot){
+					subPilot.SRPGActionTimesSet($statCalc.applyStatModsToValue(subPilot, 1, ["extra_action"]));
+					subPilot.setSrpgTurnEnd(false);	
+					subPilot.setBattleMode("");
+				}
+			}
 		}
 		
 		Game_System.prototype.deployItemBox = function(event, items) {
@@ -1061,6 +1100,16 @@
 			$gameSystem.clearSrpgAllActors();
 			$gameMap.events().forEach(function(event) {			
 				if (event.isType() === 'actor' && (!event.isScriptedDeploy || !preserveScripted)) {
+					var battlerArray = $gameSystem.EventToUnit(event.eventId());
+					if (battlerArray && (battlerArray[0] === 'actor')) {
+						const actor_unit = battlerArray[1];
+						if(actor_unit){
+							actor_unit.isSubPilot = false;			
+							actor_unit.isSubTwin = false;	
+							actor_unit.subTwin = null;
+							actor_unit.subTwinId = null;
+						}
+					}
 					$gameSystem.clearEventToUnit(event.eventId());
 					event.isDeployed = false;
 					event.erase();
@@ -2119,6 +2168,9 @@
 					entry.sub = null;
 				}
 				if(entry.main || entry.sub){
+					if(entry.sub && !entry.main){
+						entry.main = entry.sub;
+					}
 					$gameSystem.deployList.push(entry);							
 					usedUnits[entry.main] = true;
 					usedUnits[entry.sub] = true;
@@ -3135,5 +3187,22 @@
 			if(this._additionalPurchasableAbilities.indexOf(id) == -1){
 				this._additionalPurchasableAbilities.push(id);
 			}			
+		}
+
+		Game_System.prototype.incrementIndicatorSetting = function() {
+			if(this.indicatorSetting == null){
+				this.indicatorSetting = 0;
+			}
+			this.indicatorSetting++;
+			if(this.indicatorSetting > 2){
+				this.indicatorSetting = 0;
+			}
+		}
+
+		Game_System.prototype.getIndicatorSetting = function() {
+			if(this.indicatorSetting == null){
+				this.indicatorSetting = 0;
+			}
+			return this.indicatorSetting;
 		}
 	}

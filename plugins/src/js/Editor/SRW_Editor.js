@@ -50,6 +50,8 @@ SRWEditor.prototype.init = function(){
 	head.appendChild(link);*/
 	
 	_this.initTitles();
+
+	$gameSystem.initFactionInfo(); //init faction info, needed to correctly display enemy battle text in animation preview
 	
 	_this._svgPath = "svg/editor/";
 	
@@ -183,12 +185,12 @@ SRWEditor.prototype.init = function(){
 		},
 		teleport: {
 			hasTarget: true,
-			params: ["position"],
+			params: ["forceAutoFlipX", "position"],
 			desc: "Immediately move an object."
 		},
 		rotate_to: {
 			hasTarget: true,
-			params: ["aroundPivot", "rotation"],
+			params: ["aroundPivot", "fixMirrored", "rotation"],
 			desc: "Immediately set to rotation of an object."
 		},
 		translate: {
@@ -198,7 +200,7 @@ SRWEditor.prototype.init = function(){
 		},
 		rotate: {
 			hasTarget: true,
-			params: ["aroundPivot", "startRotation", "rotation", "duration", "easingFunction", "easingMode"],
+			params: ["aroundPivot", "fixMirrored", "startRotation", "rotation", "duration", "easingFunction", "easingMode"],
 			desc: "Rotate an object from the start rotation to the end rotation."
 		},
 		resize: {
@@ -319,7 +321,7 @@ SRWEditor.prototype.init = function(){
 		},	
 		next_phase: {
 			hasTarget: false,
-			params: ["cleanUpCommands", "commands"],
+			params: ["playDefaultSfx", "cleanUpCommands", "commands"],
 			desc: "Fade the screen to black and set the scene up for the second phase of the attack. This command automatically brings the support defender if available and sets up the default background to match the target."
 		},
 		dodge_pattern: {
@@ -359,6 +361,11 @@ SRWEditor.prototype.init = function(){
 			hasTarget: true,
 			params: ["excludedObj"],
 			desc: "Excluded a specific object form receiving light from the target light"
+		},
+		toggle_frustum_culling: {
+			hasTarget: false,
+			params: ["state"],
+			desc: "Toggle frustum culling on and off"
 		},
 		create_bg: {
 			hasTarget: true,
@@ -595,12 +602,12 @@ SRWEditor.prototype.init = function(){
 		},
 		set_sprite_frame: {
 			hasTarget: true,
-			params: ["name", "snap", "loop", "playAll", "speed", "from", "to", "isPassive"],
+			params: ["name", "snap", "loop", "playAll", "speed", "from", "to", "isPassive", "playDefaultSfx"],
 			desc: "Set the source frame of a sprite(in, out, dodge, hurt, main)."
 		},
 		set_model_animation: {
 			hasTarget: true,
-			params: ["name", "snap", "loop", "playAll", "speed", "from", "to", "isPassive"],
+			params: ["name", "snap", "loop", "playAll", "speed", "from", "to", "isPassive", "playDefaultSfx"],
 			desc: "Set the animation by name of a model specified by target."
 		},
 		hide_attachment: {
@@ -748,6 +755,7 @@ SRWEditor.prototype.init = function(){
 		shockwave_intensity: "The intensity of the shockwave effect.",
 		lightIntensity: "The intensity of the light",
 		excludedObj: "The object that will be excluded from the target light source",
+		state: "The new state for the setting",
 		includeOnly: "Specifiy one target object that will be the sole recipient of this light source",
 		immediate: "If 1 the change will be instant.",
 		position: "A position defined by an x, y and z coordinate.",
@@ -770,7 +778,9 @@ SRWEditor.prototype.init = function(){
 		hide: "Hide the target object after the command has finished.",
 		catmullRom: "Describes two addtional points for a Catmull-Rom spline.",
 		startRotation: "A rotation defined by an x, y and z component. The rotations are described with radian values.",
-		aroundPivot: "If 1 the rotation will be done around the pivot helper instead of the element origin. Only avaialable for unit sprites.",
+		aroundPivot: "If 1 the rotation will be done around the pivot helper instead of the element origin. Only avaialable for unit sprites. If set Z index will always be mirrored for enemy side animations.",
+		fixMirrored: "If 1 the y rotation will not be inverted if the target is a mirrored effekseer effect",
+		forceAutoFlipX: "If 1 the target will have the direction flip x direction applied even if it is a mirrored effekseer effect",
 		startSize: "The initial size of the target object.",
 		endSize: "The final size of the target object.",
 		x: "If 1 the object will be flipped along its x-axis.",
@@ -798,6 +808,7 @@ SRWEditor.prototype.init = function(){
 		snap: "If set to 1 no blending will be done into the new sprite frame(if applicable)",
 		playAll: "If set to 1 every animation available in the model will be played at once",
 		isPassive: "If set to 1 the animation will play alongside other model animations",
+		playDefaultSfx: "If set to 1 the default move sound will played for the unit",
 		from: "The frame to start playing from",
 		to: "The frame to play until",
 		attachId: "The name/id of the attachment",
@@ -918,6 +929,9 @@ SRWEditor.prototype.init = function(){
 			
 		},	
 		excludedObj: function(value){
+			
+		},	
+		state: function(value){
 			
 		},	
 		includeOnly: function(value){
@@ -1086,6 +1100,12 @@ SRWEditor.prototype.init = function(){
 		aroundPivot: function(value){
 		
 		},
+		fixMirrored: function(value){
+		
+		},
+		forceAutoFlipX: function(value){
+		
+		},
 		startSize: function(value){
 		
 		},
@@ -1198,6 +1218,9 @@ SRWEditor.prototype.init = function(){
 			
 		},
 		isPassive: function(value){
+			
+		},
+		playDefaultSfx: function(value){
 			
 		},
 		from: function(value){

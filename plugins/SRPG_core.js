@@ -936,7 +936,7 @@ SceneManager.isInSaveScene = function(){
 	}
 	
 	Scene_Map.prototype.commandGameEnd = function() {
-		//this.closePauseMenu();
+		this.closePauseMenu();
 		$gameTemp.buttonHintManager.hide();
 		this._mapButtonsWindow.hide();
 		this._mapButtonsWindow.close();
@@ -1677,7 +1677,7 @@ SceneManager.isInSaveScene = function(){
 			$gameSystem.setSubBattlePhase("confirm_adjacent_spirit");		
 		} else {
 			//apply immediately
-			$spiritManager.applyEffect(spiritInfo.idx, caster, initialTargetingResult.targets, spiritInfo.cost);
+			$spiritManager.applyEffect(spiritInfo.idx, caster, initialTargetingResult.targets, spiritInfo.cost, spiritInfo.additionalCaster);
 			
 			this.applyAdditionalSpiritEffects(spiritInfo, target, caster);
 			if(initialTargetingResult.type != "enemy_all" && initialTargetingResult.type != "ally_all"){
@@ -2281,6 +2281,13 @@ SceneManager.isInSaveScene = function(){
 		$gameTemp.currentMapTargets = [];
 		$gameTemp.deathQueue = [];
 		$gameTemp.destroyTransformQueue = [];
+
+		let multiKilledSubTwins = {};
+		let multiKilledMainTwins = {};
+
+		Object.keys($gameTemp.battleEffectCache).forEach(function(cacheRef){
+
+		});
 		
 		Object.keys($gameTemp.battleEffectCache).forEach(function(cacheRef){
 			var battleEffect = $gameTemp.battleEffectCache[cacheRef];
@@ -2290,7 +2297,22 @@ SceneManager.isInSaveScene = function(){
 					$gameTemp.destroyTransformQueue.push({actor: battleEffect.ref, event: battleEffect.ref.event});
 				} else {
 					//battleEffect.ref.event._erased = true;
-					$gameTemp.deathQueue.push({actor: battleEffect.ref, event: $statCalc.getReferenceEvent(battleEffect.ref), destroyer: battleEffect.destroyer});
+					$gameTemp.deathQueue.push({actor: battleEffect.ref, event: $statCalc.getReferenceEvent(battleEffect.ref), destroyer: battleEffect.destroyer, isMultiKill: multiKilledMainTwins[cacheRef]});
+					if(battleEffect.ref.subTwin){
+						const referenceEvent = $statCalc.getReferenceEvent(battleEffect.ref);
+						const pos = {x: referenceEvent.posX(), y: referenceEvent.posY()};
+						if(!$statCalc.canStandOnTileResolve(battleEffect.ref.subTwin, pos, true)){
+							$gameTemp.deathQueue.push({actor: battleEffect.ref.subTwin, event: $statCalc.getReferenceEvent(battleEffect.ref), destroyer: battleEffect.destroyer, isMultiKill: false});
+						}
+					}
+					const mainTwin = $statCalc.getMainTwin(battleEffect.ref);
+					if(mainTwin){
+						const referenceEvent = $statCalc.getReferenceEvent(battleEffect.ref);
+						const pos = {x: referenceEvent.posX(), y: referenceEvent.posY()};
+						if(!$statCalc.canStandOnTileResolve(mainTwin, pos, true)){
+							$gameTemp.deathQueue.push({actor: mainTwin, event: $statCalc.getReferenceEvent(battleEffect.ref), destroyer: battleEffect.destroyer, isMultiKill: false});
+						}
+					}
 					if($statCalc.isShip(battleEffect.ref)){
 						var boardedUnits = $statCalc.getBoardedUnits(battleEffect.ref)
 						for(var i = 0; i < boardedUnits.length; i++){
@@ -2678,7 +2700,7 @@ SceneManager.isInSaveScene = function(){
 		var battler = $gameSystem.EventToUnit($gameTemp.activeEvent().eventId())[1];
 		$statCalc.invalidateAbilityCache(battler);
 		$gameTemp.activeEvent().lastMoveCount = 0;
-		if(!$gameTemp.eraseActorAfterTurn && (battler.SRPGActionTimes() >= 1 && !$gameTemp.isPostMove && $statCalc.applyStatModsToValue(battler, 0, ["hit_and_away"])) && $gameSystem.isBattlePhase() != "AI_phase"){
+		if(!$gameTemp.eraseActorAfterTurn && (battler.SRPGActionTimes() >= 1 && !$gameTemp.isPostMove && !(battler.battleMode() == "fixed") && $statCalc.applyStatModsToValue(battler, 0, ["hit_and_away"])) && $gameSystem.isBattlePhase() != "AI_phase"){
 			$gameTemp.isHitAndAway = true;
 			$gamePlayer.locate($gameTemp.activeEvent().posX(), $gameTemp.activeEvent().posY());
 			$gameSystem.setSrpgActorCommandWindowNeedRefresh($gameSystem.EventToUnit($gameTemp.activeEvent().eventId()));

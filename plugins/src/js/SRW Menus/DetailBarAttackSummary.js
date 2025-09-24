@@ -54,7 +54,10 @@ DetailBarAttackSummary.prototype.redraw = function(){
 	}
 	var attackData = this.getCurrentSelection() || {totalAmmo: -1, ENCost: -1, willRequired: -1, effects: [], MPCost: -1, isEmpty: true};
 	var mechData = $gameTemp.currentMenuUnit.mech;
-	var actor = $statCalc.getCurrentPilot($gameTemp.currentMenuUnit.mech.id);
+	var actor = $gameTemp.currentMenuUnit.actor;
+	if(!actor){
+		 actor = $statCalc.getCurrentPilot($gameTemp.currentMenuUnit.mech.id, false, true);
+	}
 	if(!actor){
 		actor = this.createReferenceData($gameTemp.currentMenuUnit.mech);
 	}
@@ -231,7 +234,9 @@ DetailBarAttackSummary.prototype.redraw = function(){
 		if(!validationResult.canUse){
 			var detail = validationResult.detail;
 			
-			if(detail.noComboSupport){
+			if(detail.freeForm){
+				detailContent+=detail.freeForm;
+			} else if(detail.noComboSupport){
 				detailContent+=APPSTRINGS.ATTACKLIST.label_no_combo_support;
 			} else if(detail.noParticipants){
 				detailContent+=APPSTRINGS.ATTACKLIST.label_no_participants;

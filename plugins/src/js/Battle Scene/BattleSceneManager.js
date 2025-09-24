@@ -2034,9 +2034,7 @@ BattleSceneManager.prototype.hookBeforeRender = function(){
 		var ratio = _this.getCurrentRatio();
 		ratio*=_this._animRatio;
 		deltaTime*=ratio;
-		if(_this._fastForward){
-			deltaTime*=5;
-		}
+		
 		
 		if(_this._holdTickDuration > 0){
 			_this._holdTickDuration-=deltaTime;
@@ -2696,6 +2694,10 @@ BattleSceneManager.prototype.getCurrentRatio = function(){
 	if(isSpeedUp){
 		ratio = 2;
 	}	
+
+	if(this._fastForward){
+		ratio*=5;
+	}
 		
 	return ratio;
 }
@@ -2884,9 +2886,7 @@ BattleSceneManager.prototype.startScene = function(){
 		var ratio = _this.getCurrentRatio();
 		ratio*=_this._animRatio;
 		deltaTime*=ratio;
-		if(_this._fastForward){
-			deltaTime*=5;
-		}
+	
 		
 		var ticksSinceLastUpdate =  _this._currentAnimationTick - _this._lastAnimationTick;
 		_this._ticksSinceLastUpdate = ticksSinceLastUpdate;			
@@ -3044,7 +3044,7 @@ BattleSceneManager.prototype.startScene = function(){
 	
 	//render the effekseer layer once per frame
 	function renderEffekseerLayer(layerId){
-		if(!_this._effekseerLayerRendered[layerId]){
+		if(_this._scene.activeCamera == _this._camera && !_this._effekseerLayerRendered[layerId]){
 			
 			let targetContext;
 			let targetContextMirror;
@@ -3700,7 +3700,7 @@ BattleSceneManager.prototype.executeAnimation = function(animation, startTick){
 		},
 		set_opacity_texture: function(target, params){
 			var targetObj = getTargetObject(target);
-			if(targetObj){
+			if(targetObj?.material){
 				targetObj.material.opacityTexture = _this.getCachedTexture("img/SRWBattleScene/opacityTextures/"+params.path+".png");
 			}
 		},
@@ -3806,7 +3806,7 @@ BattleSceneManager.prototype.executeAnimation = function(animation, startTick){
 				targetObj.wasMoved = true;
 				var targetPosition = params.position || new BABYLON.Vector3(0,0,0);				
 				
-				if(targetObj.isMirrored){
+				if(targetObj.isMirrored && !params.forceAutoFlipX){
 					_this.registerMatrixUpdate("translate_effek", targetObj, new BABYLON.Vector3(targetPosition.x, targetPosition.y, targetPosition.z));
 				} else {
 					_this.registerMatrixUpdate("translate", targetObj, new BABYLON.Vector3(targetPosition.x, targetPosition.y, targetPosition.z));
@@ -3830,7 +3830,7 @@ BattleSceneManager.prototype.executeAnimation = function(animation, startTick){
 				if( params.rotation){
 					targetRotation = new BABYLON.Vector3(params.rotation.x, params.rotation.y, params.rotation.z);
 				}
-				if(_this._animationDirection == -1){
+				if(_this._animationDirection == -1 && (!params.fixMirrored || !targetObj.isMirrored)){
 					//targetRotation.x*=-1;					
 					if(params.aroundPivot || usesPropRotation(target)){
 						//targetRotation.y+=Math.PI;						
@@ -3923,7 +3923,7 @@ BattleSceneManager.prototype.executeAnimation = function(animation, startTick){
 				if( params.rotation){
 					targetRotation = new BABYLON.Vector3(params.rotation.x, params.rotation.y, params.rotation.z);
 				}
-				if(_this._animationDirection == -1){
+				if(_this._animationDirection == -1 && (!params.fixMirrored || !targetObj.isMirrored)){
 					//targetRotation.x*=-1;					
 					if(params.aroundPivot || usesPropRotation(target)){
 						//targetRotation.y+=Math.PI;						
@@ -4010,7 +4010,7 @@ BattleSceneManager.prototype.executeAnimation = function(animation, startTick){
 			} else {
 				type = "damage";
 			}
-			var battleText = _this._battleTextManager.getText(entityType, action.ref, type, action.isActor ? "enemy" : "actor", _this.getBattleTextId(_this._currentAnimatedAction));
+			var battleText = _this._battleTextManager.getText(entityType, action.ref, type, _this.getBattleTextTargetType(action), _this.getBattleTextId(_this._currentAnimatedAction));
 			
 			_this._awaitingText = true;
 			_this._TextlayerManager.setTextBox(entityType, entityId, action.ref.SRWStats.pilot.name, battleText).then(function(){
@@ -4022,7 +4022,7 @@ BattleSceneManager.prototype.executeAnimation = function(animation, startTick){
 			var action = _this._currentAnimatedAction.attacked;
 			var entityType = action.isActor ? "actor" : "enemy";
 			var entityId = action.ref.SRWStats.pilot.id;
-			var battleText = _this._battleTextManager.getText(entityType, action.ref, "evade", action.isActor ? "enemy" : "actor", _this.getBattleTextId(_this._currentAnimatedAction));
+			var battleText = _this._battleTextManager.getText(entityType, action.ref, "evade", _this.getBattleTextTargetType(action), _this.getBattleTextId(_this._currentAnimatedAction));
 			_this._awaitingText = true;
 			_this._TextlayerManager.setTextBox(entityType, entityId, action.ref.SRWStats.pilot.name, battleText).then(function(){
 				_this._awaitingText = false;
@@ -4033,7 +4033,7 @@ BattleSceneManager.prototype.executeAnimation = function(animation, startTick){
 			var action = _this._currentAnimatedAction.attacked;
 			var entityType = action.isActor ? "actor" : "enemy";
 			var entityId = action.ref.SRWStats.pilot.id;
-			var battleText = _this._battleTextManager.getText(entityType, action.ref, "destroyed", action.isActor ? "enemy" : "actor", _this.getBattleTextId(_this._currentAnimatedAction));
+			var battleText = _this._battleTextManager.getText(entityType, action.ref, "destroyed", _this.getBattleTextTargetType(action), _this.getBattleTextId(_this._currentAnimatedAction));
 			_this._awaitingText = true;
 			_this._TextlayerManager.setTextBox(entityType, entityId, action.ref.SRWStats.pilot.name, battleText).then(function(){
 				_this._awaitingText = false;
@@ -4060,7 +4060,7 @@ BattleSceneManager.prototype.executeAnimation = function(animation, startTick){
 				textProvider = action.ref;
 			}
 			
-			var battleText = _this._battleTextManager.getText(entityType, textProvider, "attacks", action.isActor ? "enemy" : "actor", _this.getBattleTextId(_this._currentAnimatedAction), params.id, attackTextProviderId);
+			var battleText = _this._battleTextManager.getText(entityType, textProvider, "attacks", _this.getBattleTextTargetType(action), _this.getBattleTextId(_this._currentAnimatedAction.attacked), params.id, attackTextProviderId);
 			_this._awaitingText = true;
 			_this._TextlayerManager.setTextBox(entityType, entityId, action.ref.SRWStats.pilot.name, battleText, false, true).then(function(){
 				_this._awaitingText = false;
@@ -4158,7 +4158,9 @@ BattleSceneManager.prototype.executeAnimation = function(animation, startTick){
 			];
 			if(_this._instantiatedUnits){
 				for(let unit of _this._instantiatedUnits){
-					targets.push(unit);
+					if(unit.sprite?.shadowSprite){
+						targets.push(unit.sprite.shadowSprite);
+					}					
 				}
 			}
 			for(let target of targets){
@@ -4268,6 +4270,10 @@ BattleSceneManager.prototype.executeAnimation = function(animation, startTick){
 				_this._animationList[insertStartTick + 26] = params.cleanUpCommands;						
 			}		
 
+			let playDefaultSfx = true;
+			if(params.playDefaultSfx != null){
+				playDefaultSfx = params.playDefaultSfx * 1;
+			}
 			
 			//support defend animation
 			if(_this._currentAnimatedAction.attacked && _this._currentAnimatedAction.attacked.type == "support defend"){
@@ -4325,7 +4331,7 @@ BattleSceneManager.prototype.executeAnimation = function(animation, startTick){
 						var additions = [];
 						additions[insertStartTick + 50] = [{type: "show_barrier", target: "active_target", params: {}}];	
 						//if(_this._currentAnimatedAction.attacked.action.type == "defend"){
-						additions[insertStartTick + 50].push({type: "set_sprite_frame", target: "active_target", params: {name: "block"}});
+						additions[insertStartTick + 50].push({type: "set_sprite_frame", target: "active_target", params: {name: "block", playDefaultSfx}});
 						//}
 						_this.mergeAnimList(additions);	
 					//}								
@@ -4338,7 +4344,7 @@ BattleSceneManager.prototype.executeAnimation = function(animation, startTick){
 			
 			var entityType = action.isActor ? "actor" : "enemy";
 			var entityId = action.ref.SRWStats.pilot.id;
-			var battleText = _this._battleTextManager.getText(entityType, action.ref, "evade", action.isActor ? "enemy" : "actor", _this.getBattleTextId(_this._currentAnimatedAction));
+			var battleText = _this._battleTextManager.getText(entityType, action.ref, "evade", _this.getBattleTextTargetType(action), _this.getBattleTextId(_this._currentAnimatedAction));
 			
 			_this._TextlayerManager.setTextBox(entityType, entityId, action.ref.SRWStats.pilot.name, battleText);
 			
@@ -4501,6 +4507,13 @@ BattleSceneManager.prototype.executeAnimation = function(animation, startTick){
 					targetObj.excludedMeshes.push(mesh);
 				});
 			}			
+		},
+		toggle_frustum_culling: function(target, params){
+			if(params.state * 1){
+				_this._scene._skipFrustumClipping = false;
+			} else {
+				_this._scene._skipFrustumClipping = true;
+			}
 		},
 		create_render_target: function(target, params){
 			let position;
@@ -5408,6 +5421,51 @@ BattleSceneManager.prototype.executeAnimation = function(animation, startTick){
 					}					
 				});	
 				_this._bgAnimations = tmp;
+
+				let playDefaultSfx = false;
+				if(params.playDefaultSfx != null){
+					playDefaultSfx = params.playDefaultSfx;
+				} else {
+					if(ENGINE_SETTINGS.BATTLE_SCENE.DEFAULT_SFX_POSES){
+						if(ENGINE_SETTINGS.BATTLE_SCENE.DEFAULT_SFX_POSES.indexOf(params.name) != -1){
+							playDefaultSfx = true;
+						}
+					}
+				}
+				
+				if(targetObj.isVisible && ENGINE_SETTINGS.BATTLE_SCENE.DEFAULT_MOVE_SFX && playDefaultSfx){		
+					let refObj = targetObj;
+					
+					if(_this._camera.isInFrustum(refObj) && refObj.isEnabled()){
+						let targetActor;
+						if(target == "active_main" || target == "active_support_attacker" || target == "active_twin"){
+							targetActor = action.ref;				
+						} else if(target == "active_target" || target == "active_support_defender" || target == "active_target_twin"){
+							targetActor = targetAction.ref; 				
+						}
+
+						const actorMoveSoundInfo = $statCalc.getMoveSoundInfo(targetActor);
+						let pitch = ENGINE_SETTINGS.BATTLE_SCENE.DEFAULT_MOVE_PITCH || 100;
+						if(actorMoveSoundInfo){
+							pitch = actorMoveSoundInfo.pitch;
+						}
+						if(ENGINE_SETTINGS.BATTLE_SCENE.DEFAULT_MOVE_PITCH_VARIANCE && ENGINE_SETTINGS.BATTLE_SCENE.DEFAULT_MOVE_PITCH_VARIANCE[params.name]){
+							pitch+=ENGINE_SETTINGS.BATTLE_SCENE.DEFAULT_MOVE_PITCH_VARIANCE[params.name];
+						}
+						let sfx = ENGINE_SETTINGS.BATTLE_SCENE.DEFAULT_MOVE_SFX;
+						if(actorMoveSoundInfo && actorMoveSoundInfo.seAssignments && actorMoveSoundInfo.seAssignments[params.name]){
+							sfx = actorMoveSoundInfo.seAssignments[params.name];
+						} else if(ENGINE_SETTINGS.BATTLE_SCENE.DEFAULT_POSE_SFX && ENGINE_SETTINGS.BATTLE_SCENE.DEFAULT_POSE_SFX[params.name]){
+							sfx = ENGINE_SETTINGS.BATTLE_SCENE.DEFAULT_POSE_SFX[params.name];
+						}
+						var se = {};
+						se.name = sfx;
+						se.pan = 0;
+						se.pitch = pitch;
+						se.volume = 75;
+						AudioManager.playSe(se);
+					}					
+				}
 				
 				if(ENGINE_SETTINGS.SINGLE_BATTLE_SPRITE_MODE){
 					params.name = "main";
@@ -5763,21 +5821,21 @@ BattleSceneManager.prototype.executeAnimation = function(animation, startTick){
 							if(action.side == "actor"){
 								if(_this.applyAnimationDirection(targetPostion).x > targetObj.parent_handle.position.x){								
 									additions[startTick + 1] = [									
-										{type: "set_sprite_frame", target: target, params:{name: "out"}},
+										{type: "set_sprite_frame", target: target, params:{name: "out", playDefaultSfx: true}},
 									];
 								} else if(_this.applyAnimationDirection(targetPostion).x < targetObj.parent_handle.position.x){
 									additions[startTick + 1] = [									
-										{type: "set_sprite_frame", target: target, params:{name: "in"}},
+										{type: "set_sprite_frame", target: target, params:{name: "in", playDefaultSfx: true}},
 									];
 								}							
 							} else {
 								if(_this.applyAnimationDirection(targetPostion).x > targetObj.parent_handle.position.x){								
 									additions[startTick + 1] = [									
-										{type: "set_sprite_frame", target: target, params:{name: "in"}},
+										{type: "set_sprite_frame", target: target, params:{name: "in", playDefaultSfx: true}},
 									];
 								} else if(_this.applyAnimationDirection(targetPostion).x < targetObj.parent_handle.position.x){
 									additions[startTick + 1] = [									
-										{type: "set_sprite_frame", target: target, params:{name: "out"}},
+										{type: "set_sprite_frame", target: target, params:{name: "out", playDefaultSfx: true}},
 									];
 								}
 							}
@@ -5822,7 +5880,7 @@ BattleSceneManager.prototype.executeAnimation = function(animation, startTick){
 				}
 				
 				if(!action.isHit){
-					additions[startTick + params.duration].push({type: "set_sprite_frame", target: target, params:{name: "main"}});	
+					additions[startTick + params.duration].push({type: "set_sprite_frame", target: target, params:{name: "main", playDefaultSfx: true}});	
 				}
 				
 				if(action.isHit && !action.isDestroyed){
@@ -5832,7 +5890,7 @@ BattleSceneManager.prototype.executeAnimation = function(animation, startTick){
 						];
 					} else {
 						additions[startTick + params.duration + 50] = [
-							{type: "set_sprite_frame", target: target, params:{name: "main"}},
+							{type: "set_sprite_frame", target: target, params:{name: "main", playDefaultSfx: true}},
 						];
 					}				
 				}	
@@ -5946,7 +6004,7 @@ BattleSceneManager.prototype.executeAnimation = function(animation, startTick){
 			var action = _this.getTargetAction(target);
 			var entityType = action.isActor ? "actor" : "enemy";
 			var entityId = action.ref.SRWStats.pilot.id;
-			var battleText = _this._battleTextManager.getText(entityType, action.ref, "destroyed", action.isActor ? "enemy" : "actor", _this.getBattleTextId(_this._currentAnimatedAction));
+			var battleText = _this._battleTextManager.getText(entityType, action.ref, "destroyed", _this.getBattleTextTargetType(action), _this.getBattleTextId(_this._currentAnimatedAction));
 			
 			_this._awaitingText = true;
 			_this._TextlayerManager.setTextBox(entityType, entityId, action.ref.SRWStats.pilot.name, battleText, true).then(function(){
@@ -6009,11 +6067,11 @@ BattleSceneManager.prototype.executeAnimation = function(animation, startTick){
 				action.currentAnimHP-=originalAction.damageInflicted;
 			}
 			
-			
+			 
 			
 			
 			if(originalAction.inflictedCritical){
-				_this._UILayerManager.setNotification(action.isActor ? "enemy" : "actor", "CRITICAL!");
+				_this._UILayerManager.setNotification(side, "CRITICAL!");
 			}
 			var popUpNotifications = [];
 			if(action.isHit && action.barrierNames){
@@ -6382,6 +6440,14 @@ BattleSceneManager.prototype.playCounterTwinAnimation = function(){
 	return this.startAnimation();
 }
 
+BattleSceneManager.prototype.getBattleTextTargetType = function(action){
+	if(action.attacked?.ref){
+		return action.attacked.ref.isActor() ? "actor" : "enemy";
+	}
+	return $gameSystem.isFriendly(action.ref, "player") ? "enemy" : "actor";
+	//return action.isActor ? "enemy" : "actor";
+}
+
 BattleSceneManager.prototype.playCounterTwinMainIntroAnimation = function(){
 	this._animationList = [];
 	
@@ -6494,10 +6560,10 @@ BattleSceneManager.prototype.playAttackAnimation = function(cacheRef, attackDef)
 	if(!_this._animationList[0]){
 		_this._animationList[0] = [];
 	}
-	_this._animationList[0].unshift({type: "set_sprite_frame", target: "active_target", params: {name: "main"}});
-	_this._animationList[0].unshift({type: "set_sprite_frame", target: "active_target_twin", params: {name: "main"}});
-	_this._animationList[0].unshift({type: "set_sprite_frame", target: "active_support_defender", params: {name: "main"}});
-	_this._animationList[0].unshift({type: "set_sprite_frame", target: "active_main", params: {name: "main"}});
+	_this._animationList[0].unshift({type: "set_sprite_frame", target: "active_target", params: {name: "main", playDefaultSfx: false}});
+	_this._animationList[0].unshift({type: "set_sprite_frame", target: "active_target_twin", params: {name: "main", playDefaultSfx: false}});
+	_this._animationList[0].unshift({type: "set_sprite_frame", target: "active_support_defender", params: {name: "main", playDefaultSfx: false}});
+	_this._animationList[0].unshift({type: "set_sprite_frame", target: "active_main", params: {name: "main", playDefaultSfx: false}});
 	
 	return this.startAnimation();
 }
@@ -8384,14 +8450,14 @@ BattleSceneManager.prototype.processActionQueue = function() {
 						battleText = _this._battleTextManager.getText(entityType, nextAction.ref, "support_attack", nextAction.isActor ? "actor" : "enemy", _this.getBattleTextId(nextAction.attacked), null, null, _this.getBattleTextId(nextAction.mainAttacker));
 					}					
 					if(!battleText || battleText.text == "..."){
-						if(nextAction.type == "initiator"){
+						if(nextAction.type == "initiator" || nextAction.type == "twin attack"){
 							textType = "battle_intro";
 						}
-						if(nextAction.type == "defender"){
+						if(nextAction.type == "defender" || nextAction.type == "twin defend"){
 							textType = "retaliate";
 						}
 						
-						battleText = _this._battleTextManager.getText(entityType, nextAction.ref, textType, nextAction.isActor ? "enemy" : "actor", _this.getBattleTextId(nextAction.attacked));
+						battleText = _this._battleTextManager.getText(entityType, nextAction.ref, textType, _this.getBattleTextTargetType(nextAction), _this.getBattleTextId(nextAction.attacked));
 					}				
 					await _this._TextlayerManager.setTextBox(entityType, entityId, nextAction.ref.SRWStats.pilot.name, battleText);
 				}

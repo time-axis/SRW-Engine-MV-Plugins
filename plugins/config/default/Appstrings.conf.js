@@ -180,6 +180,7 @@ APPSTRINGS.INTERMISSION = {
 	confirm_title: "Return to the title screen?",
 	stage_label: "Stage",
 	next_map_units: "Units for next map",
+	next_map_terrain: "Upcoming terrain",
 	cleared_label: "Cleared",
 	turns_label: "Turns",
 	options: "Options",
@@ -426,7 +427,7 @@ APPSTRINGS.OPTIONS = {
 	label_display: "Display",
 	label_fullscreen: "Fullscreen",
 	label_grid: "Grid",
-	label_will: "Show Will",
+	label_will: "Show Info on Map",
 	label_default_support: "Default Support Defend",
 	label_default_support_on: "Always",
 	label_default_support_off: "Never",
@@ -525,6 +526,13 @@ APPSTRINGS.ZONE_STATUS = {
 	label_level: "L",
 	label_player: "Player",
 	label_enemy: "Enemy"
+}
+
+APPSTRINGS.TERRAIN_DETAILS = {
+	label_def: "Defense Boost",
+	label_evasion: "Evasion Boost",
+	label_hp_regen: "HP Regen",
+	label_en_regen: "EN Regen"
 }
 
 APPSTRINGS.BUTTON_HINTS = {
@@ -629,7 +637,7 @@ APPSTRINGS.BUTTON_HINTS = {
 	//Map
 	move_cursor: {text: "Move Cursor", action: "up"},
 	speed_up_cursor: {text: "Faster Cursor", action: "shift"}, 	
-	toggle_detail_icons: {text: "Toggle Will Display", action: "menu"}, 	
+	toggle_detail_icons: {text: "Toggle Status Display", action: "menu"}, 	
 	pause_menu: {text: "Map Menu", action: "ok"}, 
 	show_enemy: {text: "Show Move", action: "ok"}, 
 	navigate_units: {text: "Next/Prev. Unit", action: "d:shoulder_buttons"},
@@ -972,6 +980,7 @@ EDITORSTRINGS.MECH = {
 	label_move_penalty: "With Movement Penalty",
 	label_terrain_rank: "Rank",
 	label_can_upgrade: "Can Upgrade",
+	label_no_twin: "Can Twin",
 	
 	label_exp_yield: "Exp. Yield",
 	label_pp_yield: "PP Yield",
@@ -1081,7 +1090,9 @@ EDITORSTRINGS.MECH = {
 	label_animation: "Animation",
 	label_deploy_actions: "Deploy Actions",
 	
-	
+	label_move_sounds: "Move Sounds",
+	label_move_sounds_pitch: "Pitch",
+	label_move_sounds_assignments: "Assignments",
 }
 
 EDITORSTRINGS.PILOT = {

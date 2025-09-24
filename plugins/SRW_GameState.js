@@ -784,7 +784,7 @@ GameState_confirm_adjacent_spirit.prototype.update = function(scene){
 			var spiritInfo = $gameTemp.adjacentSpiritInfo.spiritInfo;
 			var caster = $gameTemp.adjacentSpiritInfo.caster;
 			var initialTargetingResult = $gameTemp.adjacentSpiritInfo.initialTargetingResult;
-			$spiritManager.applyEffect(spiritInfo.idx, caster, initialTargetingResult.targets, spiritInfo.cost);
+			$spiritManager.applyEffect(spiritInfo.idx, caster, initialTargetingResult.targets, spiritInfo.cost, spiritInfo.additionalCaster);
 			$gameTemp.queuedEffectSpiritId = spiritInfo.idx; 
 			$gameSystem.setSubBattlePhase("map_spirit_animation");		
 		}
@@ -1275,7 +1275,7 @@ GameState_actor_target_spirit.prototype.updateMapEvent = function(x, y, triggers
 					}
 					
 					if(spiritDef.singleTargetEnabledHandler(target)){
-						$spiritManager.applyEffect($gameTemp.currentTargetingSpirit.idx, caster, [target], $gameTemp.currentTargetingSpirit.cost);
+						$spiritManager.applyEffect($gameTemp.currentTargetingSpirit.idx, caster, [target], $gameTemp.currentTargetingSpirit.cost, spiritInfo.additionalCaster);
 						$gamePlayer.locate(event.posX(), event.posY());
 						
 						$gameTemp.spiritTargetActor = target;
@@ -1793,8 +1793,17 @@ GameState_normal.prototype.update = function(scene){
 		}
 		
 		if(Input.isTriggered('menu') && !hasActiveZones){
-			ConfigManager["willIndicator"] = !ConfigManager["willIndicator"];
-			ConfigManager.save();
+			ConfigManager["willIndicator"]++;
+			if(ENGINE_SETTINGS.ENABLE_HEALTH_BARS_ON_MAP) {
+				if(ConfigManager["willIndicator"] > 2){
+					ConfigManager["willIndicator"] = 0;
+				}
+			} else {
+				if(ConfigManager["willIndicator"] > 1){
+					ConfigManager["willIndicator"] = 0;
+				}
+			}			
+			ConfigManager.save();			
 		}
 
 		$SRWGameState.updateStateButtonPrompts([["pause_menu"], ["move_cursor", "speed_up_cursor"], ["navigate_units", "navigate_enemies"], [menuAction]], "GameState_normal_empty"+menuAction);
@@ -2485,10 +2494,14 @@ GameState_process_death.prototype.update = function(scene){
 	if(scene._startDeath){
 		scene._currentDeath.event.isDoingSubTwinDeath = false;
 		scene._currentDeath.event.isDoingMainTwinDeath = false;
+		scene._currentDeath.event.isDoingMultiKill = false;
 		if(scene._currentDeath.actor.isSubTwin){
 			$statCalc.swapEvent($statCalc.getMainTwin(scene._currentDeath.actor).event, true);						
 			scene._currentDeath.event.isDoingSubTwinDeath = true;
 		} else if($statCalc.isMainTwin(scene._currentDeath.actor)){
+			//if($gameTemp.battleEffectCache[scene._currentDeath.actor.subTwin._cacheReference].isDestroyed){
+			//	scene._currentDeath.event.isDoingMultiKill = true;
+			//}
 			scene._currentDeath.event.isDoingMainTwinDeath = true;
 		}
 		scene._startDeath = false;
@@ -2553,6 +2566,13 @@ GameState_process_death_queue.prototype.update = function(scene){
 			this.erasedActors = [];
 		}
 		scene._currentDeath = $gameTemp.deathQueue.shift();
+		
+		//await events doing their death anim already, should only happen in case of a multikill on a twin
+		if(scene._currentDeath.event.isDoingDeathAnim){
+			$gameTemp.deathQueue.push(scene._currentDeath);
+			return;
+		}
+		
 		this.erasedActors.push(scene._currentDeath.actor);
 		if($gameTemp.deathQueue.length){
 			scene._deathTimer = 10;

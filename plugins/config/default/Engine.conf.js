@@ -2,6 +2,7 @@ var ENGINE_SETTINGS = {
 	GAMEID: "SRWMV",
 	CUSTOM_TITLE_SCREEN: "",
 	PLACE_PARALLAX_ABOVE_MAP: true,
+	ENABLE_HEALTH_BARS_ON_MAP: true,
 	FONT_SCALE: 1,//used to scale the text in CSS menus.
 	FONT_LINE_HEIGHT_SCALE: 0,//used to offset text in CSS menus.
 	FONT_SIZE: 28,//font size in RPG Maker text boxes. Also affects the line height in the message window.
@@ -26,7 +27,7 @@ var ENGINE_SETTINGS = {
 	DEFAULT_PILOT_ABI_COUNT: 6,
 	DEFAULT_CARRYING_CAPACITY: 150,		
 	LOCK_CAMERA_TO_CURSOR: false,
-	BEFORE_BATTLE_SPIRITS: false,
+	BEFORE_BATTLE_SPIRITS: true,
 	ENABLE_TWIN_SYSTEM: true,
 	DISABLE_ALLY_TWINS: false,
 	USE_STRICT_TWIN_SLOTS: false,
@@ -81,7 +82,7 @@ var ENGINE_SETTINGS = {
 		terrain: 1,   //if 1 the unit will prefer to move onto tile that grant terrain bonuses
 		formation: 1, //if 1 the unit will prefer to move adjacent to allies that provide support attack/defend
 		reposition: 0, //if 1 the unit will move closer to hit enemies with stronger attacks even if they already can hit a target with a longer range attack
-		preferTarget: 0,//if 1 the unit will prefer to move closer to its target unit or region even if they have other targets to attack. Target units take priority over target regions.  
+		preferTarget: 0,//if 2 the unit will prefer to move closer to its target unit or region even if they have other targets to attack. If 1 the unit will shoot its prefered target if in range but still attack other targets if not. Target units take priority over target regions.  
 	},
 	AI_USES_ITEMS: true,
 	WEAP_TERRAIN_VALUES: {//weapon damage is multiplied with this value depending on its terrain rating and the current terrain of the target
@@ -145,7 +146,15 @@ var ENGINE_SETTINGS = {
 		SHOW_FADE_BELOW_TEXTBOX: false,
 		DEFAULT_BARRIER_COLOR: "#7c00e6",
 		FADE_BARRIER_DURING_NEXT_PHASE: true,//if true the barrier will only be shown briefly during the next phase command
-		NOISE_PIXEL_SIZE: 1
+		NOISE_PIXEL_SIZE: 1,
+		//uncomment this block to enable default move sfx. Note, move_medium_0 and move_small_0 must be replaced with an existing sound effect
+		/*
+		DEFAULT_MOVE_SFX: "move_medium_0", //the default sound used
+		DEFAULT_POSE_SFX: {in: "move_small_0", out: "move_small_0"}, //overrides for the sound used by sprite frame
+		DEFAULT_MOVE_PITCH: 100, //the pitch used for the sound
+		DEFAULT_MOVE_PITCH_VARIANCE: {main: 0, in: -10, out: -10, dodge: 10, block: -15},//adjustements to the pitch by sprite frame
+		DEFAULT_SFX_POSES: ["main", "in", "out", "dodge", "block"],//which sprite frames get a default sfx even if useDefaultSfx is not set to 1 in the set_sprite_frame command
+		*/
 	},
 	MASTERY_REWARDS: {
 		PP: {AMOUNT: 5, SCOPE: "deployed"}, //scope is deployed, unlocked, or all
@@ -445,7 +454,7 @@ var ENGINE_SETTINGS = {
 		//return [{type: "final_damage", modType: "mult", value: 2}];
 	},
 	DIFFICULTY_MODS: {
-		enabled: 3,//0: off, 1: selectable, 2: enable automatic scaling with SR points, 3: enable both
+		enabled: 0,//0: off, 1: selectable, 2: enable automatic scaling with SR points, 3: enable both
 		displayInMenus: true,
 		autoLevelFunc: function(){
 			const padding = 10; //the amount to pad the ref count to, to avoid putting the player on hard mode after doing one stage

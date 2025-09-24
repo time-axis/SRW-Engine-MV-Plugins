@@ -57,6 +57,11 @@
 					if(isNaN(args[1] * 1) || args[1] * 1 < 0){
 						throw "Invalid mech "+args[1]+" for assignUnit command.";
 					}
+					
+					if((args[3] * 1) && !(args[2] * 1)){
+						unbindMechPilots(args[1] * 1);
+					}
+
 					actor._classId = args[1] * 1;
 					actor.isSubPilot = !!(args[2] * 1);
 					//actor._intermissionClassId = args[1] * 1; 
@@ -68,6 +73,26 @@
 							$gameSystem.overwritePilotFallbackInfo(actor);
 						}
 					}					
+				}
+
+				function unbindMechPilots(mechId){
+					if(mechId > 0){
+						const targetMech = $statCalc.getMechData(mechId, true);
+						targetMech.subPilots = [];
+						$statCalc.storeMechData(targetMech);
+						$gameSystem.overwriteMechFallbackInfo(args[0] * 1, targetMech.subPilots);
+						for(const actor of $gameActors._data){
+							if(actor && actor._classId == mechId){
+								actor._classId = 0;
+								$gameSystem.overwritePilotFallbackInfo(actor);
+							}
+						}
+					}
+				}
+				
+				if (command === 'unbindMechPilots') {
+					const mechId = args[0] * 1;
+					unbindMechPilots(mechId);								
 				}
 				
 				if (command === 'UnlockUnit') {
@@ -918,8 +943,11 @@
 				}				
 				
 				if (command === 'setEventWill') {	
-					var actor = $gameSystem.EventToUnit(args[0])[1];
-					$statCalc.setWill(actor, args[1] * 1);
+					const actorInfo =  $gameSystem.EventToUnit(args[0]);
+					if(actorInfo){
+						var actor = actorInfo[1];
+						$statCalc.setWill(actor, args[1] * 1);
+					}					
 				}
 				
 				if (command === 'setActorWill') {	
@@ -1275,6 +1303,17 @@
 					var actor = $gameSystem.EventToUnit(args[0])[1];				
 					var mechStats = $statCalc.getCalculatedMechStats(actor);
 					$statCalc.setHP(actor, Math.floor(mechStats.maxHP * args[1] / 100));		
+				}
+
+				if (command === 'setEventEN') {
+					var actor = $gameSystem.EventToUnit(args[0])[1];				
+					$statCalc.setEN(actor, (args[1] || 1) * 1);	
+				}
+
+				if (command === 'setEventENPercent') {
+					var actor = $gameSystem.EventToUnit(args[0])[1];				
+					var mechStats = $statCalc.getCalculatedMechStats(actor);
+					$statCalc.setEN(actor, Math.floor(mechStats.maxEN * args[1] / 100));		
 				}
 				
 				
