@@ -3785,7 +3785,7 @@ StatCalc.prototype.getWeaponValidHolders = function(weaponId){
 
 	let tempList = {};
 	if(allowListByAttributeArray.length){
-		for (let i = 0; i < $dataClasses.length; i++){
+		for (let i = 1; i < $dataClasses.length; i++){
 			for (let j = 0; j < allowListByAttributeArray.length; j++){
 				if($dataClasses[i].meta.mechAttribute1 === allowListByAttributeArray[j] || $dataClasses[i].meta.mechAttribute2 === allowListByAttributeArray[j]){
 					tempList[i] = true;
@@ -3797,7 +3797,7 @@ StatCalc.prototype.getWeaponValidHolders = function(weaponId){
 	
 	tempList = {};
 	if(banListByAttributeArray.length){
-		for (let i = 0; i < $dataClasses.length; i++){
+		for (let i = 1; i < $dataClasses.length; i++){
 			for (let j = 0; j < banListByAttributeArray.length; j++){
 				if($dataClasses[i].meta.mechAttribute1 === banListByAttributeArray[j] || $dataClasses[i].meta.mechAttribute2 === banListByAttributeArray[j]){
 					tempList[i] = true;
@@ -3821,7 +3821,7 @@ StatCalc.prototype.getWeaponValidHolders = function(weaponId){
 	}
 	
 	let result = {};
-	for(let i = 0; i < $dataClasses.length; i++){
+	for(let i = 1; i < $dataClasses.length; i++){
 		if(!banList[i] && !banListByAttribute[i]){
 			result[i] = true;
 		}

@@ -739,7 +739,8 @@
 				clearCustomSpirit: true,
 				awardFavPoints: true,
 				deployItemBox: true,
-				collectItemsBoxes: true
+				collectItemsBoxes: true,
+				ItemBox: true
 			}
 			var scriptCommands = {
 				fadeIn: function(eventList, indent, params){
@@ -965,6 +966,13 @@
 						code: 121,
 						indent: indent,
 						parameters: [params[0]*1,params[0]*1,String(params[1]).trim() == "ON" ? 0 : 1]
+					});
+				},
+				changeItems: function(eventList, indent, params){
+					eventList.push({
+						code: 126,
+						indent: indent,
+						parameters: [params[0]*1,params[1]*1,params[2]*1,params[3]*1]
 					});
 				},
 				pluginCmd: function(eventList, indent, params){				
