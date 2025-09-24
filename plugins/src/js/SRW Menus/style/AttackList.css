@@ -35,14 +35,14 @@
     justify-content: center;
 	border: 0.2vw solid #4ae0fa;
 	border-radius: 999px;
-	height: 10%;
+	height: 13%;
 	width: 10%;
 	position: absolute;
-	right: -0.3%;
-	top: -12%;
+	right: -1.3%;
+	top: -6%;
 	background-color: var(--section-bg-color);
 	color: #FFFFFF;
-	--fontsize: 1.6px;
+	--fontsize: 1.8px;
 	text-align: center;
 }
 
@@ -94,6 +94,7 @@
 	border-bottom: 0.1vw solid var(--underline-color);
 	color: #FFFFFF;
 	white-space: nowrap;
+	height: 16.5%;
 }
 
 .attack_list_row.header {
