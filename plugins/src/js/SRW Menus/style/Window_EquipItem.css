@@ -42,7 +42,6 @@
     position: absolute;
     background-color: var(--section-bg-color);
     color: #FFFFFF;
-    display: flex;
 }
 
 #equip_item .weapon_upgrade_container {
@@ -444,6 +443,10 @@
 	height: 17%;
 	width: 90%;
 	color: #FFFFFF;
+}
+
+#equip_item .transfer_selection .item_slot .mechIcon{
+	width: 10%;
 }
 
 #equip_item .transfer_selection .item_slot .mech_pic_container{

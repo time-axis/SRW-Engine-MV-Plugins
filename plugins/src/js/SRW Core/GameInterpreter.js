@@ -95,6 +95,7 @@
 				msg+="<br>";
 				if(e.message){
 					msg+=e.message;
+					console.error(e.stack);
 				} else {
 					msg+=e;
 				}
@@ -522,7 +523,8 @@
 				params.boxDrop,
 				params.targetBox,
 				params.AIFlags,
-				params.kills
+				params.kills,
+				params.lockedDropSlots
 			);
 		}
 		
@@ -582,12 +584,13 @@
 					targetRegion: getParamSetting("targetRegion", eventId),
 					AIFlags: getParamSetting("AIFlags", eventId),
 					kills: getParamSetting("kills", eventId) || 0,
+					lockedDropSlots: getParamSetting("lockedDropSlots", eventId),
 				});
 			}
 		}
 
 		// 新規エネミーを追加する（増援）
-		Game_Interpreter.prototype.addEnemy = function(toAnimQueue, eventId, enemyId, mechClass, level, mode, targetId, items, squadId, targetRegion, factionId, counterBehavior, attackBehavior, noUpdateCount, attribute1, attribute2, boxDrop, targetBox, AIFlags, kills) {
+		Game_Interpreter.prototype.addEnemy = function(toAnimQueue, eventId, enemyId, mechClass, level, mode, targetId, items, squadId, targetRegion, factionId, counterBehavior, attackBehavior, noUpdateCount, attribute1, attribute2, boxDrop, targetBox, AIFlags, kills, lockedDropSlots) {
 			if(!$dataEnemies[enemyId] || !$dataEnemies[enemyId].meta || !Object.keys($dataEnemies[enemyId].meta).length){
 				throw("Attempted to create an enemy pilot with id '"+enemyId+"' which does not have SRW data.");
 			}
@@ -600,11 +603,21 @@
 			enemy_unit.AIFlags = AIFlags;
 			var event = $gameMap.event(eventId);
 			
+			let tmp;
+			if(lockedDropSlots){
+				tmp = {};	
+				for(let entry of lockedDropSlots){
+					tmp[entry] = true;
+				}
+			}			
+			enemy_unit.lockedDropSlots = tmp;
+			
 			event._appearSpriteInitialized = false;
 			event._destroySpriteInitialized = false;
-			
-			let parts = $dataClasses[mechClass].meta.srpgOverworld.split(",");
-			ImageManager.loadCharacter(parts[0]);
+			if($dataClasses[mechClass].meta.srpgOverworld){
+				let parts = $dataClasses[mechClass].meta.srpgOverworld.split(",");
+				ImageManager.loadCharacter(parts[0]);
+			}		
 			
 			if(typeof squadId == "undefined" || squadId == ""){
 				squadId = -1;
@@ -622,6 +635,7 @@
 				event._lastModsPosition = null;
 				event.isDropBox = false;
 				event.isShip = false;
+				event.manuallyErased = false;
 				delete event.dropBoxItems;
 
 				enemy_unit._mechClass = mechClass;	
@@ -652,7 +666,7 @@
 					$gameSystem.setEventToUnit(event.eventId(), 'enemy', enemy_unit);
 					$statCalc.initSRWStats(enemy_unit, level, items, false, false, boxDrop);
 					$statCalc.applyBattleStartWill(enemy_unit);
-					$statCalc.updateSuperState(enemy_unit, false, true);
+					$statCalc.updateSuperState(enemy_unit, true);
 					
 					enemy_unit.SRWStats.pilot.kills = kills || 0;
 					
@@ -760,6 +774,8 @@
 					enemy_unit.isSubTwin = true;			
 					mainEnemy.subTwin = enemy_unit;
 					mainEnemy.subTwinId = enemy_unit.enemyId();
+
+					$statCalc.updateSuperState(mainEnemy, true);
 				}
 			}
 			$statCalc.invalidateAbilityCache();
@@ -918,6 +934,9 @@
 			case 'manual_deploy':
 				waiting = $gameTemp.doingManualDeploy;
 				break;	
+			case 'mode_selection':
+				waiting = $gameTemp.doingModeSelection;
+				break;		
 			case 'move_to_point':
 				waiting = $gameSystem.srpgWaitMoving();
 				break;	
@@ -1144,6 +1163,19 @@
 			}			
 		}
 
+		//clears the twin state for all pilots referenced on the deploy list to avoid crashes due to lingering twin state
+		// (depending on unit init order they can create self reference loops)
+		Game_Interpreter.prototype.cleanDeployListTwinState = function(unlockedOnly){
+			for(let entry of $gameSystem.getDeployList()){
+				if(entry.main != null){
+					$statCalc.cleanTwinState($gameActors.actor(entry.main));		
+				}
+				if(entry.sub != null){
+					$statCalc.cleanTwinState($gameActors.actor(entry.sub));		
+				}
+			}
+		}
+
 		Game_Interpreter.prototype.manualDeploy = function(unlockedOnly){
 			this.setWaitMode("manual_deploy");
 			$gameTemp.deployContextState = "start_srpg";
@@ -1155,6 +1187,7 @@
 			$gameSystem.setSubBattlePhase("deploy_selection_window");
 			$gameTemp.pushMenu = "in_stage_deploy";
 			$gameTemp.originalDeployInfo = JSON.parse(JSON.stringify($gameSystem.getDeployList()));
+			this.cleanDeployListTwinState();
 		}
 		
 		Game_Interpreter.prototype.manualDeployOnActorTurn = function(unlockedOnly){
@@ -1168,6 +1201,7 @@
 			$gameSystem.setSubBattlePhase("deploy_selection_window");
 			$gameTemp.pushMenu = "in_stage_deploy";
 			$gameTemp.originalDeployInfo = JSON.parse(JSON.stringify($gameSystem.getDeployList()));
+			this.cleanDeployListTwinState();
 		}
 
 		Game_Interpreter.prototype.manualShipDeploy = function(){
@@ -1178,6 +1212,18 @@
 			$gameSystem.setSubBattlePhase("deploy_selection_window");
 			$gameTemp.pushMenu = "in_stage_deploy";
 			$gameTemp.originalDeployInfo = JSON.parse(JSON.stringify($gameSystem.getDeployList()));
+		}
+		
+		Game_Interpreter.prototype.showModeSelection = function(allowCancel){
+			this.setWaitMode("mode_selection");
+			$gameTemp.doingModeSelection = true;
+			$gameTemp.pushMenu = "mode_selection";
+			if(allowCancel){
+				$gameTemp.modeSelectionWindowCallback = function(){
+					$gameTemp.modeSelectionWindowCallback = null;
+					SceneManager.goto(Scene_Title);
+				}				
+			}
 		}
 		
 		Game_Interpreter.prototype.showTextCrawl = function(id, canCancel, speed){
@@ -1306,6 +1352,10 @@
 
 		Game_Interpreter.prototype.lastActorAttack = function() {
 			return $gameTemp.lastActorAttack;
+		}
+
+		Game_Interpreter.prototype.didEnemyAttack = function() {
+			return !!$gameTemp.didEnemyAttack;
 		}
 
 		Game_Interpreter.prototype.isActorHitBy = function(actorId, weaponId, includeSupport) {
@@ -1792,6 +1842,7 @@
 			$statCalc.initSRWStats(enemy);
 			params.unit = enemy;
 			enemy._mechClass = params.mechId;	
+			enemy.factionId = 0;
 			$statCalc.initSRWStats(enemy);
 			if(params.referenceEventId != null){
 				enemy.event = $gameMap.event(params.referenceEventId)
@@ -1847,12 +1898,18 @@
 			var unit = params.unit;
 			
 			var weapon;
-			if(typeof params.weapon == "object"){
-				weapon = params.weapon;
-			} else {
-				weapon = $statCalc.getActorMechWeapon(unit, params.weapon)
+			if(params.weapon != null){
+				if(typeof params.weapon == "object"){
+					weapon = params.weapon;
+				} else {
+					weapon = $statCalc.getActorMechWeapon(unit, params.weapon)
+				}
+				if(weapon == null){
+					const weaponDefinition = $dataWeapons[params.weapon];
+					const weaponProperties = weaponDefinition.meta;
+					weapon = $statCalc.parseWeaponDef(null, false, weaponDefinition, weaponProperties);
+				}
 			}
-			
 			var action;
 			if(params.action == "attack"){		
 				action = {
@@ -2070,16 +2127,25 @@
 							
 							var mechStats = $statCalc.getCalculatedMechStats(activeDefender.actor);
 							var startHP = 100;
+							var endHP = this._attacker.params.targetEndHP;
 							if(activeDefender.params.startHP){
 								startHP = activeDefender.params.startHP;
 							} else if(activeDefender.params.referenceEventId){
 								var unitInfo = $gameSystem.EventToUnit(activeDefender.params.referenceEventId);
 								if(unitInfo){
-									var stats = $statCalc.getCalculatedMechStats(unitInfo[1]);
-									startHP = Math.floor(stats.currentHP / stats.maxHP) * 100;
+									mechStats = $statCalc.getCalculatedMechStats(unitInfo[1]);//replace mechstats with live value
+									const referenceMaxHP = mechStats.currentHP / mechStats.maxHP;
+									startHP = startHP * referenceMaxHP;
+									endHP = endHP * referenceMaxHP;
+									dCache.currentAnimHP = mechStats.currentHP;
+									dCache.currentAnimEN = mechStats.currentEN;
+									
+									//hack to ensure displayed stats during the battle scene match the stats feteched from the reference event
+									dCache.ref.SRWStats.mech.stats.calculated.maxHP = mechStats.maxHP;
+									dCache.ref.SRWStats.mech.stats.calculated.maxEN = mechStats.maxEN;
 								}								
 							}
-							var damagePercent = startHP - this._attacker.params.targetEndHP;
+							var damagePercent = startHP - endHP;
 							if(this._attacker.params.damageInflicted){
 								damagePercent = this._attacker.params.damageInflicted;
 							}
@@ -2403,5 +2469,17 @@
 			
 		Game_Interpreter.prototype.reloadRelativeUnits = function(params) {
 			$statCalc.applyRelativeTransforms();
+		}
+
+		Game_Interpreter.prototype.getFactionCount = function(factionId) {
+			let result = 0;
+			$statCalc.iterateAllActors(null, function(actor, event){
+				if(actor && event && !event.isErased()){
+					if($gameSystem.getFactionId(actor) == factionId){
+						result++;
+					}
+				}
+			});
+			return result;
 		}
 	}

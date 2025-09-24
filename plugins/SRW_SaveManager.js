@@ -81,8 +81,11 @@ SRWSaveManager.prototype.refundMechUpgrades = function(mechId){
 			upgrades[upgrade] = 0;
 		}		
 	}
-	$gameParty.gainGold(refundAmount);	
-	this.storeMechData(mechId, mechData);
+	if(!isNaN(refundAmount)){
+		$gameParty.gainGold(refundAmount);	
+		this.storeMechData(mechId, mechData);
+	}
+	
 	//$gameSystem.updateAvailableUnits();
 }
 
@@ -91,6 +94,14 @@ SRWSaveManager.prototype.refundPilotPP = function(pilotId){
 	var upgrades = storedData.pilotUpgrades;
 	var abilities = storedData.abilities;
 	var refundAmount = 0;
+	
+	function addRefundAmount(amount){
+		amount = amount * 1;
+		if(!isNaN(amount)){
+			refundAmount+=amount;
+		}
+	}
+	
 	for(let type in upgrades){
 		if(type == "terrain"){
 			let terrainUpgrades = upgrades[type];
@@ -101,12 +112,12 @@ SRWSaveManager.prototype.refundPilotPP = function(pilotId){
 				for(let i = 0; i < terrainUpgrades[terrain]; i++){
 					levels.push(currentLevel + i)
 				}
-				refundAmount+=$statCalc.getPilotTerrainIncreaseCost(levels) * 1;
+				addRefundAmount($statCalc.getPilotTerrainIncreaseCost(levels));
 			}			
 			upgrades[type] = {air: 0, land: 0, water: 0, space: 0};
 		} else {
 			if(type != "melee" || !ENGINE_SETTINGS.MERGE_ATTACK_UPGRADES){
-				refundAmount+=(upgrades[type] || 0) * 10;
+				addRefundAmount((upgrades[type] || 0) * 10);
 			}
 			upgrades[type] = 0;
 		}		
@@ -119,7 +130,7 @@ SRWSaveManager.prototype.refundPilotPP = function(pilotId){
 			if(costInfo){
 				for(let i = 0; i < abiInfo.level; i++){
 					if(costInfo[i]){
-						refundAmount+=costInfo[i];
+						addRefundAmount(costInfo[i]);
 					}				
 				}
 			}			
@@ -127,8 +138,12 @@ SRWSaveManager.prototype.refundPilotPP = function(pilotId){
 			
 		}				
 	}
-	storedData.PP = storedData.PP * 1 + refundAmount;
-	storedData.abilities = {};
+	
+	if(!isNaN(refundAmount)){
+		storedData.PP = storedData.PP * 1 + refundAmount;
+		storedData.abilities = {};
+	}
+	
 	
 	this.storeActorData(pilotId, storedData);
 	//$gameSystem.updateAvailableUnits();
@@ -243,7 +258,7 @@ SRWSaveManager.prototype.getSRCount = function(mapId){
 	if(!$gameSystem.awardedSRPoints){
 		$gameSystem.awardedSRPoints = {};
 	}
-	return Object.keys($gameSystem.awardedSRPoints).length;
+	return  Object.keys($gameSystem.awardedSRPoints).filter((x) => $gameSystem.awardedSRPoints[x]).length;
 }
 
 SRWSaveManager.prototype.hasMapSRPoint = function(mapId){
@@ -251,6 +266,15 @@ SRWSaveManager.prototype.hasMapSRPoint = function(mapId){
 		$gameSystem.awardedSRPoints = {};
 	}
 	return $gameSystem.awardedSRPoints[mapId];
+}
+
+SRWSaveManager.prototype.initMapSRPoint = function(mapId){
+	if(!$gameSystem.awardedSRPoints){
+		$gameSystem.awardedSRPoints = {};
+	}
+	if($gameSystem.awardedSRPoints[mapId] == null){
+		$gameSystem.awardedSRPoints[mapId] = false;
+	}	
 }
 
 SRWSaveManager.prototype.awardMapSRPoint = function(mapId){	

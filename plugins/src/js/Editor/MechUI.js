@@ -1628,6 +1628,9 @@ MechUI.prototype.initPropertyHandlers = function(){
 					content+="<div title='"+EDITORSTRINGS.MECH.hint_blockbench_hack+"' class='row'>";
 					content+=_this.createValueInput("mechBattleSceneBBHack", EDITORSTRINGS.MECH.label_blockbench_hack, "", "");
 					content+="</div>";
+					content+="<div title='"+EDITORSTRINGS.MECH.hint_shadow_parent+"' class='row'>";
+					content+=_this.createValueInput("mechShadowParent", EDITORSTRINGS.MECH.label_shadow_parent, "", "");
+					content+="</div>";	
 					content+="<div title='"+EDITORSTRINGS.MECH.hint_3D_scale+"' class='row'>";
 					content+=_this.createValueInput("mechBattleSceneSpriteScale", EDITORSTRINGS.MECH.label_scale, "", "");
 					content+="</div>";
@@ -1681,6 +1684,12 @@ MechUI.prototype.initPropertyHandlers = function(){
 				content+="</select>";
 				content+="</div>";
 				content+="</div>";
+
+				content+="<div title='' class='row'>";
+				content+=_this.createValueInput("mechBattleSceneBarrierScale", EDITORSTRINGS.MECH.label_barrier_scale, "", "");
+				content+="</div>";
+
+				
 				
 				content+="</div>";
 				return content;
@@ -1779,7 +1788,9 @@ MechUI.prototype.initPropertyHandlers = function(){
 				if(spriteType == "3D"){
 					hookedProperties.unshift("mechBattleSceneSpriteRotation");
 					hookedProperties.unshift("mechBattleSceneSpriteScale");	
-					hookedProperties.unshift("mechBattleSceneBBHack");						
+					hookedProperties.unshift("mechBattleSceneBBHack");		
+					
+						
 				}
 				
 				if(spriteType == "DragonBones"){
@@ -1807,10 +1818,14 @@ MechUI.prototype.initPropertyHandlers = function(){
 				
 				hookedProperties = [			
 					"mechBattleSceneSprite",			
-					"mechBattleSceneDefaultAttachments"						
+					"mechBattleSceneDefaultAttachments",
+					"mechBattleSceneBarrierScale"			
 				];
 				if(spriteType == "DragonBones"){
 					hookedProperties.push("mechBattleSceneArmatureName");
+				}
+				if(spriteType == "3D"){
+					hookedProperties.unshift("mechShadowParent");	
 				}
 				hookedProperties.forEach(function(prop){
 					containerNode.querySelector("#prop_"+prop).addEventListener("change", function(){
@@ -1919,6 +1934,24 @@ MechUI.prototype.initPropertyHandlers = function(){
 				content+="</div>";
 				
 				content+="</div>";
+
+				content+="<div title='' class='table sub_section'>";
+				content+="<div class='row'>";	
+				content+="<div class='cell'>";
+				content+=EDITORSTRINGS.MECH.label_move_sounds;
+				content+="</div>";
+				content+="</div>";
+
+
+				content+="<div title='' class='row'>";
+				content+=_this.createValueInput("mechMoveSoundPitch", EDITORSTRINGS.MECH.label_move_sounds_pitch, "", "");
+				content+="</div>";
+
+				content+="<div title='(pose:se,pose2:se,...)' class='row' id='move_sound_post_assignment'>";
+				content+=_this.createValueInput("mechMoveSoundAssignments", EDITORSTRINGS.MECH.label_move_sounds_assignments, "", "");
+				content+="</div>";
+
+				content+="</div>";				
 				content+="</div>";
 				
 				return content;
@@ -1935,7 +1968,8 @@ MechUI.prototype.initPropertyHandlers = function(){
 					"mechDestroyAnimFrames",
 					"mechDestroyAnimSheetWidth",
 					"mechDestroyAnimSpeed",
-					"mechDestroyAnimAppearFrame",						
+					"mechDestroyAnimAppearFrame",		
+					"mechMoveSoundPitch"				
 					
 				];
 				hookedProperties.forEach(function(prop){
@@ -1954,7 +1988,8 @@ MechUI.prototype.initPropertyHandlers = function(){
 					"mechSpawnAnimName",	
 					"mechSpawnAnimSoundEffect",
 					"mechDestroyAnimName",	
-					"mechDestroyAnimSoundEffect"
+					"mechDestroyAnimSoundEffect",
+					"mechMoveSoundAssignments"
 				];
 			
 				hookedProperties.forEach(function(prop){
@@ -1989,6 +2024,31 @@ MechUI.prototype.initPropertyHandlers = function(){
 				});
 			}
 		},
+		no_twin: {
+			createControls(entry){
+				var content = "";
+				content+="<div class='row'>";
+				content+="<div class='cell'>";
+				content+=EDITORSTRINGS.MECH.label_no_twin;
+				content+="</div>";
+				content+="<div class='cell'>";
+				content+="<input id='no_twin' type=checkbox "+(_this.getMetaValue("mechNoTwin")*1 ? "" : "checked")+"></input>";
+				content+="</div>";
+				content+="</div>";
+				return content;
+			},
+			hook(entry){
+				entry = _this.getCurrentEntry();
+				containerNode.querySelector("#no_twin").addEventListener("change", function(){
+					_this.setMetaValue("mechNoTwin", this.checked ? 0 : 1);
+					_this.show();
+					_this._mainUIHandler.setModified();
+				});
+			}
+		},
+
+
+		
 	};	
 	
 	var terrains = [
@@ -2104,6 +2164,10 @@ MechUI.prototype.show = async function(){
 	
 	content+="<div class='row'>";
 	content+=_this._propertyHandlers.attribute2.createControls();
+	content+="</div>";
+
+	content+="<div class='row'>";
+	content+=_this._propertyHandlers.no_twin.createControls();
 	content+="</div>";
 	
 	content+="</div>";

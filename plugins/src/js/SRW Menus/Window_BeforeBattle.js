@@ -451,6 +451,7 @@ Window_BeforeBattle.prototype.update = function() {
 };
 
 Window_BeforeBattle.prototype.createParticipantBlock = function(ref, action, isSupport, allyOrEnemy) {
+	const _this = this;
 	var content = "";
 	content+="<div class='participant_block "+allyOrEnemy+"'>";
 	content+="<div class='scaled_text action_row'>";
@@ -578,8 +579,8 @@ Window_BeforeBattle.prototype.createParticipantBlock = function(ref, action, isS
 		var calculatedStats = $statCalc.getCalculatedMechStats(ref);
 		
 		content+="<div class='mech_hp_en_container scaled_text'>";
-		content+="<div class='hp_label scaled_text'>HP</div>";
-		content+="<div class='en_label scaled_text'>EN</div>";
+		content+="<div class='hp_label scaled_text'>"+APPSTRINGS.GENERAL.label_HP+"</div>";
+		content+="<div class='en_label scaled_text'>"+APPSTRINGS.GENERAL.label_EN+"</div>";
 
 		content+="<div class='hp_display'>";
 		content+="<div class='current_hp scaled_text'>"+$statCalc.getCurrentHPDisplay(ref)+"</div>";
@@ -595,8 +596,7 @@ Window_BeforeBattle.prototype.createParticipantBlock = function(ref, action, isS
 		
 		content+="</div>";
 		
-		var hpPercent = Math.floor(calculatedStats.currentHP / calculatedStats.maxHP * 100);
-		content+="<div class='hp_bar'><div style='width: "+hpPercent+"%;' class='hp_bar_fill'></div></div>";
+		content+=_this.createHPBarContent(calculatedStats);
 		
 		var enPercent = Math.floor(calculatedStats.currentEN / calculatedStats.maxEN * 100);
 		content+="<div class='en_bar'><div style='width: "+enPercent+"%;' class='en_bar_fill'></div></div>";

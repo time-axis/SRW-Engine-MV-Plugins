@@ -51,8 +51,12 @@ Window_CSS.prototype.show = function() {
 	this.refresh();	
 	this.triggerCustomBgCreate();
 	
-	Graphics._updateCanvas();
+	this.updateCanvas();
 };
+
+Window_CSS.prototype.updateCanvas = function() {
+	Graphics._updateCanvas(this._layoutId);
+}
 
 Window_CSS.prototype.triggerCustomBgCreate = function() {
 	if(ENGINE_SETTINGS.CUSTOM_MENU_ON_SHOW){
@@ -133,6 +137,11 @@ Window_CSS.prototype.loadImages = async function() {
 				img.setAttribute("src", bitmaps[imgNameLookup[imgPath]]._image.src);
 			} else {
 				img.style.background = "url('" + bitmaps[imgNameLookup[imgPath]]._image.src + "')";
+				img.setAttribute("data-naturalwidth", bitmaps[imgNameLookup[imgPath]]._image.naturalWidth);
+				img.setAttribute("data-naturalheight", bitmaps[imgNameLookup[imgPath]]._image.naturalHeight);
+				let xOff = img.getAttribute("data-xoff") || 0;
+				let yOff = img.getAttribute("data-yoff") || 0;
+				img.style.backgroundPositionY  = yOff + "%";
 			}
 			
 		}	
@@ -275,7 +284,7 @@ Window_CSS.prototype.createUpgradeBar = function(level, pending, context) {
 		} else if(pending && i < (level + pending)) {
 			cssClass = "pending";
 		}
-		content+="<div data-context='"+context+"' data-idx='"+i+"' class='upgrade_bar_part "+cssClass+"'>";
+		content+="<div data-context='"+context+"' data-idx='"+i+"' class='upgrade_bar_part "+cssClass+" parts_"+parts+"'>";
 		content+="</div>";
 	}
 	content+="</div>";
@@ -293,7 +302,7 @@ Window_CSS.prototype.createUpgradeBarScaled = function(level, pending) {
 		} else if(pending && i < (level + pending)) {
 			cssClass = "pending";
 		}
-		content+="<div class='upgrade_bar_part scaled_width "+cssClass+"'>";
+		content+="<div class='upgrade_bar_part scaled_width "+cssClass+" parts_"+parts+"'>";
 		content+="</div>";
 	}
 	content+="</div>";
@@ -377,7 +386,7 @@ Window_CSS.prototype.refreshAllUnits = function(){
 }
 
 Window_CSS.prototype.getNextAvailableUnitGlobal = function(currentUnitId, deployableOnly){
-	var availableUnits = this.getAvailableUnits(null, deployableOnly);
+	var availableUnits = this.getAvailableUnits(null, deployableOnly).filter(x => !x.isSubPilot);
 	var currentIdx = -1;
 	var ctr = 0;
 	while(ctr < availableUnits.length && currentIdx == -1){
@@ -400,7 +409,7 @@ Window_CSS.prototype.getNextAvailableUnitGlobal = function(currentUnitId, deploy
 }
 
 Window_CSS.prototype.getPreviousAvailableUnitGlobal = function(currentUnitId, deployableOnly){
-	var availableUnits = this.getAvailableUnits(null, deployableOnly);
+	var availableUnits = this.getAvailableUnits(null, deployableOnly).filter(x => !x.isSubPilot);
 	var currentIdx = -1;
 	var ctr = 0;
 	while(ctr < availableUnits.length && currentIdx == -1){
@@ -471,6 +480,24 @@ Window_CSS.prototype.updateScaledImage = function(img) {
 		//img.style.width = "0px";
 		return true;
 	}	
+}
+
+Window_CSS.prototype.updateScaledImageBg = function(imgBg, bgSizeOnly) {
+	const multiplier = imgBg.getAttribute("data-imgscale") || 1;
+	
+	if(!bgSizeOnly){
+		imgBg.style.width = (imgBg.getAttribute("data-naturalwidth") * Graphics.getScale() * multiplier) + "px";
+		imgBg.style.height = (imgBg.getAttribute("data-naturalheight") * Graphics.getVerticalScale()* multiplier) + "px";
+	}
+	
+	const bgWidth = imgBg.getAttribute("data-naturalwidth") * Graphics.getScale() * multiplier;
+	const bgHeight = imgBg.getAttribute("data-naturalheight") * Graphics.getVerticalScale() * multiplier;
+	imgBg.style.backgroundSize =  bgWidth + "px " + bgHeight + "px";
+	
+	imgBg.setAttribute("data-bgwidth", bgWidth);
+	imgBg.setAttribute("data-bgheight", bgHeight);
+	//img.style.width = "0px";
+	return true;		
 }
 
 Window_CSS.prototype.updateScaledDiv = function(div, noWidth, noHeight, ignoreOriginalDimensions) {
@@ -672,7 +699,7 @@ Window_CSS.prototype.createAttributeBlock = function(attack) {
 	content+="<div class='attribute_block'>";
 	
 	if(ENGINE_SETTINGS.USE_WEAPON_ATTRIBUTE){
-		content+="<div class='attribute_block_entry scaled_width scaled_height scaled_text effectiveness'>";
+		content+="<div class='attribute_block_entry scaled_width scaled_height scaled_text effectiveness described_element' data-type='attack' data-subtype='attribute' data-value=''>";
 		let attr1 = $statCalc.getParticipantAttribute($gameTemp.currentMenuUnit.actor, "attribute1", attack);
 		if(attr1){
 			content+="<img data-img='img/system/attribute_"+attr1+".png'>";	
@@ -680,22 +707,28 @@ Window_CSS.prototype.createAttributeBlock = function(attack) {
 		content+="</div>";
 	}
 	
-	content+="<div class='attribute_block_entry scaled_width scaled_height scaled_text'>";
+	content+="<div class='attribute_block_entry scaled_width scaled_height scaled_text described_element' data-type='attack' data-subtype='effect' data-value=''>";
 	if(attack.effects.length){
 		content+="S";
 	} 
 	content+="</div>";
-	content+="<div class='attribute_block_entry scaled_width scaled_height scaled_text'>";
+	content+="<div class='attribute_block_entry scaled_width scaled_height scaled_text described_element' data-type='attack' data-subtype='postMove' data-value=''>";
 	if(attack.postMoveEnabled){
 		content+="P";
 	} 
 	content+="</div>";
-	content+="<div class='attribute_block_entry scaled_width scaled_height scaled_text'>";
+	
 	if(attack.isCounter){
+		content+="<div class='attribute_block_entry scaled_width scaled_height scaled_text described_element' data-type='attack' data-subtype='usage' data-value='counter'>";
 		content+="C";
-	} 
+	} else if(attack.isCombination){
+		content+="<div class='attribute_block_entry scaled_width scaled_height scaled_text described_element' data-type='attack' data-subtype='usage' data-value='combination'>";
+		content+="T";
+	} else {
+		content+="<div class='attribute_block_entry scaled_width scaled_height scaled_text described_element' data-type='attack' data-subtype='usage' data-value=''>";
+	}
 	content+="</div>";
-	content+="<div class='attribute_block_entry scaled_width scaled_height scaled_text'>";
+	content+="<div class='attribute_block_entry scaled_width scaled_height scaled_text described_element' data-type='attack' data-subtype='particle' data-value=''>";
 	/*if(attack.particleType == "missile"){
 		content+="Mi";	
 	}
@@ -718,7 +751,7 @@ Window_CSS.prototype.createAttributeBlock = function(attack) {
 	content+="</div>";
 	
 	if(ENGINE_SETTINGS.ENABLE_TWIN_SYSTEM){
-		content+="<div class='attribute_block_entry all scaled_width scaled_height scaled_text fitted_text'>";
+		content+="<div class='attribute_block_entry all scaled_width scaled_height scaled_text fitted_text described_element' data-type='attack' data-subtype='all' data-value=''>";
 		if(attack.isAll){
 			content+="ALL";
 		} 
@@ -818,4 +851,47 @@ Window_CSS.prototype.constructButtonIcon = function(iconCtr, iconDef) {
 		}
 	}
 	
+}
+
+Window_CSS.prototype.createConfirmContent = function(question, selection) {
+	const _this = this;
+	let content = "";
+	content+="<div class='confirm scaled_text'>";
+	content+="<div class='content'>";
+	content+="<div class='question'>";
+	
+	content+="<div class='label_unit_count'>"+question+"</div>";
+	content+="</div>";
+	content+="<div class='buttons'>";
+	content+="<div class='button ok_button "+(selection == 0 ? "active" : "")+"'>";
+	content+=APPSTRINGS.GENERAL.label_yes;
+	content+="</div>";
+	content+="<div class='button cancel_button "+(selection == 1 ? "active" : "")+"'>";
+	content+=APPSTRINGS.GENERAL.label_no;
+	content+="</div>";
+	content+="</div>";
+	content+="</div>";
+	content+="</div>";
+	return content;
+}
+
+Window_CSS.prototype.createHPBarContent = function(calculatedStats) {
+	const _this = this;
+	let content = "";
+	var hpPercent = Math.floor(calculatedStats.currentHP / calculatedStats.maxHP * 100);
+	let fillColor = ENGINE_SETTINGS.HP_BAR_COLORS.critical;
+	if(hpPercent >= ENGINE_SETTINGS.HP_BAR_COLORS.full.percent){
+		fillColor =  ENGINE_SETTINGS.HP_BAR_COLORS.full.color;
+	} else if(hpPercent >= ENGINE_SETTINGS.HP_BAR_COLORS.high.percent){
+		fillColor =  ENGINE_SETTINGS.HP_BAR_COLORS.high.color;
+	} else if(hpPercent >= ENGINE_SETTINGS.HP_BAR_COLORS.med.percent){
+		fillColor =  ENGINE_SETTINGS.HP_BAR_COLORS.med.color;
+	} else if(hpPercent >= ENGINE_SETTINGS.HP_BAR_COLORS.low.percent){
+		fillColor =  ENGINE_SETTINGS.HP_BAR_COLORS.low.color;
+	} else {
+		fillColor =  ENGINE_SETTINGS.HP_BAR_COLORS.critical.color;
+	}
+
+	content+="<div class='hp_bar'><div style='width: "+hpPercent+"%; background-color: "+fillColor+";' class='hp_bar_fill'></div></div>";
+	return content;
 }

@@ -17,6 +17,7 @@ DetailBarMechDetail.prototype.createComponents = function(){
 }
 
 DetailBarMechDetail.prototype.redraw = function(){
+	const _this = this;
 	var detailContent = "";
 	var currentSelection = this.getCurrentSelection();
 	var actor = currentSelection.actor;
@@ -29,8 +30,8 @@ DetailBarMechDetail.prototype.redraw = function(){
 	detailContent+="<div class='icon_hp_EN'>";
 	detailContent+="<div id='detail_list_icon'></div>";//icon 
 	detailContent+="<div class='mech_hp_en_container scaled_text'>";
-	detailContent+="<div class='hp_label scaled_text'>HP</div>";
-	detailContent+="<div class='en_label scaled_text'>EN</div>";
+	detailContent+="<div class='hp_label scaled_text'>"+APPSTRINGS.GENERAL.label_HP+"</div>";
+	detailContent+="<div class='en_label scaled_text'>"+APPSTRINGS.GENERAL.label_EN+"</div>";
 
 	detailContent+="<div class='hp_display'>";
 	detailContent+="<div class='current_hp scaled_text'>"+$statCalc.getCurrentHPDisplay(actor)+"</div>";
@@ -46,8 +47,7 @@ DetailBarMechDetail.prototype.redraw = function(){
 	
 	detailContent+="</div>";
 	
-	var hpPercent = Math.floor(calculatedStats.currentHP / calculatedStats.maxHP * 100);
-	detailContent+="<div class='hp_bar'><div style='width: "+hpPercent+"%;' class='hp_bar_fill'></div></div>";
+	detailContent+=_this.createHPBarContent(calculatedStats);
 	
 	var enPercent = Math.floor(calculatedStats.currentEN / calculatedStats.maxEN * 100);
 	detailContent+="<div class='en_bar'><div style='width: "+enPercent+"%;' class='en_bar_fill'></div></div>";
@@ -128,7 +128,7 @@ DetailBarMechDetail.prototype.redraw = function(){
 	detailContent+="</div>";
 	
 	detailContent+="<div class='center_items'>";
-	detailContent+="<div class='ability_block_label scaled_text scaled_width'>";
+	detailContent+="<div class='ability_block_label scaled_text scaled_width label_abi'>";
 	detailContent+=APPSTRINGS.GENERAL.label_abilities;
 	detailContent+="</div>";
 	
@@ -147,7 +147,7 @@ DetailBarMechDetail.prototype.redraw = function(){
 		var descriptionData = "";
 		var descriptionClass = "";
 		if(typeof abilityList[i] != "undefined"){
-			displayClass = "";
+			
 			descriptionClass = "described_element";
 			descriptionData = "data-type='mech' data-idx='"+abilityList[i].idx+"'";
 			var displayInfo = $mechAbilityManager.getAbilityDisplayInfo(abilityList[i].idx);
@@ -162,7 +162,7 @@ DetailBarMechDetail.prototype.redraw = function(){
 				displayName = displayInfo.name;
 			}			
 		}		
-		detailContent+="<div "+descriptionData+" class='pilot_stat_container "+descriptionClass+" scaled_text scaled_width fitted_text "+displayClass+"'>";
+		detailContent+="<div "+descriptionData+" class='pilot_stat_container "+descriptionClass+" scaled_text scaled_width fitted_text "+displayClass+" "+i+"'>";
 		detailContent+="<div class='stat_value'>"+displayName+"</div>";
 		detailContent+="</div>";		
 		
@@ -174,7 +174,7 @@ DetailBarMechDetail.prototype.redraw = function(){
 	detailContent+="</div>";
 	
 	detailContent+="<div class='right_items'>";
-	detailContent+="<div class='ability_block_label scaled_text scaled_width'>";
+	detailContent+="<div class='ability_block_label scaled_text scaled_width label_parts'>";
 	detailContent+=APPSTRINGS.GENERAL.label_parts;
 	detailContent+="</div>";
 	
@@ -187,7 +187,11 @@ DetailBarMechDetail.prototype.redraw = function(){
 		var descriptionData = "";
 		var descriptionClass = "";
 		if(typeof itemList[i] != "undefined" && itemList[i] != null){
-			displayClass = "";
+			if(actor.lockedDropSlots && actor.lockedDropSlots[i]){
+				displayClass = "no_drop";
+			} else {
+				displayClass = "";
+			}	
 			descriptionClass = "described_element";
 			descriptionData = "data-type='item' data-idx='"+itemList[i].idx+"'";
 			var displayInfo = $itemEffectManager.getAbilityDisplayInfo(itemList[i].idx);
@@ -195,7 +199,7 @@ DetailBarMechDetail.prototype.redraw = function(){
 			
 		}		
 		detailContent+="<div class='ability_block_row scaled_height'>";	
-		detailContent+="<div "+descriptionData+" class='pilot_stat_container "+descriptionClass+" scaled_text fitted_text "+displayClass+"'>";
+		detailContent+="<div "+descriptionData+" class='pilot_stat_container "+descriptionClass+" scaled_text fitted_text "+displayClass+" "+i+"'>";
 		detailContent+=displayName;
 		detailContent+="</div>";		
 		detailContent+="</div>";	

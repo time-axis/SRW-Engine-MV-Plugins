@@ -16,7 +16,8 @@
 		Sprite_SrpgGrid:Sprite_SrpgGrid,
 		Sprite_AreaHighlights:Sprite_AreaHighlights,
 		Sprite_CloudScroll: Sprite_CloudScroll,
-		Sprite_MapBorder: Sprite_MapBorder
+		Sprite_MapBorder: Sprite_MapBorder,
+		Sprite_HealthBar: Sprite_HealthBar
 	} 
 	
 	function patches(){};
@@ -1091,7 +1092,7 @@
 		}				
 		
 		//this.z = this._character.screenZ() - 1;
-		if($gameSystem.showWillIndicator){	
+		if(ConfigManager["willIndicator"] == 1){	
 			var eventId = this._character.eventId();
 			var battlerArray = $gameSystem.EventToUnit(eventId);
 			if(battlerArray){
@@ -1145,7 +1146,7 @@
 	};
 
 	Sprite_AttributeIndicator.prototype.update = function() {
-		if(ENGINE_SETTINGS.USE_WEAPON_ATTRIBUTE){			
+		if(ENGINE_SETTINGS.ENABLE_ATTRIBUTE_SYSTEM){			
 			var type = this._character.isType();
 			this._isEnemy = type === 'enemy';
 			var eventId = this._character.eventId();
@@ -1180,7 +1181,7 @@
 				
 				//this.z = this._character.screenZ() - 1;
 			
-				if(unit && !this._character.isErased() && $gameSystem.showWillIndicator){
+				if(unit && !this._character.isErased() && ConfigManager["willIndicator"] > 0){
 					this.opacity = 255;
 				} else {
 					this.opacity = 0;
@@ -1520,12 +1521,26 @@
 				this._processedDeath = true;
 				if(this._character.isDoingSubTwinDeath){
 					$statCalc.swapEvent(this._character, true);
+					const mainTwin = $statCalc.getMainTwin(battlerArray[1]);	
 					//_this._currentDeath.event.appear();
 					//this._character.refreshImage();
-					$statCalc.getMainTwin(battlerArray[1]).subTwin = null;
+					mainTwin.subTwin = null;
+					$statCalc.updateSuperState(mainTwin);
+					this._character.transitioningFloat = true;
 				} else if(this._character.isDoingMainTwinDeath){	
-					$statCalc.swapEvent(this._character, true);
-					$statCalc.getMainTwin(battlerArray[1]).subTwin = null;
+					if(!this._character.isDoingMultiKill){
+						$statCalc.swapEvent(this._character, true);					
+						const mainTwin = $statCalc.getMainTwin(battlerArray[1]);	
+						mainTwin.subTwin = null;
+						$statCalc.updateSuperState(mainTwin);
+						this._character.transitioningFloat = true;
+					} else {
+						if(battlerArray[1].SRWStats.dropBoxItems && battlerArray[1].SRWStats.dropBoxItems.length){
+							$gameSystem.deployItemBox(this._character, battlerArray[1].SRWStats.dropBoxItems);
+						} else {
+							this._character.erase();	
+						}
+					}					
 					//battlerArray[1].subTwin.isSubTwin = false;
 					//battlerArray[1].subTwin = null;
 				} else {	
@@ -1717,6 +1732,7 @@
 		if(this._animationFrame > this._frames){
 			this.visible = false;
 			this._character.isDoingDisappearAnim = false;
+			this._animationFrame = 0;
 		} else {
 			if(this._animationFrame == 3){
 				this._character.erase();
@@ -1850,7 +1866,7 @@
 	};
 
 	Sprite_SrpgGrid.prototype.update = function() {
-		if($gameSystem.enableGrid && !$gameSystem.optionDisableGrid){
+		if($gameSystem.enableGrid && !ConfigManager["disableGrid"]){
 			this.opacity = 128;
 		} else {
 			this.opacity = 0;
@@ -2191,4 +2207,137 @@ function Sprite_MapBorder() {
     };
 	
 	
+	function Sprite_HealthBar() {
+	this.initialize.apply(this, arguments);
+}
+
+Sprite_HealthBar.prototype = Object.create(Sprite_Base.prototype);
+Sprite_HealthBar.prototype.constructor = Sprite_HealthBar;
+
+Sprite_HealthBar.prototype.initialize = function(character) {
+	Sprite_Base.prototype.initialize.call(this);
+	this._character = character;
+	this._previousHp = -1;
+	this._previousMaxHp = -1;
+	this._barWidth = 26;
+	this._barHeight = 4;
+	this._borderWidth = 1;
+	this.createBitmap();
+	this._hpFillRate = 500;
+};
+
+Sprite_HealthBar.prototype.createBitmap = function() {
+	var width = this._barWidth + (this._borderWidth * 2) + 2;
+	var height = this._barHeight + (this._borderWidth * 2) + 2;
+	this.bitmap = new Bitmap(width, height);
+};
+
+Sprite_HealthBar.prototype.update = function() {
+	if(ENGINE_SETTINGS.ENABLE_HEALTH_BARS_ON_MAP) {
+		var eventId = this._character.eventId();
+		var battlerArray = $gameSystem.EventToUnit(eventId);
+		
+		if(battlerArray) {
+			var unit = battlerArray[1];
+			var type = this._character.isType();
+			this._isEnemy = type === 'enemy'
+			if(unit){			
+				const mechStats = $statCalc.getCalculatedMechStats(unit);
+				var currentHp = mechStats.currentHP;
+				var maxHp = mechStats.maxHP;
+
+				if(this._previousHp == -1){
+					this._previousHp = currentHp;
+				}
+
+				if(this._previousMaxHp == -1){
+					this._prev_previousMaxHpiousHp = maxHp;
+				}
+				
+				
+				// Check if we need to redraw the health bar
+				if(this._previousHp !== currentHp || this._previousMaxHp !== maxHp) {
+					const direction = Math.sign(currentHp - this._previousHp);
+
+					this._previousHp += direction * this._hpFillRate;
+					if(Math.abs(this._previousHp - currentHp) < this._hpFillRate){
+						this._previousHp = currentHp;	
+					}
+					this._previousMaxHp = maxHp;
+					this.drawHealthBar(this._previousHp, maxHp);
+				} 
+				
+				this.anchor.x = 0.5;
+				this.anchor.y = 1;
+				
+				this.x = this._character.screenX();
+				this.y = this._character.screenY();
+				this.y -= 38; // Position above character
+
+				if(this._isEnemy){
+					this.x-=8;
+				} else {
+					this.x+=10;
+				}				
+						
+				// Show health bar if unit exists, character isn't erased, and health bars are enabled
+				if(unit && !this._character.isErased() && ConfigManager["willIndicator"] == 2) {
+					this.opacity = 255;
+				} else {
+					this.opacity = 0;
+				}
+			} else {
+				this.opacity = 0;
+			}
+		} else {
+			this.opacity = 0;
+		}
+	} else {
+		this.opacity = 0;
+	}
+};
+
+Sprite_HealthBar.prototype.drawHealthBar = function(currentHp, maxHp) {
+	var bitmap = this.bitmap;
+	bitmap.clear();
 	
+	var width = this._barWidth + (this._borderWidth * 2);
+	var height = this._barHeight + (this._borderWidth * 2);
+	
+	// Draw border (black background)
+	bitmap.fillRect(0, 0, width + 1, height + 1, '#444444');
+
+	bitmap.fillRect(0, 0, width, height, '#FFFFFF');
+	
+	// Draw background (dark red)
+	bitmap.fillRect(this._borderWidth , this._borderWidth, this._barWidth, this._barHeight, '#000000');
+	
+	// Calculate health percentage
+	var hpRatio = maxHp > 0 ? currentHp / maxHp : 0;
+	var fillWidth = Math.floor(this._barWidth * hpRatio);
+	
+	// Determine health bar color based on HP percentage
+	var healthColor = this.getHealthColor(hpRatio);
+	
+	// Draw current health
+	if(fillWidth > 0) {
+		bitmap.fillRect(this._borderWidth , this._borderWidth, fillWidth, this._barHeight, healthColor);
+	}
+};
+
+Sprite_HealthBar.prototype.getHealthColor = function(hpRatio) {
+	const hpPercent = hpRatio * 100;
+	let fillColor = ENGINE_SETTINGS.HP_BAR_COLORS.critical;
+	if(hpPercent >= ENGINE_SETTINGS.HP_BAR_COLORS.full.percent){
+		fillColor =  ENGINE_SETTINGS.HP_BAR_COLORS.full.color;
+	} else if(hpPercent >= ENGINE_SETTINGS.HP_BAR_COLORS.high.percent){
+		fillColor =  ENGINE_SETTINGS.HP_BAR_COLORS.high.color;
+	} else if(hpPercent >= ENGINE_SETTINGS.HP_BAR_COLORS.med.percent){
+		fillColor =  ENGINE_SETTINGS.HP_BAR_COLORS.med.color;
+	} else if(hpPercent >= ENGINE_SETTINGS.HP_BAR_COLORS.low.percent){
+		fillColor =  ENGINE_SETTINGS.HP_BAR_COLORS.low.color;
+	} else {
+		fillColor =  ENGINE_SETTINGS.HP_BAR_COLORS.critical.color;
+	}
+	return fillColor;
+};

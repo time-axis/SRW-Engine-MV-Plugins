@@ -57,6 +57,11 @@
 					if(isNaN(args[1] * 1) || args[1] * 1 < 0){
 						throw "Invalid mech "+args[1]+" for assignUnit command.";
 					}
+					
+					if((args[3] * 1) && !(args[2] * 1)){
+						unbindMechPilots(args[1] * 1);
+					}
+
 					actor._classId = args[1] * 1;
 					actor.isSubPilot = !!(args[2] * 1);
 					//actor._intermissionClassId = args[1] * 1; 
@@ -69,6 +74,26 @@
 						}
 					}					
 				}
+
+				function unbindMechPilots(mechId){
+					if(mechId > 0){
+						const targetMech = $statCalc.getMechData(mechId, true);
+						targetMech.subPilots = [];
+						$statCalc.storeMechData(targetMech);
+						$gameSystem.overwriteMechFallbackInfo(args[0] * 1, targetMech.subPilots);
+						for(const actor of $gameActors._data){
+							if(actor && actor._classId == mechId){
+								actor._classId = 0;
+								$gameSystem.overwritePilotFallbackInfo(actor);
+							}
+						}
+					}
+				}
+				
+				if (command === 'unbindMechPilots') {
+					const mechId = args[0] * 1;
+					unbindMechPilots(mechId);								
+				}
 				
 				if (command === 'UnlockUnit') {
 					$SRWSaveManager.setUnitUnlocked(args[0]);
@@ -77,6 +102,9 @@
 					$SRWSaveManager.setUnitUnlocked(args[0]);
 				}
 				if (command === 'lockUnit') {
+					$SRWSaveManager.setUnitLocked(args[0]);
+				}
+				if (command === 'LockUnit') {
 					$SRWSaveManager.setUnitLocked(args[0]);
 				}
 				if (command === 'SetLevel') {
@@ -88,6 +116,9 @@
 				if (command === 'addKills') {
 					$SRWSaveManager.addKills(args[0], args[1]);
 				}		
+				if (command === 'AddKills') {
+					$SRWSaveManager.addKills(args[0], args[1]);
+				}	
 				if (command === 'addPP') {
 					$SRWSaveManager.addPP(args[0], args[1]);
 				}
@@ -272,11 +303,13 @@
 					//args[0]: slot 
 					//args[1]: actor id
 					var deployInfo = $gameSystem.getDeployInfo();
-					var actorId = String($statCalc.getCurrentPilot(args[1], true).actorId());
+					//always check the fallback info to avoid issues with pilots who were switched around during the stage
+					var actorId = String($statCalc.getCurrentPilot(args[1], true, false, false, true).actorId());
 					var parts = actorId.match(/\<(.*)\>/);	
 					if(parts && parts.length > 1){
 						actorId = $gameVariables.value(parts[1]);
 					}
+
 					deployInfo.assigned[args[0]] = actorId;
 					$gameSystem.setDeployInfo(deployInfo);
 				}
@@ -910,8 +943,11 @@
 				}				
 				
 				if (command === 'setEventWill') {	
-					var actor = $gameSystem.EventToUnit(args[0])[1];
-					$statCalc.setWill(actor, args[1] * 1);
+					const actorInfo =  $gameSystem.EventToUnit(args[0]);
+					if(actorInfo){
+						var actor = actorInfo[1];
+						$statCalc.setWill(actor, args[1] * 1);
+					}					
 				}
 				
 				if (command === 'setActorWill') {	
@@ -954,8 +990,11 @@
 				
 				if (command === 'setUnlockedUpgradeLevel') {
 					var tmp = parseInt(args[0]);
+					var onlyUpgrade = args[1] * 1;
 					if(!isNaN(tmp)){
-						$gameSystem.unlockedUpgradeLevel = tmp;
+						if($gameSystem.unlockedUpgradeLevel == null || !onlyUpgrade || tmp > $gameSystem.unlockedUpgradeLevel){
+							$gameSystem.unlockedUpgradeLevel = tmp;
+						}						
 					}			
 				}
 				
@@ -1030,7 +1069,7 @@
 				}
 							
 				if (command === 'lockCombine') {	
-					$gameSystem.lockCombination(args[0]);
+					$gameSystem.lockCombine(args[0]);
 				}
 				
 				if (command === 'lockAllCombines') {	
@@ -1254,10 +1293,29 @@
 					}
 					$gameParty.gainGold(amount * 1);
 				}
+				
 				if (command === 'setEventHP') {
 					var actor = $gameSystem.EventToUnit(args[0])[1];				
 					$statCalc.setHP(actor, (args[1] || 1) * 1);	
 				}		
+
+				if (command === 'setEventHPPercent') {
+					var actor = $gameSystem.EventToUnit(args[0])[1];				
+					var mechStats = $statCalc.getCalculatedMechStats(actor);
+					$statCalc.setHP(actor, Math.floor(mechStats.maxHP * args[1] / 100));		
+				}
+
+				if (command === 'setEventEN') {
+					var actor = $gameSystem.EventToUnit(args[0])[1];				
+					$statCalc.setEN(actor, (args[1] || 1) * 1);	
+				}
+
+				if (command === 'setEventENPercent') {
+					var actor = $gameSystem.EventToUnit(args[0])[1];				
+					var mechStats = $statCalc.getCalculatedMechStats(actor);
+					$statCalc.setEN(actor, Math.floor(mechStats.maxEN * args[1] / 100));		
+				}
+				
 				
 				if (command === 'addSubPilot') {					
 					var targetMech = $statCalc.getMechData($dataClasses[args[0] * 1], true);
@@ -1269,6 +1327,17 @@
 					//actor._intermissionClassId = args[1] * 1; 
 					$gameSystem.overwritePilotFallbackInfo(actor);
 				}	
+				
+				if (command === 'removeSubPilot') {					
+					var targetMech = $statCalc.getMechData($dataClasses[args[0] * 1], true);
+					targetMech.subPilots[args[1] * 1] = null;
+					$statCalc.storeMechData(targetMech);
+					$gameSystem.overwriteMechFallbackInfo(args[0] * 1, targetMech.subPilots);
+					let actor = $gameActors.actor(args[2] * 1)
+					actor.isSubPilot = false;
+					//actor._intermissionClassId = args[1] * 1; 
+					$gameSystem.overwritePilotFallbackInfo(actor);
+				}
 				
 				if (command === 'setPortraitOverlay') {		
 					if(!$gameTemp.portraitOverlays){
@@ -1363,7 +1432,8 @@
 				msg+="Error while executing a plugin command: "+getLogContext();
 				msg+="<br><br>";
 				if(e.message){
-					msg+=e.message;
+					msg+=e.message + "\n\n" + e.stack;
+					console.error(e.stack);
 				} else {
 					msg+=e;
 				}

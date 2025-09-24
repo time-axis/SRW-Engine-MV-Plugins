@@ -84,16 +84,18 @@
 		
 		Game_Map.prototype.getTileProperties = function(tileCoords) {
 			if(this._SRWTileProperties && this._SRWTileProperties[this._tilesetId]){
-				var bTileId = $gameMap.tileId(tileCoords.x, tileCoords.y, 3);
-				var autoTileId = $gameMap.tileId(tileCoords.x, tileCoords.y, 1);
-				var groundTileId = $gameMap.tileId(tileCoords.x, tileCoords.y, 0);
 				
-				if(this._SRWTileProperties[this._tilesetId][bTileId]){
-					return this._SRWTileProperties[this._tilesetId][bTileId];
-				} else if(this._SRWTileProperties[this._tilesetId][autoTileId]){
-					return this._SRWTileProperties[this._tilesetId][autoTileId];
-				} else if(this._SRWTileProperties[this._tilesetId][groundTileId]){
-					return this._SRWTileProperties[this._tilesetId][groundTileId];
+				const checkedLayers = [3,2,1,0];
+				const checkedTileIds = [];
+				
+				for(let layerId of checkedLayers){
+					checkedTileIds.push($gameMap.tileId(tileCoords.x, tileCoords.y, layerId));
+				}
+				
+				for(let tileId of checkedTileIds){
+					if(this._SRWTileProperties[this._tilesetId][tileId] != null){
+						return this._SRWTileProperties[this._tilesetId][tileId];
+					}
 				}
 			} else {
 				return null;
@@ -442,6 +444,7 @@
 				this.createAttackIndicator(event._eventId, event);
 				this.createAttributeIndicator(event._eventId, event);
 				this.createWillIndicator(event._eventId, event);
+				this.createHealthBar(event._eventId, event);
 				
 				this.createTwinIndicator(event._eventId, event);
 				this.createExplosionSprite(event._eventId, event);
@@ -545,6 +548,7 @@
 			this._appearSprites = {};
 			this._disappearSprites = {};
 			this._willIndicators = {};
+			this._HPIndicators = {};
 			this._attributeIndicators = {};
 			this._defendIndicators = {};
 			this._attackIndicators = {};
@@ -649,6 +653,15 @@
 				character._willIndicator = true;
 			};
 		};	
+
+		Spriteset_Map.prototype.createHealthBar = function(id,character) {
+			if (!character) return;
+			if (!this._HPIndicators[id]) {
+				this._HPIndicators[id] = new Sprite_HealthBar(character);
+				this.addCharacterToBaseSprite(this._HPIndicators[id]);
+				character._hpIndicator = true;
+			};
+		};			
 		
 		Spriteset_Map.prototype.createAttributeIndicator = function(id,character) {
 			if (!character) return;

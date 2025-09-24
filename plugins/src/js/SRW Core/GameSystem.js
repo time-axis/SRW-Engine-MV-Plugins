@@ -26,7 +26,7 @@
 			this._searchedItemList = [];
 			this._pilotFallbackInfo = {};
 			this.initOptions();
-			
+			this.purchasableAbilities = structuredClone(ENGINE_SETTINGS.PURCHASABLE_ABILITIES);
 			this._controlSet = "mkb";
 		};
 		
@@ -82,7 +82,7 @@
 		}
 		
 		Game_System.prototype.getOptionPadSet = function() {
-			return this.optionPadSet || "xbox";
+			return ConfigManager["padSet"];
 		}
 		
 		Game_System.prototype.setControlSet = function(newSet) {
@@ -91,7 +91,7 @@
 					$gameTemp.buttonHintManager.redraw();
 				}
 			}
-			this._controlSet = newSet;		
+			this._controlSet = newSet;					
 		}
 		
 		Game_System.prototype.getActiveGlyphSet = function() {
@@ -99,7 +99,7 @@
 				return this._controlSet;
 			}
 			if(this._controlSet == "controller"){
-				return this.optionPadSet || "xbox";
+				return ConfigManager["padSet"];
 			}
 			return "mkb";
 		}
@@ -383,7 +383,16 @@
 				});
 			}
 			
-			
+			//clean up previous sub twinning state to avoid previous state remaining applied which can lead to crashes due to circular references
+			this._availableUnits.forEach(function(actor){
+				var refEvent = $statCalc.getReferenceEvent(actor);
+				if(!ignoreEventDeploys || !refEvent || !refEvent.isScriptedDeploy){
+					actor.isSubTwin = false;
+					actor.subTwin = null;
+					actor.subTwinId = null;
+				}
+			});
+
 			this.dummyId = 0;
 			this._availableUnits.forEach(function(actor){
 				var refEvent = $statCalc.getReferenceEvent(actor);
@@ -408,6 +417,18 @@
 					$statCalc.attachDummyEvent(actor, actor.SRWStats.mech.id);
 					$statCalc.invalidateAbilityCache(actor);
 					$statCalc.initSRWStats(actor);		
+				}
+			});
+
+			//sanity sub twin assignments, reset sub twin state if an actor does not have a main twin
+			//hacky fix for issues where some unts would end up in an instable subtwin state after event slot reassignments
+			this._availableUnits.forEach(function(actor){
+				if(actor.isSubTwin){
+					if(!$statCalc.getMainTwin(actor)){
+						actor.isSubTwin = false;
+						actor.subTwin = null;
+						actor.subTwinId = null;
+					}
 				}
 			});
 			
@@ -438,11 +459,13 @@
 		
 		Game_System.prototype.startIntermission = function(){
 			this._isIntermission = true;
+			ImageManager.clearFullCache();
 			//$statCalc.reloadSRWActors();
 			this.updateAvailableUnits();
 			$gameTemp.summaryUnit = null;
 			$statCalc.invalidateAbilityCache();
-			$gameTemp.deployMode = "";			
+			$gameTemp.deployMode = "";		
+			this.setAutomaticDifficultyLevel();	
 		}
 		
 		Game_System.prototype.isIntermission = function(id){
@@ -498,13 +521,17 @@
 			for(var i = 21; i <= 60; i++){
 				$gameVariables.setValue(i, 0);
 			}
-		
+
+			$gameSystem.incrementSaveTurn();//increment for turn 1
 			$gameVariables.setValue(_turnVarID, 1); 
 			$gameSystem.resetSearchedItemList();
-			$gameSystem.textLog = [];			
+			$gameSystem.textLog = [];
 			$gameSystem._specialTheme = -1;
 			$gameSystem.highlightedTiles = [];
+
 			$gameSystem.regionHighlights = {};
+			
+
 			$gameSystem.enemyUpgradeLevel = 0;
 			$gameSystem.persuadeOptions = {};
 			$gameTemp.currentSwapSource = -1;
@@ -513,7 +540,7 @@
 			$gameSystem.defaultBattleEnv = null;
 			$gameSystem.skyBattleEnv = null;
 			$gameSystem.superStateBattleEnv = {};
-			$gameSystem.regionBattleEnv = {};
+			$gameSystem.regionBattleEnv = structuredClone(ENGINE_SETTINGS.DEFAULT_REGION_ENVS || {});
 			$gameSystem.regionSkyBattleEnv = {};
 			$gameSystem.regionSuperStateBattleEnv = {};
 			$gameSystem.stageTextId = null;
@@ -531,7 +558,34 @@
 			$gameVariables.setValue(_victoryConditionText, APPSTRINGS.GENERAL.label_default_victory_condition);	
 			$gameVariables.setValue(_defeatConditionText, APPSTRINGS.GENERAL.label_default_defeat_condition);
 			
-			$gameSystem.factionConfig = {
+			this.initFactionInfo();
+			
+			$gameTemp.preventedDeathQuotes = {};
+			$gameTemp.updatePlayerSpriteVisibility();
+			
+			SceneManager._scene.createPauseWindow(); //ensure pause menu is updated to reflect the new mode
+			
+			this.untargetableAllies = {};
+			
+			$SRWSaveManager.initMapSRPoint($gameMap.mapId());
+			
+			if(ENGINE_SETTINGS.DIFFICULTY_MODS && ENGINE_SETTINGS.DIFFICULTY_MODS.enabled > 0){
+				const modSet = ENGINE_SETTINGS.DIFFICULTY_MODS.levels[$gameSystem.getCurrentDifficultyLevel()];
+				if(modSet && modSet.autoUpgradesFunc){
+					this.setEnemyUpgradeLevelGlobal(modSet.autoUpgradesFunc($gameMap.mapId()) || 0);
+				}
+			}
+			
+			if($gameMap){
+				$gameSystem.regionHighlightsRefreshed = true;
+				$gameMap.clearRegionTiles();
+				$gameMap._SRWTileProperties = null;
+				$gameMap.initSRWTileProperties();
+			}			
+		};		
+
+		Game_System.prototype.initFactionInfo = function(id) {
+			this.factionConfig = {
 				0: {
 					attacksPlayers:true,
 					attacksFactions: [1,2],
@@ -547,20 +601,8 @@
 					attacksFactions: [0],
 					active: false
 				}
-			};
-			$gameTemp.preventedDeathQuotes = {};
-			$gameTemp.updatePlayerSpriteVisibility();
-			
-			SceneManager._scene.createPauseWindow(); //ensure pause menu is updated to reflect the new mode
-			
-			this.untargetableAllies = {};
-			
-			if($gameMap){
-				$gameMap.clearRegionTiles();
-				$gameMap._SRWTileProperties = null;
-				$gameMap.initSRWTileProperties();
-			}			
-		};		
+			};		
+		}
 		
 		Game_System.prototype.enableFaction = function(id) {
 			if(this.factionConfig[id]){
@@ -828,6 +870,14 @@
 				}
 			}
 		}
+		
+		Game_System.prototype.getPilotFallbackInfoFull = function() {
+			const _this = this;
+			if(!_this._pilotFallbackInfo){
+				_this._pilotFallbackInfo = {};
+			}
+			return _this._pilotFallbackInfo;
+		}
 
 		Game_System.prototype.deployShips = function(toAnimQueue) {		
 			var _this = this;
@@ -862,12 +912,15 @@
 			delete event.dropBoxItems;
 			_this.pushSrpgAllActors(event.eventId());
 			event.isDeployed = true;
+			event.manuallyErased = false;
 			event.isScriptedDeploy = isScriptedDeploy ? true : false;
 			var bitmap = ImageManager.loadFace(actor_unit.faceName()); //顔グラフィックをプリロードする
 			var oldValue = $gameVariables.value(_existActorVarID);
 			
-			
-			actor_unit.isSubPilot = false;
+			actor_unit.isSubPilot = false;			
+			actor_unit.isSubTwin = false;	
+			actor_unit.subTwin = null;
+			actor_unit.subTwinId = null;
 			
 			$statCalc.initSRWStats(actor_unit);
 			
@@ -879,6 +932,7 @@
 			_this.setEventToUnit(event.eventId(), 'actor', actor_unit.actorId());
 			
 			$statCalc.applyDeployActions(actor_unit.SRWStats.pilot.id, actor_unit.SRWStats.mech.id);
+			
 			
 			if($statCalc.isShip(actor_unit)){
 				var oldValue = $gameVariables.value(_existShipVarId);
@@ -906,7 +960,7 @@
 			}
 		
 			
-			if(subId != null){
+			if(subId != null && subId != actor_unit.actorId()){
 				actor_unit.subTwinId = subId;
 			}
 			
@@ -927,6 +981,21 @@
 			$statCalc.applyRelativeTransforms();
 			
 			event.isShip = $statCalc.isShip(actor_unit);
+
+			if(actor_unit.subTwin){
+				actor_unit.subTwin.SRPGActionTimesSet($statCalc.applyStatModsToValue(actor_unit.subTwin, 1, ["extra_action"]));
+				actor_unit.subTwin.setSrpgTurnEnd(false);	
+				actor_unit.subTwin.setBattleMode("");
+			}
+			const subPilots = $statCalc.getSubPilots(actor_unit);
+			for(let subPilotId of subPilots){
+				const subPilot = $gameActors.actor(subPilotId);
+				if(subPilot){
+					subPilot.SRPGActionTimesSet($statCalc.applyStatModsToValue(subPilot, 1, ["extra_action"]));
+					subPilot.setSrpgTurnEnd(false);	
+					subPilot.setBattleMode("");
+				}
+			}
 		}
 		
 		Game_System.prototype.deployItemBox = function(event, items) {
@@ -1031,6 +1100,16 @@
 			$gameSystem.clearSrpgAllActors();
 			$gameMap.events().forEach(function(event) {			
 				if (event.isType() === 'actor' && (!event.isScriptedDeploy || !preserveScripted)) {
+					var battlerArray = $gameSystem.EventToUnit(event.eventId());
+					if (battlerArray && (battlerArray[0] === 'actor')) {
+						const actor_unit = battlerArray[1];
+						if(actor_unit){
+							actor_unit.isSubPilot = false;			
+							actor_unit.isSubTwin = false;	
+							actor_unit.subTwin = null;
+							actor_unit.subTwinId = null;
+						}
+					}
 					$gameSystem.clearEventToUnit(event.eventId());
 					event.isDeployed = false;
 					event.erase();
@@ -1260,7 +1339,7 @@
 			return isInRange && validTarget;
 		}                               
 		
-		Game_System.prototype.getNextRTarget = function() {
+		Game_System.prototype.getNextRTarget = function(all) {
 			var candidates =  $statCalc.getAllCandidates("enemy");
 			var candidate;
 			var ctr = 0;
@@ -1269,7 +1348,7 @@
 				if(this.targetLRId >= candidates.length){
 					this.targetLRId = 0;
 				}
-				if(this.isValidAttackTarget(candidates[this.targetLRId])){
+				if(all || this.isValidAttackTarget(candidates[this.targetLRId])){
 					candidate = candidates[this.targetLRId];
 				}			
 				ctr++;
@@ -1281,7 +1360,7 @@
 		}
 
 		//次のカーソル移動先のアクターを取得する(L)
-		Game_System.prototype.getNextLTarget = function() {       
+		Game_System.prototype.getNextLTarget = function(all) {       
 			var candidates =  $statCalc.getAllCandidates("enemy");
 			var candidate;
 			var ctr = 0;
@@ -1290,7 +1369,7 @@
 				if(this.targetLRId < 0){
 					this.targetLRId = candidates.length-1;
 				}
-				if(this.isValidAttackTarget(candidates[this.targetLRId])){
+				if(all || this.isValidAttackTarget(candidates[this.targetLRId])){
 					candidate = candidates[this.targetLRId];
 				}			
 				ctr++;
@@ -1507,6 +1586,7 @@
 			$gameTemp.showEnemyDefendIndicator = false;
 			$gameTemp.currentFaction = factionId;
 			if(factionId > 2){
+				$gameSystem.expireAbilityZones();
 				$gameSystem.srpgTurnEnd();
 				return;
 			}
@@ -1550,7 +1630,7 @@
 			$statCalc.clearSpiritOnAll("actor", "disrupt");
 			$statCalc.clearSpiritOnAll("actor", "analyse");
 			$statCalc.clearTempEffectsOnAll();
-			$gameSystem.expireAbilityZones();
+			
 			$statCalc.applyTurnStartWill("enemy", factionId);
 			$statCalc.applyENRegen("enemy", factionId);
 			$statCalc.applyMPRegen("enemy", factionId);
@@ -1600,6 +1680,11 @@
 			var oldValue = $gameVariables.value(_turnVarID);
 			$gameVariables.setValue(_turnVarID, oldValue + 1);
 			
+			var oldValue = $gameVariables.value(_turnCountVariable);
+			$gameVariables.setValue(_turnCountVariable, oldValue + 1);
+		};
+
+		Game_System.prototype.incrementSaveTurn = function() {
 			var oldValue = $gameVariables.value(_turnCountVariable);
 			$gameVariables.setValue(_turnCountVariable, oldValue + 1);
 		};
@@ -2038,6 +2123,14 @@
 					sortedCandidates.push(entry);
 				}
 			});
+
+			//if any entries only contain a valid sub move the sub to the main slot
+			for(let entry of sortedCandidates){
+				if(entry.sub && entry.main == null){
+					entry.main = entry.sub;
+					entry.sub = null;
+				}
+			}
 			
 			tmp.forEach(function(candidate){
 				if(!usedActors[candidate.actorId()]){
@@ -2075,6 +2168,9 @@
 					entry.sub = null;
 				}
 				if(entry.main || entry.sub){
+					if(entry.sub && !entry.main){
+						entry.main = entry.sub;
+					}
 					$gameSystem.deployList.push(entry);							
 					usedUnits[entry.main] = true;
 					usedUnits[entry.sub] = true;
@@ -2256,6 +2352,9 @@
 					}
 					if($gameSystem.superStateBattleEnv[superState]){
 						return $gameSystem.superStateBattleEnv[superState];
+					}
+					if($gameSystem.regionBattleEnv[region] != null){
+						return $gameSystem.regionBattleEnv[region];
 					}
 				}				
 				return $gameSystem.defaultBattleEnv;						
@@ -2499,10 +2598,11 @@
 			if($gameMap.isEventRunning() && !$gameSystem.isIntermission()){//hacky solution to game speed not being settable during the intermission
 				return 1;
 			}
-			return this._battleSpeed || 1;
+			return ConfigManager["battleSpeed"] || 1;
 		}
 		
 		Game_System.prototype.setBattleSpeed = function(speed) {
+			ConfigManager["battleSpeed"] = speed;
 			this._battleSpeed = speed;
 		}
 		
@@ -2991,5 +3091,118 @@
 			}
 		}
 		
+		Game_System.prototype.getCurrentDifficultyLevel = function() {
+			if(this._currentDifficulty == null){
+				if(ENGINE_SETTINGS.DIFFICULTY_MODS){
+					this._currentDifficulty = ENGINE_SETTINGS.DIFFICULTY_MODS.default;
+				}
+			}
+			return this._currentDifficulty;
+		}	
 		
+		Game_System.prototype.isManualSetDifficulty = function(value) {
+			return this._difficultyWasManuallySet;
+		}
+		
+		Game_System.prototype.clearManualSetDifficulty = function(value) {
+			this._difficultyWasManuallySet = false;
+		}
+		
+		Game_System.prototype.setCurrentDifficultyLevel = function(value) {
+			this._difficultyWasManuallySet = true;
+			this._currentDifficulty = value;
+		}	
+		
+		Game_System.prototype.setAutomaticDifficultyLevel = function() {			
+			if(!this._difficultyWasManuallySet ){
+				if(ENGINE_SETTINGS.DIFFICULTY_MODS && ENGINE_SETTINGS.DIFFICULTY_MODS.enabled & 2 && ENGINE_SETTINGS.DIFFICULTY_MODS.autoLevelFunc){
+					const newVal = ENGINE_SETTINGS.DIFFICULTY_MODS.autoLevelFunc();
+					if(newVal != null){
+						this._currentDifficulty = newVal;
+					}					
+				}				
+			}
+		}
+		
+		Game_System.prototype.getMaxUpgradeLevel = function(value) {
+			return this._maxUpgradeLevel || 10;
+		}
+		
+		Game_System.prototype.setMaxUpgradeLevel = function(value) {
+			this._maxUpgradeLevel = value;
+		}
+		
+		Game_System.prototype.getMaxPilotStat = function(value) {
+			return this._maxPilotStat || 400;
+		}
+		
+		Game_System.prototype.setMaxPilotStat = function(value) {
+			this._maxPilotStat = value;
+		}
+		
+		Game_System.prototype.setEnemyUpgradeLevelGlobal = function(value) {
+			this.globalEnemyUpgradeLevel = value;
+		}		
+		
+		Game_System.prototype.setEnemyUpgradeLevel = function(value) {
+			this.enemyUpgradeLevel = value;
+		}
+		
+		Game_System.prototype.getEnemyUpgradeLevel = function() {
+			return (this.globalEnemyUpgradeLevel || 0) + (this.enemyUpgradeLevel || 0);
+		}
+		
+		Game_System.prototype.getMaxPilotAbilities = function() {
+			return this._maxPilotAbilities || ENGINE_SETTINGS.DEFAULT_PILOT_ABI_COUNT || 6;
+		}
+		
+		Game_System.prototype.setMaxPilotAbilities = function(value) {
+			return this._maxPilotAbilities  = value;
+		}
+		
+		//note: null is a meaningful return value and indicates the database value should be used as there is no override defined
+		//returns the overriding value, NOT whether an override exists. So false=override value == false, true=override value == true
+		Game_System.prototype.getPilotAbilityUniqueOverrideValue = function(abilityId) {
+			if(!this._pilotAbilityUniqueOverrides){
+				this._pilotAbilityUniqueOverrides = {};
+			}
+			return this._pilotAbilityUniqueOverrides[abilityId];
+		}
+		
+		Game_System.prototype.setPilotAbilityUniqueOverrideValue = function(abilityId, state) {
+			if(!this._pilotAbilityUniqueOverrides){
+				this._pilotAbilityUniqueOverrides = {};
+			}
+			this._pilotAbilityUniqueOverrides[abilityId] = state;
+		}
+		
+		Game_System.prototype.getPurchasbleAbilities = function() {
+			return ENGINE_SETTINGS.PURCHASABLE_ABILITIES.concat((this._additionalPurchasableAbilities || []));
+		}
+		
+		Game_System.prototype.addPurchasableAbility = function(id) {
+			if(!this._additionalPurchasableAbilities){
+				this._additionalPurchasableAbilities = [];
+			}
+			if(this._additionalPurchasableAbilities.indexOf(id) == -1){
+				this._additionalPurchasableAbilities.push(id);
+			}			
+		}
+
+		Game_System.prototype.incrementIndicatorSetting = function() {
+			if(this.indicatorSetting == null){
+				this.indicatorSetting = 0;
+			}
+			this.indicatorSetting++;
+			if(this.indicatorSetting > 2){
+				this.indicatorSetting = 0;
+			}
+		}
+
+		Game_System.prototype.getIndicatorSetting = function() {
+			if(this.indicatorSetting == null){
+				this.indicatorSetting = 0;
+			}
+			return this.indicatorSetting;
+		}
 	}

@@ -17,13 +17,14 @@ DetailBarMech.prototype.createComponents = function(){
 }
 
 DetailBarMech.prototype.redraw = function(){
+	const _this = this;
 	var detailContent = "";
 	var mechData = this.getCurrentSelection().mech;
 	var calculatedStats = mechData.stats.calculated;
 	detailContent+="<div id='detail_list_icon'></div>";//icon 
 	detailContent+="<div class='mech_hp_en_container scaled_text'>";
-	detailContent+="<div class='hp_label scaled_text'>HP</div>";
-	detailContent+="<div class='en_label scaled_text'>EN</div>";
+	detailContent+="<div class='hp_label scaled_text'>"+APPSTRINGS.GENERAL.label_HP+"</div>";
+	detailContent+="<div class='en_label scaled_text'>"+APPSTRINGS.GENERAL.label_EN+"</div>";
 
 	detailContent+="<div class='hp_display'>";
 	detailContent+="<div class='current_hp scaled_text'>"+calculatedStats.currentHP+"</div>";
@@ -38,9 +39,10 @@ DetailBarMech.prototype.redraw = function(){
 	detailContent+="<div class='max_en scaled_text'>"+calculatedStats.maxEN+"</div>";
 	
 	detailContent+="</div>";
-	
-	var hpPercent = Math.floor(calculatedStats.currentHP / calculatedStats.maxHP * 100);
-	detailContent+="<div class='hp_bar'><div style='width: "+hpPercent+"%;' class='hp_bar_fill'></div></div>";
+
+	detailContent+=_this.createHPBarContent(calculatedStats);
+
+
 	
 	var enPercent = Math.floor(calculatedStats.currentEN / calculatedStats.maxEN * 100);
 	detailContent+="<div class='en_bar'><div style='width: "+enPercent+"%;' class='en_bar_fill'></div></div>";

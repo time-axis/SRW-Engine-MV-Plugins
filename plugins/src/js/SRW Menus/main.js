@@ -128,6 +128,13 @@ window.Window_Game_Modes= Window_Game_Modes;
 import Window_ButtonHints from "./Window_ButtonHints.js";
 window.Window_ButtonHints= Window_ButtonHints;
 
+import Window_ModeSelection from "./Window_ModeSelection.js";
+window.Window_ModeSelection= Window_ModeSelection;
+
+import Window_Attribute_Chart from "./Window_Attribute_Chart.js";
+window.Window_Attribute_Chart = Window_Attribute_Chart;
+
+
 import "./style/SRW_Menus.css";
 
 
@@ -178,6 +185,11 @@ Graphics.getScale = function(){
 		return 1 * (Graphics.getPreviewWindowWidth() / 1110);
 	}
 }
+
+Graphics.getVerticalScale = function(){
+	return this._realScale * (this._height / 624);	
+}
+
 
 Graphics._createErrorPrinter = function() {
     this._errorPrinter = document.createElement('p');

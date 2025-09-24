@@ -250,6 +250,7 @@ WeaponUI.prototype.initPropertyHandlers = function(){
 		animation: {
 			createControls(){		
 				var content = "";			
+				content+="<div class='table sub_section'>";	
 				content+="<div class='row '>";
 				content+="<div class='cell'>";
 				content+=EDITORSTRINGS.WEAPON.label_animation;
@@ -287,7 +288,9 @@ WeaponUI.prototype.initPropertyHandlers = function(){
 				content+="</div>";
 				content+="</div>";
 				
+				content+="</div>";
 				
+				content+="<div class='table sub_section'>";	
 				
 				content+="<div class='row '>";
 				content+="<div class='cell'>";
@@ -307,8 +310,24 @@ WeaponUI.prototype.initPropertyHandlers = function(){
 				content+="</div>";
 				
 				content+="<div class='row '>";
-				content+=_this.createValueInput("weaponBBAnimId_scale", EDITORSTRINGS.WEAPON.label_basic_animation_scale);
+				content+=_this.createValueInput("weaponBBAnimId_scale", EDITORSTRINGS.WEAPON.label_basic_animation_scale, "", EDITORSTRINGS.WEAPON.label_percent);
 				content+="</div>";
+				
+				content+="<div class='row '>";
+				content+=_this.createValueInput("weaponBBAnimId_rate", EDITORSTRINGS.WEAPON.label_basic_animation_rate, "", EDITORSTRINGS.WEAPON.label_frames);
+				content+="</div>";
+				
+				content+="<div class='row '>";
+				content+=_this.createValueInput("weaponBBAnimId_XOff", EDITORSTRINGS.WEAPON.label_basic_animation_x_off, "", EDITORSTRINGS.WEAPON.label_percent);
+				content+="</div>";
+				
+				content+="<div class='row '>";
+				content+=_this.createValueInput("weaponBBAnimId_YOff", EDITORSTRINGS.WEAPON.label_basic_animation_y_off, "", EDITORSTRINGS.WEAPON.label_percent);
+				content+="</div>";
+				
+				content+="</div>";
+				
+				content+="<div class='table sub_section'>";	
 				
 				content+="<div class='row '>";
 				content+="<div class='cell'>";
@@ -328,7 +347,21 @@ WeaponUI.prototype.initPropertyHandlers = function(){
 				content+="</div>";
 				
 				content+="<div class='row '>";
-				content+=_this.createValueInput("weaponBBVSAllyAnimId_scale", EDITORSTRINGS.WEAPON.label_basic_animation_scale_ally);
+				content+=_this.createValueInput("weaponBBVSAllyAnimId_scale", EDITORSTRINGS.WEAPON.label_basic_animation_scale_ally, "", EDITORSTRINGS.WEAPON.label_percent);
+				content+="</div>";
+				
+				content+="<div class='row '>";
+				content+=_this.createValueInput("weaponBBVSAllyAnimId_rate", EDITORSTRINGS.WEAPON.label_basic_animation_rate, "", EDITORSTRINGS.WEAPON.label_frames);
+				content+="</div>";
+				
+				content+="<div class='row '>";
+				content+=_this.createValueInput("weaponBBVSAllyAnimId_XOff", EDITORSTRINGS.WEAPON.label_basic_animation_x_off, "", EDITORSTRINGS.WEAPON.label_percent);
+				content+="</div>";
+				
+				content+="<div class='row '>";
+				content+=_this.createValueInput("weaponBBVSAllyAnimId_YOff", EDITORSTRINGS.WEAPON.label_basic_animation_y_off, "", EDITORSTRINGS.WEAPON.label_percent);
+				content+="</div>";
+				
 				content+="</div>";
 				
 				return content;				
@@ -357,16 +390,23 @@ WeaponUI.prototype.initPropertyHandlers = function(){
 					_this._mainUIHandler.setModified();
 				});	
 				
-				containerNode.querySelector("#prop_weaponBBAnimId_scale").addEventListener("change", function(){
-					_this.setMetaValue("weaponBBAnimId_scale", this.value);
-					_this._mainUIHandler.setModified();
-				});
+				const handledProps = [
+					"weaponBBVSAllyAnimId_scale",
+					"weaponBBAnimId_scale",
+					"weaponBBAnimId_rate",
+					"weaponBBVSAllyAnimId_rate",
+					"weaponBBAnimId_XOff",
+					"weaponBBVSAllyAnimId_XOff",
+					"weaponBBAnimId_YOff",
+					"weaponBBVSAllyAnimId_YOff"
+				];
 				
-				containerNode.querySelector("#prop_weaponBBVSAllyAnimId_scale").addEventListener("change", function(){
-					_this.setMetaValue("weaponBBVSAllyAnimId_scale", this.value);
-					_this._mainUIHandler.setModified();
-				});
-			
+				for(const prop of handledProps){
+					containerNode.querySelector("#prop_"+prop).addEventListener("change", function(){
+						_this.setMetaValue(prop, this.value);
+						_this._mainUIHandler.setModified();
+					});
+				}			
 			}
 		},
 		effects: {
@@ -852,6 +892,39 @@ WeaponUI.prototype.initPropertyHandlers = function(){
 		weight: handleDefaultProp("weaponWeight", EDITORSTRINGS.WEAPON.label_weight),
 		bannedMechs: handleDefaultProp("weaponBannedOn", EDITORSTRINGS.WEAPON.label_banned_mechs),
 		allowedMechs: handleDefaultProp("weaponAllowedOn", EDITORSTRINGS.WEAPON.label_allowed_mechs),
+		alias: {
+			createControls(){		
+				var content = "";			
+
+				var abilityDefs = $dataWeapons;
+				var value = _this.getMetaValue("weaponTextAlias");
+				
+				content+="<div class='row'>";
+				content+="<div class='cell'>";
+				content+=EDITORSTRINGS.MECH.lavel_text_alias;
+				content+="</div>";
+				content+="<div class='cell'>";
+				
+				content+="<select id='weapon_text_alias'>";
+				content+="<option title='None' value='-1'></option>";
+				for(var i = 1; i < abilityDefs.length; i++){
+					if(abilityDefs[i]){
+						content+="<option "+(i == value ? "selected" : "")+" title='"+_this.escapeAttribute(abilityDefs[i].description)+"' value='"+i+"'>["+String(i).padStart(3, "0")+"] "+abilityDefs[i].name+"</option>";
+					}					
+				}
+				content+="</select>";
+				content+="</div>";
+				content+="</div>";
+				return content;				
+			},
+			hook(){				
+				containerNode.querySelector("#weapon_text_alias").addEventListener("change", function(){
+					_this.setMetaValue("weaponTextAlias", this.value);
+					//_this.show();
+					_this._mainUIHandler.setModified();
+				});				
+			}
+		},
 	};	
 	
 	var terrains = [
@@ -919,7 +992,7 @@ WeaponUI.prototype.show = async function(){
 	content+="<div class='table'>";
 	content+=_this._propertyHandlers.name.createControls();
 
-	content+=_this._propertyHandlers.animation.createControls();
+	content+=_this._propertyHandlers.alias.createControls();
 
 	content+="<div class='row'>";
 	content+=_this._propertyHandlers.type.createControls();
@@ -1029,6 +1102,22 @@ WeaponUI.prototype.show = async function(){
 	content+="<div class='content' style='display: block;'>";
 	content+="<div class='table'>";		
 	content+=_this._propertyHandlers.effects.createControls();
+	content+="</div>";	
+	
+	
+	content+="</div>";	
+	content+="</div>";
+	
+	
+	
+	
+	content+="<div class='section'>";
+	content+="<div class='title abilities'>";
+	content+=EDITORSTRINGS.WEAPON.label_animation;	
+	content+="</div>";
+	content+="<div class='content' style='display: block;'>";
+	content+="<div class='table'>";		
+	content+=_this._propertyHandlers.animation.createControls();
 	content+="</div>";	
 	
 	

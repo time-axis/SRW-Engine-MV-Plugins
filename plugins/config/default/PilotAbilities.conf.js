@@ -1387,7 +1387,7 @@ $SRWConfig.pilotAbilties = function(){
 		"Dominance", 
 		"Damage against enemies with less Will +10%.", 
 		false,
-		false,
+		true,
 		function(actor, level){
 			return [{type: "final_damage", modType: "mult", value: 1.1}];
 		},
@@ -1568,7 +1568,7 @@ $SRWConfig.pilotAbilties = function(){
 		false,
 		function(actor, level){
 			return [
-				{type: "ability_command", cmdId: 1},				
+				{type: "ability_command", cmdId: 2},				
 			];
 		},
 		function(actor, level){
@@ -2096,5 +2096,175 @@ $SRWConfig.pilotAbilties = function(){
 		},
 		[0],
 		1
+	);
+	
+	this.addDefinition(
+		103, 
+		"Aegis", 
+		"At 130+ Will, 50% chance to reduce damage taken from Ranged weapons by 50%.", 
+		false,
+		false,
+		function(actor, level){
+			return [
+				{type: "percent_barrier", subType: "ranged", value: 0.1, cost: 0, success_rate: 1}
+			];
+		},
+		function(actor, level){
+			return true;
+		},
+		[0],
+		4,
+		function(actor, level){
+			return true;
+		}
+	);
+	
+	this.addDefinition(
+		104, 
+		"Recoil Test", 
+		"Attacking deals 30% damage to the unit.", 
+		false,
+		false,
+		function(actor, level){			
+			return [
+				{type: "hp_drain", modType: "addFlat", value: -0.3}
+			];
+			
+			
+		},
+		function(actor, level){
+			return true;
+		},
+		[0],
+		4,
+		function(actor, level){
+			return true;
+		}
+	);
+	
+	this.addDefinition(
+		105, 
+		"Map Spirit Test", 
+		"Cast Disrupt at the start of your turn.", 
+		false,
+		false,
+		function(actor, level){			
+			return [
+				{type: "auto_spirit", modType: "addFlat", value: 3}
+			];
+			
+			
+		},
+		function(actor, level){
+			return true;
+		},
+		[0],
+		4,
+		function(actor, level){
+			return true;
+		}
+	);
+	
+	this.addDefinition(
+		106, 
+		"Map Spirit Test 2", 
+		"Cast Disrupt at the start of your turn.", 
+		false,
+		false,
+		function(actor, level){			
+			return [
+				{type: "auto_spirit", modType: "addFlat", value: 7}
+			];
+			
+			
+		},
+		function(actor, level){
+			return true;
+		},
+		[0],
+		4,
+		function(actor, level){
+			return true;
+		}
+	);
+
+	this.addDefinition(
+		107, 
+		"Sniper", 
+		"Crits deal an additional 1.25x damage.", 
+		false,
+		true,
+		function(actor, level){
+			return [{type: "crit_damage", modType: "mult", value: 1.25}];
+		},
+		function(actor, level){
+			return true;
+		},
+		[0],
+		1,
+	);
+
+	this.addDefinition(
+		108, 
+		"Ranged Chalice",
+		"Recover HP and EN to full up to twice per stage.",
+		false,
+		false,
+		function(actor, level){
+			return [
+				{type: "ability_command", cmdId: 4},				
+			];
+		},
+		function(actor, level){
+			return true;		
+		}
+	);	
+
+	this.addDefinition(
+		109, 
+		"Counter Debug", 
+		"The unit may attack first during the enemy phase. Chance depends on level.", 
+		true,
+		false,
+		function(actor, level){
+			return [{type: "counter_rate", modType: "addFlat", value: 1}];
+		},
+		function(actor, level){
+			return true;
+		},
+		[20,30,40,50,60,70,80,90,100],
+		9
+	);
+	
+	this.addDefinition(
+		110, 
+		"Boost Crits", 
+		"The pilot can score a Critical Hit while Valor or Soul are active.", 
+		false,
+		true,
+		function(actor, level){
+			return [{type: "boost_crits", modType: "addFlat", value: 1}];
+		},
+		function(actor, level){
+			return true;
+		},
+		[0],
+		1,
+	);
+	
+	this.addDefinition(
+		110, 
+		"Boost Crits", 
+		"The pilot can score a Critical Hit while Valor or Soul are active.", 
+		false,
+		true,
+		function(actor, level){
+			return [{type: "boost_crits", modType: "addFlat", value: 1}];
+		},
+		function(actor, level){
+			return true;
+		},
+		[0],
+		1,
 	);
 }
