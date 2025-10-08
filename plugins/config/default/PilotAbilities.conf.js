@@ -107,12 +107,12 @@ $SRWConfig.pilotAbilties = function(){
 				[{type: "weapon_ranged", modType: "addFlat", value: 50}], //1
 				[{type: "weapon_ranged", modType: "addFlat", value: 100}], //2
 				[{type: "weapon_ranged", modType: "addFlat", value: 150}], //3
-				[{type: "weapon_ranged", modType: "addFlat", value: 150}, {type: "range", modType: "addFlat", value: 1}], //4
-				[{type: "weapon_ranged", modType: "addFlat", value: 200}, {type: "range", modType: "addFlat", value: 1}], //5
-				[{type: "weapon_ranged", modType: "addFlat", value: 250}, {type: "range", modType: "addFlat", value: 1}], //6
-				[{type: "weapon_ranged", modType: "addFlat", value: 250}, {type: "range", modType: "addFlat", value: 2}], //7
-				[{type: "weapon_ranged", modType: "addFlat", value: 300}, {type: "range", modType: "addFlat", value: 2}], //8
-				[{type: "weapon_ranged", modType: "addFlat", value: 350}, {type: "range", modType: "addFlat", value: 2}], //9				
+				[{type: "weapon_ranged", modType: "addFlat", value: 150}, {type: "range_ranged", modType: "addFlat", value: 1}], //4
+				[{type: "weapon_ranged", modType: "addFlat", value: 200}, {type: "range_ranged", modType: "addFlat", value: 1}], //5
+				[{type: "weapon_ranged", modType: "addFlat", value: 250}, {type: "range_ranged", modType: "addFlat", value: 1}], //6
+				[{type: "weapon_ranged", modType: "addFlat", value: 250}, {type: "range_ranged", modType: "addFlat", value: 2}], //7
+				[{type: "weapon_ranged", modType: "addFlat", value: 300}, {type: "range_ranged", modType: "addFlat", value: 2}], //8
+				[{type: "weapon_ranged", modType: "addFlat", value: 350}, {type: "range_ranged", modType: "addFlat", value: 2}], //9				
 			];
 			if(effectTable[level-1]){
 				return effectTable[level-1];
@@ -2253,13 +2253,13 @@ $SRWConfig.pilotAbilties = function(){
 	);
 	
 	this.addDefinition(
-		110, 
-		"Boost Crits", 
-		"The pilot can score a Critical Hit while Valor or Soul are active.", 
+		111, 
+		"Range Ranged Up", 
+		"The range of ranged weapons is increased", 
 		false,
 		true,
 		function(actor, level){
-			return [{type: "boost_crits", modType: "addFlat", value: 1}];
+			return [{type: "range_ranged", modType: "addFlat", value: 3}];
 		},
 		function(actor, level){
 			return true;

@@ -656,10 +656,18 @@ StatCalc.prototype.parseWeaponDef = function(actor, isLocked, weaponDefinition, 
 			invalidTargetTags[String(tag).trim()] = true;
 		});				
 	}
+
+	let tags = {};
+	if(weaponProperties.weaponTags){					
+		var parts = weaponProperties.weaponTags.split(",");
+		parts.forEach(function(tag){
+			tags[String(tag).trim()] = true;
+		});				
+	}
 	return {
 		id: parseInt(weaponDefinition.id),
 		name: weaponDefinition.name,
-		type: weaponProperties.weaponType,
+		type: weaponProperties.weaponType || "R",
 		attribute1: weaponProperties.weaponAttribute1,
 		attribute2: weaponProperties.weaponAttribute2,
 		postMoveEnabled: parseInt(weaponProperties.weaponPostMoveEnabled),
@@ -707,6 +715,7 @@ StatCalc.prototype.parseWeaponDef = function(actor, isLocked, weaponDefinition, 
 		enemiesInteraction: weaponProperties.weaponEnemyInteraction || "damage_and_status",
 		alliesInteraction: weaponProperties.weaponAllyInteraction || "damage_and_status",
 		invalidTargetTags: invalidTargetTags,
+		tags: tags,
 		costType: parseInt(weaponProperties.weaponCostType)|| 0,
 		weight: parseInt(weaponProperties.weaponWeight)|| 0,	
 		textAlias: parseInt(weaponProperties.weaponTextAlias || -1)
@@ -1683,6 +1692,8 @@ StatCalc.prototype.initSRWStats = function(actor, level, itemIds, preserveVolati
 	if(actor.SRWStats.pilot.textAlias == null){
 		actor.SRWStats.pilot.textAlias = -1;
 	}
+
+	actor.SRWStats.pilot.noMirrorPortrait = parseInt(actorProperties.pilotNoMirrorPortrait || 0);
 	
 	actor.SRWStats.pilot.attribute1 = actorProperties.pilotAttribute1;
 	actor.SRWStats.pilot.attribute2 = actorProperties.pilotAttribute2;
@@ -3623,6 +3634,8 @@ StatCalc.prototype.getBattleSceneInfo = function(actor){
 		var mechProperties = $dataClasses[actor.SRWStats.mech.id].meta;
 		result.basicBattleSpriteName = mechProperties.mechBasicBattleSprite;
 		result.battleSceneSpriteName = mechProperties.mechBattleSceneSprite;
+		result.basicBattleYOffset = parseFloat(mechProperties.mechBasicBattleYOffset) || 0;
+		result.basicBattleXOffset = parseFloat(mechProperties.mechBasicBattleXOffset) || 0;
 		if(mechProperties.mechMenuSprite){
 			result.menuSpritePath = "menu/"+mechProperties.mechMenuSprite+".png";
 		} else {
@@ -3754,6 +3767,25 @@ StatCalc.prototype.getBasicBattleImage = function(actor){
 		return "";
 	}
 }
+
+StatCalc.prototype.getBasicBattleYOffset = function(actor){
+	if(this.isActorSRWInitialized(actor)){
+		return this.getBattleSceneInfo(actor).basicBattleYOffset;	
+	} else {
+		return "";
+	}
+}
+
+StatCalc.prototype.getBasicBattleXOffset = function(actor){
+	if(this.isActorSRWInitialized(actor)){
+		return this.getBattleSceneInfo(actor).basicBattleXOffset;	
+	} else {
+		return "";
+	}
+}
+
+
+
 
 StatCalc.prototype.getBattleIdleImage = function(actor){
 	if(this.isActorSRWInitialized(actor)){
