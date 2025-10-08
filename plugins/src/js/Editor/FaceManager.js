@@ -50,8 +50,12 @@ FaceManager.showFaceSelector = function(e, faceName, faceIndex, elem){
 		var base = getBase();
 		const dir = base+"img/faces";
 		var availableFaceFiles = [];
+		console.log("!!Current working director: " + process.cwd());
+		console.log("!!Getting Face files from " + dir);
+		
 		FILESYSTEM.readdirSync(dir).forEach(function(file) {	
-			file = file.replace(/\.png$/, "");
+			console.log("!!Reading " + file);
+			file = file.replace(/\.png$/i, "");
 			availableFaceFiles.push(file);		
 		});	
 		
@@ -91,7 +95,7 @@ FaceManager.showFaceSelector = function(e, faceName, faceIndex, elem){
 			container.style.top = rect.top - (containerRect.bottom - window.innerHeight + 5) + "px";
 		}
 		
-		Window.innerHeight
+		//Window.innerHeight
 		
 		function updateFaceList(){
 			var ctr = 0;

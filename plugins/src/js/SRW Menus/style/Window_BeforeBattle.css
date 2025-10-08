@@ -264,6 +264,10 @@
 	top: 0;
 }
 
+.participant_block .main_row .main_content .enemy_icon.no_mirror {
+	transform: scaleX(1);
+}
+
 .participant_block .main_row .main_content .pilot_name{
 	--fontsize: 2.2px;
 	--widthscaling: 15;

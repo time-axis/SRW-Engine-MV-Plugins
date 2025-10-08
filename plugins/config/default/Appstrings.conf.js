@@ -886,6 +886,7 @@ EDITORSTRINGS.WEAPON = {
 	label_category: "Category",
 	label_primary_attr: "Primary Attribute",
 	label_secondary_attr: "Secondary Attribute",	
+	label_tags: "Tags",
 	label_upgrade_type: "Upgrade Type",
 	label_always_counter: "Always Counter",
 	label_only_counter: "Only as Counter",
@@ -1039,6 +1040,8 @@ EDITORSTRINGS.MECH = {
 	label_allowed: "Allowed",
 	
 	label_basic_battle: "Basic Battle",
+	label_y_offset_bb: "Basic Battle Y Offset",
+	label_x_offset_bb: "Basic Battle X Offset",
 	label_overworld: "Overworld",
 	label_battle_scene: "Battle Scene",
 	label_folder: "Folder",
@@ -1108,6 +1111,7 @@ EDITORSTRINGS.PILOT = {
 	
 	label_name: "Name",
 	label_use_mech_name: "Use Mech Name",
+	label_no_mirror: "Don't Mirror",
 	label_stats_label: "Stats Label",
 	
 
