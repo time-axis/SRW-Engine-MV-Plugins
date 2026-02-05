@@ -988,6 +988,11 @@ StatCalc.prototype.getMechItemInfo = function(mechProperties){
 
 StatCalc.prototype.getPilotName = function(actor){
 	if(this.isActorSRWInitialized(actor)){
+		if($gameSystem?.actorNameAliases){
+			if($gameSystem.actorNameAliases[actor.actorId()]){
+				return $gameSystem.actorNameAliases[actor.actorId()];
+			}
+		}
 		if(actor.SRWStats.pilot.usesClassName){
 			return actor.SRWStats.mech.classData.name;
 		} 
@@ -1105,6 +1110,9 @@ StatCalc.prototype.setDisabled = function(actor){
 }
 
 StatCalc.prototype.isDisabled = function(actor){
+	if(!actor){
+		return false;
+	}
 	return this.hasTurnStatus(actor, "disabledTurn") || actor._battleMode == "disabled";
 }
 
@@ -2852,17 +2860,15 @@ StatCalc.prototype.transform = function(actor, idx, force, forcedId, noRestore){
 			}			
 						
 			if(transformIntoId != null){			
-				var targetMechData = this.getMechDataById(transformIntoId, true);
-			
+				var targetMechData = this.getMechDataById(transformIntoId, true);			
 				actor.isSubPilot = false;
-				actor.SRWStats.mech = this.getMechDataById(transformIntoId, true);
-				
-				this.calculateSRWMechStats(actor.SRWStats.mech, false, actor);
-				
-				
-				var actionsResult = this.applyDeployActions(actor.SRWStats.pilot.id, actor.SRWStats.mech.id);
+								
+				var actionsResult = this.applyDeployActions(actor.SRWStats.pilot.id, transformIntoId);
 
-				
+				if(!actionsResult){
+					actor.SRWStats.mech = this.getMechDataById(transformIntoId, true);				
+					this.calculateSRWMechStats(actor.SRWStats.mech, false, actor);
+				}
 
 				//store the sub twin and unassign it from the current actor so that if the pilot changes the previous pilot does not retain an old reference
 				//must be done after deploy actions as those reassign the sub twin otherwise
@@ -2969,9 +2975,9 @@ StatCalc.prototype.getSwapOptions = function(actor){
 				if(entry == actor.actorId()){
 					isValid = false;
 				}
-				if($gameParty._actors.indexOf(entry * 1) == -1){
+				/*if($gameParty._actors.indexOf(entry * 1) == -1){
 					isValid = false;
-				}
+				}*/
 				let targetEvent = this.getReferenceEvent($gameActors.actor(entry));
 				if(targetEvent && sourceEvent != targetEvent){
 					isValid = false;
@@ -5613,13 +5619,13 @@ StatCalc.prototype.hasMapWeapon = function(actor){
 	}
 }
 
-StatCalc.prototype.hasMapWeaponWithTargets = function(actor){
+StatCalc.prototype.hasMapWeaponWithTargets = function(actor, postMoveOnly){
 	if(this.isActorSRWInitialized(actor)){
 		//hack to avoid needing to move the map attack handling functions to another module
 		const sceneManager = SceneManager._scene;
 		let hasMapWeapon = false;
 		if(sceneManager && sceneManager.getBestMapAttackTargets){
-			var mapWeapons = $statCalc.getActiveMapWeapons(actor, false);	
+			var mapWeapons = $statCalc.getActiveMapWeapons(actor, postMoveOnly);	
 			if(mapWeapons.length){
 				mapWeapons.forEach(function(mapWeapon){
 					if(sceneManager.actorMapWeaponHasTargets(actor, mapWeapon)){
@@ -7310,7 +7316,7 @@ StatCalc.prototype.clearTempEffects = function(actor){
 StatCalc.prototype.clearTempEffectsOnAll = function(type){		
 	var _this = this;
 	_this.iterateAllActors(type, function(actor){			
-		_this.clearTempEffects(actor, effect);						
+		_this.clearTempEffects(actor);						
 	});
 }
 
@@ -7605,7 +7611,7 @@ StatCalc.prototype.isStatModActiveOnAnyActor = function(modType, excludedSkills)
 	return result;
 }
 
-StatCalc.prototype.getActiveStatMods = function(actor, actorKey, excludedSkills){
+StatCalc.prototype.getActiveStatMods = function(actor, actorKey, excludedSkills, force){
 	var _this = this;
 	if(!excludedSkills){
 		excludedSkills = {};
@@ -7618,21 +7624,22 @@ StatCalc.prototype.getActiveStatMods = function(actor, actorKey, excludedSkills)
 		list: []
 	};
 	
+	//this structure disallows the same ability to be processed twice for the same actor in one round of processing
+	//functions as infinite recursion prevention for ability calling ability checks
 	if(!_this._currentActorBeingProcessed[actorKey]){
 		_this._currentActorBeingProcessed[actorKey] = {
 		
 		};
-	}
-	
-	
+	}	
 	
 	function accumulateFromAbilityList(abilityList, abilityManager){
 		if(abilityList && abilityManager){			
 			let ctr = 0;
 			abilityList.forEach(function(abilityDef){
 				if(abilityDef){
-					const sourceId = abilityManager.getIdPrefix()+"_"+abilityDef.idx + "_" + ctr;
-					if(!_this._currentActorBeingProcessed[actorKey][sourceId]){						
+					const skillPrefixId = abilityManager.getIdPrefix()+"_"+abilityDef.idx;
+					const sourceId = skillPrefixId + "_" + ctr;
+					if((!_this._currentActorBeingProcessed[actorKey][sourceId] || force) && !excludedSkills[skillPrefixId]){						
 						_this._currentActorBeingProcessed[actorKey][sourceId] = true;
 						
 						if((typeof abilityDef.requiredLevel == "undefined" || abilityDef.requiredLevel == 0 || _this.getCurrentLevel(actor) >= abilityDef.requiredLevel) && abilityManager.isActive(actor, abilityDef.idx, abilityDef.level)){
@@ -7703,6 +7710,17 @@ StatCalc.prototype.getActiveStatMods = function(actor, actorKey, excludedSkills)
 		}		
 
 		if(!actor.isSubPilot && actor.SRWStats.mech){			
+
+			var FUBAbility = actor.SRWStats.mech.fullUpgradeAbility;	
+			if(typeof FUBAbility != "undefined" && FUBAbility != -1 && FUBAbility.idx != -1){
+				accumulateFromAbilityList([FUBAbility], $mechAbilityManager);	
+			}
+			
+			var genericFullUpgradeAbility = actor.SRWStats.mech.genericFullUpgradeAbility;	
+			if(typeof genericFullUpgradeAbility != "undefined" && genericFullUpgradeAbility != -1 && genericFullUpgradeAbility.idx != -1){
+				accumulateFromAbilityList([genericFullUpgradeAbility], $mechAbilityManager);	
+			}		
+
 			var abilities = actor.SRWStats.mech.abilities;	
 			
 			if(abilities){
@@ -7738,15 +7756,7 @@ StatCalc.prototype.getActiveStatMods = function(actor, actorKey, excludedSkills)
 				}	
 			}
 			
-			var FUBAbility = actor.SRWStats.mech.fullUpgradeAbility;	
-			if(typeof FUBAbility != "undefined" && FUBAbility != -1 && FUBAbility.idx != -1){
-				accumulateFromAbilityList([FUBAbility], $mechAbilityManager);	
-			}
 			
-			var genericFullUpgradeAbility = actor.SRWStats.mech.genericFullUpgradeAbility;	
-			if(typeof genericFullUpgradeAbility != "undefined" && genericFullUpgradeAbility != -1 && genericFullUpgradeAbility.idx != -1){
-				accumulateFromAbilityList([genericFullUpgradeAbility], $mechAbilityManager);	
-			}		
 			
 			var items = actor.SRWStats.mech.items;		
 			accumulateFromAbilityList(items, $itemEffectManager);		
@@ -7853,6 +7863,29 @@ StatCalc.prototype.getActiveStatMods = function(actor, actorKey, excludedSkills)
 		}
 	}
 	return result;
+}
+
+//note: if called from inside an effect handler, excluded skills must be set to avoid infinte loops
+StatCalc.prototype.getActiveEffectValue = function(actor, effectId, excludedSkills){
+	//excludedSkills = structuredClone(excludedSkills);
+	if(!this._resolvingActiveEffect){
+		this._resolvingActiveEffect = true;	
+		const globalResult = this.applyStatModsToValue(actor, 0, [effectId], excludedSkills);
+		if(globalResult){
+			this._resolvingActiveEffect = false;
+			return !!globalResult; //the effect is set by another unit's ability
+		}
+	
+		const ownAbilityEffects = this.getActiveStatMods(actor, actor.SRWStats.pilot.id+"_"+"own", excludedSkills, true);
+		this._resolvingActiveEffect = false;
+		for(const entry of ownAbilityEffects.list){
+			if(entry.type == effectId && entry.value > 0){
+				return true;
+			}
+		}
+		
+	}
+	return false;
 }
 
 StatCalc.prototype.externalLockUnitUpdates = function(){
@@ -8091,6 +8124,9 @@ StatCalc.prototype.createActiveAbilityLookup = function(){
 											} else if(actor.actorId){
 												isValid = effect.originId == actor.actorId();
 											}
+											if(effect.eventId != _this.getReferenceEvent(actor).eventId()){
+												isValid = false;
+											}
 											if(isValid){
 												var entityKey = _this.getReferenceEvent(actor).eventId();
 				
@@ -8268,6 +8304,11 @@ StatCalc.prototype.createActiveAbilityLookup = function(){
 		_this._invalidatedEventIds = {};
 	} else {
 		//console.log("Rebuilding full ability cache");
+		//since a full refresh is happening, ensure invalidatedEventIds is cleared otherwise inconsistent results can be 
+		//generated if an inner stat mod update causes a refresh of the invalidated event's abilities, 
+		//if the invalidated event is processed after that the abi key tracking will cause an incomplete set of statmods to be generated for that unit
+
+		_this._invalidatedEventIds = {}; 
 		_this.iterateAllActors(null, function(actor, event){			
 			handleEventActors(actor, event);
 		});
@@ -8897,13 +8938,13 @@ StatCalc.prototype.unbindLinkedDeploySlots = function(actorId, mechId, type, slo
 }
 
 //if overwriteFallbackInfo is set the stored state for all affected units will be update to the state after the deploy actions are applied
-StatCalc.prototype.applyDeployActions = function(actorId, mechId, overwriteFallbackInfo, force){
+StatCalc.prototype.applyDeployActions = function(mainActorId, mechId, overwriteFallbackInfo, force){
 	var _this = this;
 	if(this._unitUpdatesExternalLocked){
 		return;
 	}
 	this.lockAbilityCache();
-	var deployActions = this.getDeployActions(actorId, mechId);
+	var deployActions = this.getDeployActions(mainActorId, mechId);
 	var affectedActors = [];
 	
 	var result = false;
@@ -8938,22 +8979,22 @@ StatCalc.prototype.applyDeployActions = function(actorId, mechId, overwriteFallb
 					previousMechs.forEach(function(previousMechId){		
 						var previousMech = $statCalc.getMechData($dataClasses[previousMechId], true);
 						if(previousMech && previousMech.id != -1){
-							previousMech.subPilots[previousMech.subPilots.indexOf(actorId * 1)] = 0;					
-							$statCalc.storeMechData(previousMech);
-							
-							
-							//ensure the live copy of the unit is also updated
-							var currentPilot = $statCalc.getCurrentPilot(previousMech.id);
-							if(currentPilot){
-								$statCalc.reloadSRWStats(currentPilot, false, true);
-							}
+							const subPilotIdx = previousMech.subPilots.indexOf(actorId * 1);
+							if(subPilotIdx != -1){
+								previousMech.subPilots[subPilotIdx] = 0;					
+								$statCalc.storeMechData(previousMech);								
+								
+								//ensure the live copy of the unit is also updated
+								var currentPilot = $statCalc.getCurrentPilot(previousMech.id);
+								if(currentPilot && currentPilot.actorId() != mainActorId){
+									$statCalc.reloadSRWStats(currentPilot, false, true);
+								}
+							}							
 						}	
 					});
 					
 					var actor = $gameActors.actor(actorId);					
-					$gameSystem.registerPilotFallbackInfo(actor);	
-					
-					
+					$gameSystem.registerPilotFallbackInfo(actor);						
 					actor._classId = 0;
 					$statCalc.reloadSRWStats(actor, false, true);	
 				});		
@@ -8984,7 +9025,7 @@ StatCalc.prototype.applyDeployActions = function(actorId, mechId, overwriteFallb
 								
 								//ensure the live copy of the unit is also updated
 								var currentPilot = $statCalc.getCurrentPilot(targetMechId);
-								if(currentPilot){
+								if(currentPilot && currentPilot.actorId() != mainActorId){
 									$statCalc.reloadSRWStats(currentPilot, false, true);
 								}
 								
@@ -9001,12 +9042,12 @@ StatCalc.prototype.applyDeployActions = function(actorId, mechId, overwriteFallb
 			}
 		});	
 					
-		this.reloadSRWStats($gameActors.actor(actorId), false, true);
+		this.reloadSRWStats($gameActors.actor(mainActorId), false, true);
 	} else {
 		if(overwriteFallbackInfo){
-			$gameSystem.overwritePilotFallbackInfo($gameActors.actor(actorId));	
+			$gameSystem.overwritePilotFallbackInfo($gameActors.actor(mainActorId));	
 		} else {
-			$gameSystem.registerPilotFallbackInfo($gameActors.actor(actorId));	
+			$gameSystem.registerPilotFallbackInfo($gameActors.actor(mainActorId));	
 		}
 	}
 	this.unlockAbilityCache();

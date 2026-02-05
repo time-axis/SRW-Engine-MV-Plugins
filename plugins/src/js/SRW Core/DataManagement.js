@@ -380,9 +380,11 @@
 					ENGINE_SETTINGS.SAVE_UPDATE_FUNCTION();
 				}
 				
+				
 				if($gameSystem.isIntermission()){
 					$gameSystem.startIntermission();
 				} else {
+					$gameTemp.loadingIntoSaveCtr = 60;
 					$statCalc.invalidateAbilityCache();
 					$statCalc.invalidateZoneCache();
 					$statCalc.softRefreshUnits();
@@ -454,11 +456,16 @@
 				if(ENGINE_SETTINGS.SAVE_UPDATE_FUNCTION){
 					ENGINE_SETTINGS.SAVE_UPDATE_FUNCTION();
 				}
-				$statCalc.invalidateAbilityCache();
-				$statCalc.invalidateZoneCache();
-				$statCalc.softRefreshUnits();
-
-				$SRWGameState.requestNewState("normal");
+				if($gameSystem.isIntermission()){
+					$gameSystem.startIntermission();
+				} else {
+					$gameTemp.loadingIntoSaveCtr = 60;
+					$statCalc.invalidateAbilityCache();
+					$statCalc.invalidateZoneCache();
+					$statCalc.softRefreshUnits();
+					
+					$SRWGameState.requestNewState("normal");
+				}
 				
 				SceneManager._scene.fadeOutAll()
 				SceneManager.goto(Scene_Map);
@@ -688,6 +695,7 @@
 				unlockTransformation: true,
 				unlockAllTransformations: true,
 				setFaceAlias: true,
+				setActorNameOverride: true,
 				setCharacterIndexAlias: true,
 				setPilotAbilityUpgrade: true,
 				setMechAbilityUpgrade: true,

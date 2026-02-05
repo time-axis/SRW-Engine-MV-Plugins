@@ -422,10 +422,11 @@ APPSTRINGS.ATTR_CHART = {
 
 APPSTRINGS.OPTIONS = {
 	title: "Options",
-	label_game_options: "Game Options",
-	label_sound_options: "Sound Options",
+	label_game_options: "General",
+	label_sound_options: "Sound",
 	label_display: "Display",
 	label_fullscreen: "Fullscreen",
+	label_save_vram: "Effects Quality",
 	label_grid: "Grid",
 	label_will: "Show Info on Map",
 	label_default_support: "Default Support Defend",
@@ -439,7 +440,7 @@ APPSTRINGS.OPTIONS = {
 	label_bgm_vol: "BGM Volume",
 	label_sfx_vol: "SFX Volume",
 	label_battle_speed: "Action Speed",
-	label_tweaks: "Game Tweaks",
+	label_tweaks: "Modes",
 	label_button_set: "Button Display",
 	label_show_map_buttons: "Map Button Hints",
 	label_intermission_only: "Edit in Intermission"
@@ -453,7 +454,7 @@ APPSTRINGS.MODE_SELECTION = {
 }
 
 APPSTRINGS.GAME_MODES = {
-	title: "Game Tweaks",
+	title: "Modes",
 	label_on: "On",
 	label_off: "Off",
 	label_infinite_funds: "Infinite Funds",
@@ -667,6 +668,12 @@ APPSTRINGS.BUTTON_HINTS = {
 	scroll_list: {text: "Scroll List", action: "d:up_down"},
 	show_zone_info: {text: "Show Zone Details", action: "menu"},
 	show_status: {text: "Show Status", action: "menu"},
+
+	//Text
+	confim_text: {text: "Continue", action: "ok"}, 
+	text_log: {text: "Text Log", action: "menu"}, 
+	fast_forward: {text: "Fast Forward", actions: ["ok", "pagedown"]}, 
+	skip_forward:  {text: "Skip", actions: ["ok", "pageup", "pagedown"]}, 
 };
 
 

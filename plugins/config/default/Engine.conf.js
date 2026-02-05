@@ -1,6 +1,17 @@
 var ENGINE_SETTINGS = {
 	GAMEID: "SRWMV",
 	CUSTOM_TITLE_SCREEN: "",
+	PHOTOSENSITIVITY_DISCLAIMER: {
+		show: false,
+		header: "PHOTOSENSITIVITY WARNING",
+		lines: [
+			"This game contains bright flashing lights and/or images that may ",
+			"cause discomfort, seizures, and/or convulsions in people",
+			"with photosensitive epilepsy. Player discretion is advised.",
+		]
+	},
+	DISABLE_SHIFT_QUICK_MOVE: false,
+	SEND_TO_TITLE_ON_GAME_OVER: false,
 	PLACE_PARALLAX_ABOVE_MAP: true,
 	ENABLE_HEALTH_BARS_ON_MAP: true,
 	FONT_SCALE: 1,//used to scale the text in CSS menus.
@@ -249,8 +260,9 @@ var ENGINE_SETTINGS = {
 	MAX_DEPLOY_SIZE: 36, //the number of slots shown in the deploy window if TWIN mode is not enabled
 	MAX_DEPLOY_SIZE_TWIN: 40, //the number of slots shown in the deploy window if TWIN mode is enabled
 	SINGLE_BATTLE_SPRITE_MODE: false,
-	ENABLE_TWEAKS_MENU: true,
+	ENABLE_TWEAKS_MENU: false,
 	ENABLE_TWEAKS_OPTION: false,
+	ENABLE_GRAPHICS_MENU: false,
 	MERGE_ATTACK_UPGRADES: false,
 	ENABLE_ATTRIBUTE_SYSTEM: false,
 	USE_WEAPON_ATTRIBUTE: false,
