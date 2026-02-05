@@ -5,7 +5,7 @@ call npx webpack
 @ECHO OFF
 ECHO Copying files
 @ECHO ON
-xcopy .. "D:\RPG Maker MV Projects\Hyper Galaxy Wars\js\plugins" /Y /E /H
-xcopy "D:\RPG Maker MV Projects\Hyper Galaxy Wars\js\repository fork\SRW-Engine-MV-Plugins\plugins.js" "D:\RPG Maker MV Projects\Hyper Galaxy Wars\js\" /Y
+xcopy .. "D:\RPG Maker MV Projects\Galaxy Wars Terra\js\plugins" /Y /E /H
+xcopy "D:\RPG Maker MV Projects\Galaxy Wars Terra\js\repository fork\SRW-Engine-MV-Plugins\plugins.js" "D:\RPG Maker MV Projects\Galaxy Wars Terra\js\" /Y
 @ECHO OFF
 pause
