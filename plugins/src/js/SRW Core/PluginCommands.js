@@ -68,7 +68,7 @@
 					if(actor.isSubPilot){
 						$gameSystem.overwritePilotFallbackInfo(actor);
 					} else {
-						let actionsResult = $statCalc.applyDeployActions(args[0], args[1], true);
+						let actionsResult = $statCalc.applyDeployActions(args[0], args[1], true, true);
 						if(!actionsResult){
 							$gameSystem.overwritePilotFallbackInfo(actor);
 						}
@@ -1090,6 +1090,17 @@
 					}
 					$gameSystem.faceAliases[args[0]] = args[1];
 				}
+
+				if (command === 'setActorNameOverride') {	
+					if(!$gameSystem.actorNameAliases){
+						$gameSystem.actorNameAliases = {};
+					}
+					if(!args[1]){
+						delete $gameSystem.actorNameAliases;
+					} else {
+						$gameSystem.actorNameAliases[args[0]] = args[1];
+					}					
+				}				
 				
 				if (command === 'setCharacterIndexAlias') {	
 					if(!$gameSystem.characterIdexAliases){
@@ -1330,7 +1341,7 @@
 				
 				if (command === 'removeSubPilot') {					
 					var targetMech = $statCalc.getMechData($dataClasses[args[0] * 1], true);
-					targetMech.subPilots[args[1] * 1] = 0;
+					targetMech.subPilots[args[1] * 1] = 0	;
 					$statCalc.storeMechData(targetMech);
 					$gameSystem.overwriteMechFallbackInfo(args[0] * 1, targetMech.subPilots);
 					let actor = $gameActors.actor(args[2] * 1)

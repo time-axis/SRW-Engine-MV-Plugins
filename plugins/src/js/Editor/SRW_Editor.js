@@ -153,6 +153,11 @@ SRWEditor.prototype.init = function(){
 	};
 	
 	_this._commandDisplayInfo = {
+		tick_conditional: {
+			hasTarget: false,
+			params: ["expression"],
+			desc: "If added to a tick the expression must evaluate to true or the entire tick will be ignored."
+		},
 		set_blend_color: {
 			hasTarget: true,
 			params: ["r", "g", "b"],
@@ -192,6 +197,11 @@ SRWEditor.prototype.init = function(){
 			hasTarget: true,
 			params: ["aroundPivot", "fixMirrored", "rotation"],
 			desc: "Immediately set to rotation of an object."
+		},
+		animateFOV: {
+			hasTarget: false,
+			params: ["from", "to", "duration", "easingFunction", "easingMode"],
+			desc: "Animate the camera FOV between two values"
 		},
 		translate: {
 			hasTarget: true,
@@ -625,6 +635,16 @@ SRWEditor.prototype.init = function(){
 			params: [],
 			desc: "Hide a sprite."
 		},
+		start_model_texture_anim: {
+			hasTarget: false,
+			params: ["texAnimKey"],
+			desc: "Set the model texture animation with the matching key to running."
+		},
+		stop_model_texture_anim: {
+			hasTarget: false,
+			params: ["texAnimKey"],
+			desc: "Set the model texture animation with the matching key to stopped."
+		},
 		show_sprite: {
 			hasTarget: true,
 			params: [],
@@ -734,6 +754,7 @@ SRWEditor.prototype.init = function(){
 	
 	
 	_this._paramTooltips = {
+		expression: "A javascript expression to evaluate. actor is an available variable referencing the actor performing the current attack. All globals are accessible.",
 		r: "The red component of a color 0-255",
 		g: "The green component of a color 0-255",
 		b: "The blue component of a color 0-255",
@@ -812,6 +833,7 @@ SRWEditor.prototype.init = function(){
 		from: "The frame to start playing from",
 		to: "The frame to play until",
 		attachId: "The name/id of the attachment",
+		texAnimKey: "The id of the model texture animation to target. Note that texture anim keys are global and should be unique among all models used in a project.",
 		holdFrame: "If 1 the sprite will hold the final frame of the animation, ignored if animation looping is enabled.",
 		scrollSpeed: "Sets the horizontal scroll speed of the background, use negative values to change the scroll direction",
 		uScale: "Sets the horizontal scale of the UV(default 1)",
@@ -939,6 +961,9 @@ SRWEditor.prototype.init = function(){
 		},		
 		
 		immediate: function(value){
+			
+		}, 
+		expression: function(value){
 			
 		}, 
 		armatureName: function(value){
@@ -1209,6 +1234,9 @@ SRWEditor.prototype.init = function(){
 		
 		},
 		attachId: function(value){
+		
+		},
+		texAnimKey: function(value){
 		
 		},
 		snap: function(value){

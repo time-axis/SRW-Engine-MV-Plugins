@@ -390,7 +390,7 @@ var _defaultPlayerSpeed = parameters['defaultPlayerSpeed'] || 4;
 	ImageManager.getTranslationInfo = function(filename){	
 		if(filename){
 			if($gameSystem.faceAliases && $gameSystem.faceAliases[filename]){
-			filename = $gameSystem.faceAliases[filename];
+				filename = $gameSystem.faceAliases[filename];
 			}
 			if(ENGINE_SETTINGS.variableUnitPortraits && !$gameSystem.disableVariablePortraits){
 				var keyParts = filename.split("_");
@@ -807,6 +807,7 @@ SceneManager.isInSaveScene = function(){
 		this.createMapButtonsWindow();
 		this.createOpeningCrawlWindow();
 		this.createTextLogWindow();
+		this.createLoaderOverlayWindow();
 		this.createZoneStatusWindow();
 		this.createButtonHintsWindow();
 		this.createZoneSummaryWindow();
@@ -1500,6 +1501,12 @@ SceneManager.isInSaveScene = function(){
 		this._textLogWindow.hide();
 		this.idToMenu["text_log"] = this._textLogWindow;
     };
+
+	Scene_Map.prototype.createLoaderOverlayWindow = function() {
+		var _this = this;
+		_this._loadOverlayWindow = new Window_LoadOverlay(0, 0, Graphics.boxWidth, Graphics.boxHeight);		
+		this.addWindow(this._loadOverlayWindow);	
+    };
 	
 	Scene_Map.prototype.createBeforeBattleSpiritWindow = function() {
 		var _this = this;
@@ -1908,12 +1915,17 @@ SceneManager.isInSaveScene = function(){
     var _SRPG_SceneMap_update = Scene_Map.prototype.update;
     Scene_Map.prototype.update = function() {
 		var _this = this;
-		if($gameTemp.doingSoftRestFade){
+		if($gameTemp.loadingIntoSaveCtr > 0){
+			$gameTemp.loadingIntoSaveCtr--;
+			Scene_Base.prototype.update.call(this);
+			return;
+		}
+		if($gameTemp.preparingSoftReset){
 			this.updateFade();
 			return;
 		}	
 		//Soft Reset
-		if(!$gameSystem.isIntermission() && Input.isPressed("ok") && Input.isPressed("cancel") && Input.isPressed("pageup") && Input.isPressed("pagedown")){			
+		if(!$gameSystem.isIntermission()  && !_this._messageWindow.isOpen() && !_this._messageWindow.isClosing() && !$gameMessage.isBusy() && (!$gameTemp.menuStack || $gameTemp.menuStack.length == 0) && Input.isPressed("ok") && Input.isPressed("cancel") && Input.isPressed("pageup") && Input.isPressed("pagedown")){			
 			let continueSlotIsPopulated = false;
 			try {
 				JsonEx.parse(StorageManager.load("continue"));//check if the continue slot exists first by trying to parse it
@@ -1922,6 +1934,7 @@ SceneManager.isInSaveScene = function(){
 				
 			}
 			if(continueSlotIsPopulated){
+				$gameTemp.preparingSoftReset = true;
 				this.fadeOutAll();
 				$gameTemp.buttonHintManager.hide();
 				this._mapButtonsWindow.hide();
@@ -1934,14 +1947,13 @@ SceneManager.isInSaveScene = function(){
 				this._zoneSummaryWindow.close();
 				
 				this._terrainDetailsWindow.hide();
-				this._terrainDetailsWindow.close();
+				this._terrainDetailsWindow.close();				
 				
-				$gameTemp.doingSoftRestFade = true;
 				setTimeout(function(){
-					$gameTemp.doingSoftRestFade = false;
 					Input.clear();
 					$gameSystem.setSubBattlePhase("normal");				
-					DataManager.loadContinueSlot();							
+					DataManager.loadContinueSlot();			
+					$gameTemp.preparingSoftReset = false;				
 				}, 1000);
 				
 				return;
@@ -2027,6 +2039,11 @@ SceneManager.isInSaveScene = function(){
 		this.processMenuStack();
 		
 		if($gameSystem.isIntermission()){
+			if($gameTemp.continueLoaded){
+				$gameTemp.continueLoaded = false;
+				$gameSystem.onAfterLoad();
+			}
+
 			$SRWGameState.requestNewState("intermission");
 			if(!this._intermissionWindowOpen){
 				$gameSystem.clearData();//make sure stage temp data is cleared when moving between stages
@@ -2273,10 +2290,28 @@ SceneManager.isInSaveScene = function(){
 		} 	
 		return result;
 	};
+
+	Scene_Map.prototype.updateUnitHPFromBattleCache = function() {
+		Object.keys($gameTemp.battleEffectCache).forEach(function(cacheRef){
+			var battleEffect = $gameTemp.battleEffectCache[cacheRef];
+			if(battleEffect.ref){
+				if(battleEffect.HPRestored){
+					$statCalc.recoverHP(battleEffect.ref, battleEffect.HPRestored);
+				}						
+	
+				if(battleEffect.damageTaken){
+					var oldHP = $statCalc.getCalculatedMechStats(battleEffect.ref).currentHP;
+					battleEffect.ref.setHp(oldHP - battleEffect.damageTaken);
+				}
+			}
+		});
+	}
 	
     //戦闘終了後の戦闘不能判定
     Scene_Map.prototype.srpgBattlerDeadAfterBattle = function() {
 		var _this = this;
+		_this.updateUnitHPFromBattleCache();
+
 		$gameTemp.currentMapTargets = [];
 		$gameTemp.deathQueue = [];
 		$gameTemp.destroyTransformQueue = [];
@@ -2284,10 +2319,6 @@ SceneManager.isInSaveScene = function(){
 		let multiKilledSubTwins = {};
 		let multiKilledMainTwins = {};
 
-		Object.keys($gameTemp.battleEffectCache).forEach(function(cacheRef){
-
-		});
-		
 		Object.keys($gameTemp.battleEffectCache).forEach(function(cacheRef){
 			var battleEffect = $gameTemp.battleEffectCache[cacheRef];
 			if(battleEffect.isDestroyed){
@@ -2498,10 +2529,10 @@ SceneManager.isInSaveScene = function(){
 					battleEffect.attacked.ref.setSquadMode("normal");
 				}
 				applyCostsToActor(battleEffect.ref, battleEffect.action.attack, battleEffect);
-				if(battleEffect.damageTaken){
+				/*if(battleEffect.damageTaken){
 					var oldHP = $statCalc.getCalculatedMechStats(battleEffect.ref).currentHP;
 					battleEffect.ref.setHp(oldHP - battleEffect.damageTaken);
-				}
+				}*/
 				
 				var defenderPersonalityInfo = $statCalc.getPersonalityInfo(battleEffect.ref);
 				var attackerPersonalityInfo = $statCalc.getPersonalityInfo(battleEffect.attackedBy);
@@ -2574,11 +2605,11 @@ SceneManager.isInSaveScene = function(){
 			Object.keys($gameTemp.battleEffectCache).forEach(function(cacheRef){
 				var battleEffect = $gameTemp.battleEffectCache[cacheRef];
 				
-				if(battleEffect.ref){
+				/*if(battleEffect.ref){
 					if(battleEffect.HPRestored){
 						$statCalc.recoverHP(battleEffect.ref, battleEffect.HPRestored);
 					}					
-				}
+				}*/
 				
 				if(battleEffect.ref && !battleEffect.ref.isActor()){
 					battleEffect.ref.setSquadMode("normal");
@@ -2587,14 +2618,14 @@ SceneManager.isInSaveScene = function(){
 					battleEffect.attacked.ref.setSquadMode("normal");
 				}
 				applyCostsToActor(battleEffect.ref, battleEffect.action.attack, battleEffect);
-				if(battleEffect.hasActed && battleEffect.attacked){
+				/*if(battleEffect.hasActed && battleEffect.attacked){
 					var oldHP = $statCalc.getCalculatedMechStats(battleEffect.attacked.ref).currentHP;
 					battleEffect.attacked.ref.setHp(oldHP - battleEffect.damageInflicted);
 				}
 				if(battleEffect.hasActed && battleEffect.attacked_all_sub){
 					var oldHP = $statCalc.getCalculatedMechStats(battleEffect.attacked_all_sub.ref).currentHP;
 					battleEffect.attacked_all_sub.ref.setHp(oldHP - battleEffect.damageInflicted_all_sub);
-				}
+				}*/
 				
 				var personalityInfo = $statCalc.getPersonalityInfo(battleEffect.ref);
 				
@@ -2952,6 +2983,10 @@ SceneManager.isInSaveScene = function(){
     };	
 	
 	Scene_Map.prototype.commandSpirit = function() {
+		//hacky fix for crash when using Soft Reset while this can still be called
+		if(!$gameTemp.activeEvent()){
+			return;
+		}
 		var actionBattlerArray = $gameSystem.EventToUnit($gameTemp.activeEvent().eventId());
 		$gameTemp.currentMenuUnit = {
 			actor: actionBattlerArray[1],
@@ -3478,6 +3513,7 @@ SceneManager.isInSaveScene = function(){
 			Input.clear();
 			$gameTemp.touchMapAttackState = "direction";
 			$gameTemp.mapTargetDirection = "up";
+			$gameTemp.currentMapAttacker = battler;
 			$gameSystem.setSubBattlePhase('actor_map_target');
 		} else {
 			var range = $statCalc.getRealWeaponRange(battler, weapon);
@@ -3794,6 +3830,7 @@ SceneManager.isInSaveScene = function(){
 			}
 				
 			$statCalc.setCurrentAttack(enemy, bestMapAttack.attack);
+			$gameTemp.currentMapAttacker = enemy;
 			_this.enemyMapAttackStart();
 			return true;
 		} else {
@@ -4331,6 +4368,15 @@ SceneManager.isInSaveScene = function(){
 		$gameTemp.onMapSaving = false;
 		SceneManager.pop();
 	};
+
+	Scene_Save.prototype.onSaveSuccess = function() {
+		SoundManager.playSave();
+		StorageManager.cleanBackup(this.savefileId());
+		if(ENGINE_SETTINGS.DEBUG_SAVING){
+			DataManager.saveContinueSlot();	
+		}
+		this.popScene();
+	};	
 	
 	function coordUtils(startX, startY, chunkRadius){
 		this.startX = startX;
@@ -4525,7 +4571,7 @@ SceneManager.isInSaveScene = function(){
 				canReach = true;
 			}
 			pathScores.push({
-				path: path,
+				path: path || [],
 				pathLength: path.length,
 				distanceOK: distanceOK,
 				dist: dist,
@@ -4549,13 +4595,29 @@ SceneManager.isInSaveScene = function(){
 				return 1;
 			} else if(a.travelDistToTarget != b.travelDistToTarget){
 				return a.travelDistToTarget - b.travelDistToTarget;
-			} else if(b.pathLength == a.pathLength){
+			} else if(b.pathLength == a.pathLength && a.path[0] && b.path[0]){
+				/*
+				//take tile closest in X or Y to unit moving(causes preference for straight lines)
 				return [
 					{retVal: -1, refVal: a.srcDeltaX},
 					{retVal: -1, refVal: a.srcDeltaY},
 					{retVal: 1, refVal: b.srcDeltaX},
 					{retVal: 1, refVal: b.srcDeltaY}
-				].sort((a, b) => b.refVal - a.refVal)[0].retVal;
+				].sort((a, b) => b.refVal - a.refVal)[0].retVal;*/
+				//return 0;//randomly pick tile of equal distance
+
+
+				
+				var deltaXA = Math.abs(targetCoords.x - a.path[0].x);
+				var deltaYA = Math.abs(targetCoords.y - a.path[0].y);
+				var distA = Math.hypot(deltaXA, deltaYA);
+
+				var deltaXB = Math.abs(targetCoords.x - b.path[0].x);
+				var deltaYB = Math.abs(targetCoords.y - b.path[0].y);
+				var distB = Math.hypot(deltaXB, deltaYB);
+
+				return distA - distB;
+
 			} else {
 				return b.pathLength - a.pathLength;
 			}				
@@ -5122,8 +5184,12 @@ SceneManager.isInSaveScene = function(){
 		
 		$SRWSaveManager.lockMapSRPoint($gameMap.mapId());	
 		$gameMap._interpreter.clear();//make sure no events run after the game over before loading into the intermission
-		$gamePlayer.reserveTransfer(2, 0, 0);//send player to intermission after losing
-		SceneManager.goto(Scene_Map);
+		if(ENGINE_SETTINGS.SEND_TO_TITLE_ON_GAME_OVER){
+			SceneManager.goto(Scene_Title);
+		} else {
+			$gamePlayer.reserveTransfer(2, 0, 0);//send player to intermission after losing
+			SceneManager.goto(Scene_Map);
+		}		
 	};
 	
 	Scene_Map.prototype.callMenu = function() {
@@ -5225,7 +5291,9 @@ SceneManager.isInSaveScene = function(){
 		} else {
 			this.checkPlayerLocation();
 			DataManager.setupNewGame();
-			if(ENGINE_SETTINGS.DISCLAIMER_TEXT){
+			if(ENGINE_SETTINGS.PHOTOSENSITIVITY_DISCLAIMER?.show){
+				SceneManager.goto(Scene_Photosensitivity_Warning);
+			} else if(ENGINE_SETTINGS.DISCLAIMER_TEXT){
 				SceneManager.goto(Scene_Disclaimer);
 			} else {
 				SceneManager.goto(Scene_Title);
@@ -5263,7 +5331,7 @@ Scene_Disclaimer.prototype.start = function() {
 
 Scene_Disclaimer.prototype.update = function() {
 	Scene_Base.prototype.update.call(this);
-	if (!this._leavingScene && (Input.isTriggered('ok') || Input.isTriggered('cancel') || TouchInput.isTriggered() || TouchInput.isCancelled())) {
+	if (!this._leavingScene && (Input.isTriggered('ok') || Input.isTriggered('cancel') || Input.isTriggered('menu') || TouchInput.isTriggered() || TouchInput.isCancelled())) {
 		this.startFadeOut(this.slowFadeSpeed(), false);
 		this._leavingScene = true;
 		
@@ -5291,6 +5359,80 @@ Scene_Disclaimer.prototype.createForeground = function() {
 	for(line of lines){		
 		this._disclaimerSprite.bitmap.drawText(line, x, y + 28 * ctr++, maxWidth, ENGINE_SETTINGS.LINE_HEIGHT || 28, "left");
 	}	
+};
+
+
+function Scene_Photosensitivity_Warning() {
+	this.initialize.apply(this, arguments);
+}
+
+Scene_Photosensitivity_Warning.prototype = Object.create(Scene_Base.prototype);
+Scene_Photosensitivity_Warning.prototype.constructor = Scene_Photosensitivity_Warning;
+
+Scene_Photosensitivity_Warning.prototype.initialize = function() {
+	Scene_Base.prototype.initialize.call(this);
+};
+
+Scene_Photosensitivity_Warning.prototype.create = function() {
+	Scene_Base.prototype.create.call(this);
+	this.createForeground();
+};
+
+Scene_Photosensitivity_Warning.prototype.start = function() {
+	Scene_Base.prototype.start.call(this);
+	SceneManager.clearStack();
+
+	//this.startFadeIn(this.fadeSpeed(), false);
+};
+
+Scene_Photosensitivity_Warning.prototype.update = function() {
+	Scene_Base.prototype.update.call(this);
+	if (!this._leavingScene && (Input.isTriggered('ok') || Input.isTriggered('cancel') || Input.isTriggered('menu') || TouchInput.isTriggered() || TouchInput.isCancelled())) {
+		this.startFadeOut(this.slowFadeSpeed(), false);
+		this._leavingScene = true;
+		
+	}
+	if(this._leavingScene && !this.isBusy()){
+		if(ENGINE_SETTINGS.DISCLAIMER_TEXT){
+			SceneManager.goto(Scene_Disclaimer);		
+		} else {
+			SceneManager.goto(Scene_Title);		
+		}		
+	}
+};
+
+Scene_Photosensitivity_Warning.prototype.terminate = function() {
+	Scene_Base.prototype.terminate.call(this);
+	SceneManager.snapForBackground();
+};
+
+Scene_Photosensitivity_Warning.prototype.createForeground = function() {
+	this._disclaimerSprite = new Sprite(new Bitmap(Graphics.width, Graphics.height));
+	this.addChild(this._disclaimerSprite);
+
+	var x = 20;
+	var maxWidth = Graphics.width - x * 2;	
+	
+	var y = 20;
+	var text = ENGINE_SETTINGS.PHOTOSENSITIVITY_DISCLAIMER.header;
+	var ctr = 0;
+	var baseY = 190;
+	this._disclaimerSprite.bitmap.fontSize = (ENGINE_SETTINGS.FONT_SIZE || 24) * 1.8;		
+	this._disclaimerSprite.bitmap.textColor = "red";
+	this._disclaimerSprite.bitmap.drawText(text, 0, baseY, maxWidth, ENGINE_SETTINGS.LINE_HEIGHT || 28, "center");
+	
+	this._disclaimerSprite.bitmap.fontSize = (ENGINE_SETTINGS.FONT_SIZE || 24) * 0.8;		
+	this._disclaimerSprite.bitmap.textColor = "white";
+
+	var x = 160;
+	var lineHeight = 26;
+	baseY+= 70;
+	var maxWidth = Graphics.width - x * 2;	
+
+	const lines = ENGINE_SETTINGS.PHOTOSENSITIVITY_DISCLAIMER.lines;
+	for(let i = 0; i < lines.length; i++){
+		this._disclaimerSprite.bitmap.drawText(lines[i], x, baseY + lineHeight * i, maxWidth, ENGINE_SETTINGS.LINE_HEIGHT || 28, "left");	
+	}
 };
 
 SceneManager.onKeyDown = function(event) {

@@ -287,7 +287,7 @@ GameState_actor_move.prototype = Object.create(GameState.prototype);
 GameState_actor_move.prototype.constructor = GameState_actor_move;
 
 GameState_actor_move.prototype.canCursorMove = function(){
-	return !ENGINE_SETTINGS.ENABLE_QUICK_MOVE || (!Input.isPressed('pagedown') && !Input.isPressed('shift')) || !$gameTemp.moveEdgeInfo;
+	return !ENGINE_SETTINGS.ENABLE_QUICK_MOVE || (!Input.isPressed('pagedown') && (ENGINE_SETTINGS.DISABLE_SHIFT_QUICK_MOVE || !Input.isPressed('shift'))) || !$gameTemp.moveEdgeInfo;
 }
 
 GameState_actor_move.prototype.update = function(){
@@ -320,7 +320,7 @@ GameState_actor_move.prototype.update = function(){
 	}
 	
 	$gameSystem.showMoveEdge = false;
-	if(ENGINE_SETTINGS.ENABLE_QUICK_MOVE && (Input.isPressed('pagedown') || Input.isPressed('shift'))){
+	if(ENGINE_SETTINGS.ENABLE_QUICK_MOVE && (Input.isPressed('pagedown') || (!ENGINE_SETTINGS.DISABLE_SHIFT_QUICK_MOVE && Input.isPressed('shift')))){
 		$gameSystem.showMoveEdge = true;
 		if($gameTemp.moveEdgeInfo){
 			var lookup = $gameTemp.moveEdgeInfo.graph;
@@ -654,6 +654,7 @@ GameState_actor_map_target_confirm.prototype.update = function(scene){
 	$SRWGameState.updateStateButtonPrompts([["choose_position"], ["confirm_attack"]], "actor_map_target_confirm");
 	
 	var currentPosition = {x: $gamePlayer.posX(), y: $gamePlayer.posY()};		
+	
 
 	var summaryUnit = $statCalc.activeUnitAtPosition(currentPosition);
 	if(summaryUnit && $gameTemp.summariesTimeout <= 0){
@@ -665,7 +666,6 @@ GameState_actor_map_target_confirm.prototype.update = function(scene){
 	} else {
 		scene._summaryWindow.hide();
 	}	
-	
 	
 	var attack = $gameTemp.actorAction.attack;
 	var mapAttackDef = $mapAttackManager.getDefinition(attack.mapId);
@@ -1517,7 +1517,9 @@ GameState_map_attack_animation.prototype.update = function(scene){
 	$gameSystem.highlightsRefreshed = true;	
 	
 	if(!$gameTemp.mapAttackAnimationStarted){
-		$songManager.playBattleSong($gameTemp.currentBattleActor);
+		if($gameTemp.currentMapAttacker){
+			$songManager.playBattleSong($gameTemp.currentMapAttacker);
+		}		
 		$gameTemp.clearMoveTable();
 		var attack;
 		if($gameTemp.isEnemyAttack){
@@ -1664,6 +1666,8 @@ GameState_normal.prototype.update = function(scene){
 	$gameTemp.isHitAndAway = false;		
 	$gameTemp.currentMapTargets	= [];
 	$gameTemp.unitHitInfo = {};
+	$gameTemp.unitDamageInfo = {};
+	$gameTemp.currentMapAttacker = null;
 	
 	if(!scene._mapButtonsWindow.visible && !$gameTemp.onMapSaving){
 		scene._mapButtonsWindow.open();
@@ -2039,6 +2043,7 @@ GameState_enemy_command.prototype.update = function(scene){
 		$gameTemp.AIWaitTimer--;
 		if($gameTemp.AIWaitTimer < 0){		
 			$gameTemp.unitHitInfo = {};
+			$gameTemp.unitDamageInfo = {};
 			scene.srpgInvokeAICommand();		
 		}			
 	}	
@@ -2728,7 +2733,7 @@ GameState_rearrange_deploys.prototype.update = function(scene){
 		$gameSystem.setBattlePhase($gameTemp.deployContextState);
 		$gameSystem.setSubBattlePhase($gameTemp.deployContextSubState);
 		
-		var deployInfo = $gameSystem.getDeployInfo();
+		/*var deployInfo = $gameSystem.getDeployInfo();
 		deployInfo.count = 0;
 		deployInfo.assigned = {};
 		deployInfo.assignedSub = {};
@@ -2737,7 +2742,7 @@ GameState_rearrange_deploys.prototype.update = function(scene){
 		deployInfo.lockedShipSlots = {};
 		deployInfo.doNotDeploySlots = {};
 		deployInfo.minDeployCount = 1;
-		$gameSystem.setDeployInfo(deployInfo);
+		$gameSystem.setDeployInfo(deployInfo);*/
 		
 		$gameMap._interpreter.setWaitMode("enemy_appear");
 		$gameTemp.enemyAppearQueueIsProcessing = true;

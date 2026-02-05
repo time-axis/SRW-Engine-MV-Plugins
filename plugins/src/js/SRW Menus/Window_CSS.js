@@ -764,94 +764,7 @@ Window_CSS.prototype.createAttributeBlock = function(attack) {
 }
 
 
-Window_CSS.prototype.populatHintContainer = function(elem, list) {
-	let content = "";
-	let iconInfo = [];
-	let iconCtr = 0;
-	for(let entry of list){
-		content+="<div class='hint_block'>";
-		for(let row of entry){
-			let hintDef = APPSTRINGS.BUTTON_HINTS[row];
-			if(hintDef){
-				content+="<div class='hint'>";
-				content+="<div class='hint_text scaled_text'>";
-				content+=hintDef.text;
-				content+="</div>"
-				content+="<div class='action_icon_container'>";
-				let icons = $gameSystem.getActionGlyphs(hintDef.action);
-				for(let icon of icons){
-					if(icon){
-						content+="<div class='action_icon' data-icon='"+iconCtr+"'>";
-						content+="</div>"
-						iconInfo[iconCtr] = icon;						
-					}
-					iconCtr++;
-				}				
-				content+="</div>"
-				content+="</div>"
-			}
-		}
-		content+="</div>"
-	}
-	elem.innerHTML = content;
-	return iconInfo;
-}
 
-
-Window_CSS.prototype.constructButtonIcon = function(iconCtr, iconDef) {	
-	const _this = this;
-	const parentElem = this._centerContainer.querySelector(".action_icon[data-icon='"+iconCtr+"']");
-	
-	
-	//elem.appendChild(this._iconsBitmap.canvas);	
-	const initialMultiplier = ENGINE_SETTINGS.MAP_BUTTON_CONFIG.BUTTON_SCALE * 1;	
-	const tileSize = ENGINE_SETTINGS.MAP_BUTTON_CONFIG.SPRITE_SHEET.TILE_SIZE * 1;
-	const bgWidth = ENGINE_SETTINGS.MAP_BUTTON_CONFIG.SPRITE_SHEET.WIDTH * 1;
-	const bgHeight = ENGINE_SETTINGS.MAP_BUTTON_CONFIG.SPRITE_SHEET.HEIGHT * 1;
-	
-	let offsetX = 0;
-	let offsetY = 0;
-	
-	let width = 0;
-	let height = 0;
-	
-	for(let i = 0; i < 4; i++){
-		let suffix = "";
-		if(i > 0){//compat with original format
-			suffix = i;
-		}
-		let tiles = iconDef["tiles"+suffix];
-		if(tiles){
-			const elem = document.createElement("div");
-			parentElem.appendChild(elem);
-			
-			height = tiles.length;
-			
-			for(let y = 0; y < tiles.length; y ++){
-				width = tiles[y].length;
-				for(let x = 0; x < tiles[y].length; x ++){
-					if(x == 0 && y == 0){
-						offsetX = tiles[y][x][0];
-						offsetY = tiles[y][x][1];
-					}			
-				}
-			}
-			
-			const mutiplier = initialMultiplier * Graphics.getScale();
-			const size = tileSize * mutiplier;
-			
-			offsetX = offsetX * size;
-			offsetY = offsetY * size;
-			
-			elem.style.height = size * height + "px";
-			elem.style.width = size * width + "px";
-			elem.style.backgroundSize = bgWidth * mutiplier + "px " + bgHeight * mutiplier + "px";
-			elem.style.backgroundImage = "url(" + _this._iconsBitmap._image.src + ")";
-			elem.style.backgroundPosition =  offsetX * -1 + "px " + offsetY * -1 + "px"
-		}
-	}
-	
-}
 
 Window_CSS.prototype.createConfirmContent = function(question, selection) {
 	const _this = this;
@@ -894,4 +807,8 @@ Window_CSS.prototype.createHPBarContent = function(calculatedStats) {
 
 	content+="<div class='hp_bar'><div style='width: "+hpPercent+"%; background-color: "+fillColor+";' class='hp_bar_fill'></div></div>";
 	return content;
+}
+
+Window_CSS.prototype.easeInOutSine = function(t) {
+	return Math.sin((t * Math.PI) / 2);
 }
