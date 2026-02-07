@@ -1128,9 +1128,10 @@ BattleCalc.prototype.generateBattleResult = function(isPrediction){
 					}
 					
 					
-				}
-				
-				
+				}/*else if($statCalc.getCurrentSize(defenderInfo.actor)){     // GRAZE CODE WIP STARTS HERE
+                    
+                }
+				*/
 				
 				
 				aCache["hits"+attackedRef] = isHit;
@@ -1785,7 +1786,8 @@ BattleCalc.prototype.generateMapBattleResult = function(){
 				hasThresholdBarrier: false,
 				thresholdBarrierBroken: false,
 				hasReductionBarrier: false,
-				hasPercentBarrier: false
+				hasPercentBarrier: false/*,   // GRAZE CODE
+                isGraze: false*/
 			};
 			if(isHit){
 				if(interactionType == Game_System.INTERACTION_STATUS){
