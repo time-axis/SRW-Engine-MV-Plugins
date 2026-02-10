@@ -1266,8 +1266,20 @@ StatCalc.prototype.setIsAI = function(actor, state){
 }
 
 StatCalc.prototype.isEssential = function(actor){
+	const _this = this;
 	if(this.isActorSRWInitialized(actor)){
-		return actor.SRWStats.stageTemp.isEssential;
+		let result = false;
+		if(actor.SRWStats.stageTemp.isEssential){
+			result = true;
+		}
+		var subPilots = this.getSubPilots(actor);
+		subPilots.forEach(function(pilotId){
+			var actor = $gameActors.actor(pilotId);
+			if(_this.isActorSRWInitialized(actor) && actor.SRWStats.stageTemp.isEssential){
+				result = true;
+			}		
+		});
+		return result;
 	} else {
 		return false;
 	}
@@ -2832,6 +2844,8 @@ StatCalc.prototype.transform = function(actor, idx, force, forcedId, noRestore){
 			var previousHPRatio = calculatedStats.currentHP / calculatedStats.maxHP;
 			var previousENRatio = calculatedStats.currentEN / calculatedStats.maxEN;
 			var unitsOnBoard = actor.SRWStats.mech.unitsOnBoard;
+			const originalMechId = actor.SRWStats.mech.id;
+			var reversalInfo = actor.reversalInfo;
 			var restoreInfo = actor.SRWStats.mech.transformRestores || {HP: false, EN: false};
 			var transformIntoId = actor.SRWStats.mech.transformsInto[idx];
 			if(forcedId){
@@ -2867,6 +2881,13 @@ StatCalc.prototype.transform = function(actor, idx, force, forcedId, noRestore){
 				}		
 				
 				actor.SRWStats.mech.unitsOnBoard = unitsOnBoard;
+				
+				if(!actor.reversalInfo){
+					actor.reversalInfo = {};
+				}
+				if(actor.reversalInfo[originalMechId]){					
+					actor.reversalInfo[transformIntoId] = actor.reversalInfo[originalMechId];
+				}
 							
 				calculatedStats = this.getCalculatedMechStats(actor);
 				if(!restoreInfo.HP || !noRestore){				
@@ -2891,7 +2912,13 @@ StatCalc.prototype.transform = function(actor, idx, force, forcedId, noRestore){
 						actor.isSubPilot = true;
 						actor.subPilotSlot = ctr;
 						actor.mainPilot = mainPilot;						
-						_this.reloadSRWStats(actor);										
+						_this.reloadSRWStats(actor);	
+						if(!actor.reversalInfo){
+							actor.reversalInfo = {};
+						}
+						if(actor.reversalInfo[originalMechId]){					
+							actor.reversalInfo[transformIntoId] = actor.reversalInfo[originalMechId];
+						}						
 					}			
 				});					
 				if(subTwin){
@@ -3035,6 +3062,9 @@ StatCalc.prototype.swapPilot = function(actor, newActorId){
 StatCalc.prototype.syncStageTemp = function(targetActor, sourceActor){
 	targetActor.SRWStats.stageTemp.abilityUsed = sourceActor.SRWStats.stageTemp.abilityUsed;
 	targetActor.SRWStats.stageTemp.inventoryConsumed = sourceActor.SRWStats.stageTemp.inventoryConsumed;
+	if(targetActor.SRWStats.stageTemp.isEssential){
+		targetActor.SRWStats.stageTemp.isEssential = sourceActor.SRWStats.stageTemp.inventoryConsumed;
+	}	
 }
 
 StatCalc.prototype.split = function(actor){
@@ -3109,6 +3139,7 @@ StatCalc.prototype.split = function(actor){
 				var actionsResult = this.applyDeployActions(combineInfo.participants[i], actor.reversalInfo[startFromMechId]);
 				if(!actionsResult){//if no deploy actions are assigned to main split target
 					actor.SRWStats.mech = this.getMechDataById(actor.reversalInfo[startFromMechId], true);
+					actor._classId = actor.reversalInfo[startFromMechId];
 					this.calculateSRWMechStats(actor.SRWStats.mech);					
 				}			
 				actor.isSubPilot = false;
@@ -3168,6 +3199,7 @@ StatCalc.prototype.combine = function(actor, forced){
 			var ENRatioSum = 0;
 			var ENRatioCount = 0;
 			var combinesInto = combineResult.combinesInto;
+			var isEssential = actor.SRWStats.stageTemp.isEssential;
 			let potentialSuperStates = {}; 
 			
 			for(var i = 0; i < combineResult.participants.length; i++){
@@ -3196,6 +3228,10 @@ StatCalc.prototype.combine = function(actor, forced){
 				actor.SRWStats.mech = targetMechData;
 			}
 			targetActor.combineInfo = combineResult;
+
+			if(isEssential){
+				targetActor.SRWStats.stageTemp.isEssential = true;
+			}
 		
 			
 			this.calculateSRWMechStats(targetActor.SRWStats.mech);
@@ -8946,6 +8982,7 @@ StatCalc.prototype.applyDeployActions = function(mainActorId, mechId, overwriteF
 								targetPilot.isSubPilot = false;//set to false for unit reload
 								$statCalc.reloadSRWStats(targetPilot, false, true);
 								targetPilot.isSubPilot = false;//reaffirm in case the unit reload processed a previous main pilot and set the new main pilot back to sub pilot
+								targetPilot.mainPilot = null;
 							} else {								
 								$gameSystem.registerMechFallbackInfo(targetMechId, JSON.parse(JSON.stringify(targetMech.subPilots)));	
 
