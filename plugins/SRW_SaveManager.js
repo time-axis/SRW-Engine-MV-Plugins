@@ -272,15 +272,15 @@ SRWSaveManager.prototype.addExp = function(pilotId, amount){
 
 SRWSaveManager.prototype.allowPilot = function(pilotId, mechId, subpilotSlot){
     var mechData = this.getMechData(mechId);
-    var refUnit = {SRWStats: {actor: {}, mech: $statCalc.getMechData($dataClasses[mechId], true)}};
+    var refUnit = $statCalc.getMechData($dataClasses[mechId], true);
     var allowedPilots = [];
     if(subpilotSlot !== undefined){
-        if(refUnit.SRWStats.mech.allowedSubPilots[subpilotSlot] !== undefined){
+        if(refUnit.allowedSubPilots[subpilotSlot] !== undefined){
             if(mechData.allowedSubPilots[subpilotSlot] === undefined){
                 mechData.allowedSubPilots[subpilotSlot] = [];
             }
             if(mechData.allowedSubPilots[subpilotSlot].length === 0) {
-                allowedPilots = refUnit.SRWStats.mech.allowedSubPilots[subpilotSlot];
+                allowedPilots = refUnit.allowedSubPilots[subpilotSlot];
             } else {
                 allowedPilots = mechData.allowedSubPilots[subpilotSlot];
             }
@@ -294,7 +294,7 @@ SRWSaveManager.prototype.allowPilot = function(pilotId, mechId, subpilotSlot){
                 allowedPilots.push(pilotId);
                 mechData.allowedSubPilots[subpilotSlot] = allowedPilots;
                 this.storeMechData(mechId, mechData);
-                mechData = this.getMechData(mechId); //Temporary for debugging
+                //mechData = this.getMechData(mechId); //Temporary for debugging
             }
             
         } else {
@@ -302,7 +302,7 @@ SRWSaveManager.prototype.allowPilot = function(pilotId, mechId, subpilotSlot){
         }          
     } else {
         if(mechData.allowedPilots.length === 0){
-            allowedPilots = refUnit.SRWStats.mech.allowedPilots;
+            allowedPilots = refUnit.allowedPilots;
         } else {
             allowedPilots = mechData.allowedPilots;
         }
@@ -313,15 +313,14 @@ SRWSaveManager.prototype.allowPilot = function(pilotId, mechId, subpilotSlot){
             allowedPilots.push(pilotId);
             mechData.allowedPilots = allowedPilots;
             this.storeMechData(mechId, mechData);
-            mechData = this.getMechData(mechId); //Temporary for debugging
+            //mechData = this.getMechData(mechId); //Temporary for debugging
         }
     }
-    console.log(["ALLOW PILOT", mechData, refUnit]); //Temporary for debugging
+    //console.log(["ALLOW PILOT", mechData, refUnit]); //Temporary for debugging
 }
 
 SRWSaveManager.prototype.disallowPilot = function(pilotId, mechId, subpilotSlot){
     var mechData = this.getMechData(mechId);
-    var refUnit = {SRWStats: {actor: {}, mech: $statCalc.getMechData($dataClasses[mechId], true)}};
     var disallowedPilots = [];
     if (subpilotSlot !== undefined){
         if(mechData.disallowedSubPilots[subpilotSlot] === undefined){
@@ -337,7 +336,7 @@ SRWSaveManager.prototype.disallowPilot = function(pilotId, mechId, subpilotSlot)
            disallowedPilots.push(pilotId);
            mechData.disallowedSubPilots[subpilotSlot] = disallowedPilots;
            this.storeMechData(mechId, mechData);
-           mechData = this.getMechData(mechId); //Temporary for debugging
+           //mechData = this.getMechData(mechId); //Temporary for debugging
         }
     } else {
         disallowedPilots = mechData.disallowedPilots;
@@ -348,10 +347,10 @@ SRWSaveManager.prototype.disallowPilot = function(pilotId, mechId, subpilotSlot)
             disallowedPilots.push(pilotId);
             mechData.disallowedPilots = disallowedPilots;
             this.storeMechData(mechId, mechData);
-            mechData = this.getMechData(mechId); //Temporary for debugging
+            //mechData = this.getMechData(mechId); //Temporary for debugging
         }
     }
-    console.log(["DISALLOW PILOT", mechData, refUnit]); //Temporary for debugging
+    //console.log(["DISALLOW PILOT", mechData]); //Temporary for debugging
 }
 
 SRWSaveManager.prototype.getSRCount = function(mapId){
