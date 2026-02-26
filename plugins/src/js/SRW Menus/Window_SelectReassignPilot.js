@@ -35,12 +35,39 @@ Window_SelectReassignPilot.prototype.getAvailableUnits = function(){
 		var target = $gameTemp.reassignTargetMech;	
 		var mechId = target.id;
 		var mechData = $statCalc.getMechData($dataClasses[mechId], true);
-		if(target.type == "main"){				
-			mechData.allowedPilots.forEach(function(id){
+        var mechSaveData = $SRWSaveManager.getMechData(mechId);
+		if(target.type == "main"){
+            var allowedPilots = [];
+            if(mechSaveData.allowedPilots.length > 0)
+            {
+                allowedPilots = mechSaveData.allowedPilots;
+            } else {
+                allowedPilots = mechData.allowedPilots;
+            }
+            if(mechSaveData.disallowedPilots.length > 0)
+            {
+                allowedPilots = allowedPilots.filter((value) => !mechSaveData.disallowedPilots.includes(value));
+            }
+            
+			allowedPilots.forEach(function(id){
 				assignablePilotLookup[id] = true;
 			});
 		} else {
-			var allowedSubPilots = mechData.allowedSubPilots[$gameTemp.reassignTargetMech.slot];
+			var allowedSubPilots = [];
+            if(mechSaveData.allowedSubPilots[$gameTemp.reassignTargetMech.slot] !== undefined){
+                if(mechSaveData.allowedSubPilots[$gameTemp.reassignTargetMech.slot].length > 0){
+                    allowedSubPilots = mechSaveData.allowedSubPilots[$gameTemp.reassignTargetMech.slot];
+                } else {
+                    allowedSubPilots = mechData.allowedSubPilots[$gameTemp.reassignTargetMech.slot];
+                }
+            } else {
+                allowedSubPilots = mechData.allowedSubPilots[$gameTemp.reassignTargetMech.slot];
+            }
+            if(mechSaveData.disallowedSubPilots[$gameTemp.reassignTargetMech.slot] !== undefined){
+                if(mechSaveData.disallowedSubPilots[$gameTemp.reassignTargetMech.slot].length > 0){
+                    allowedSubPilots = allowedSubPilots.filter((value) => !mechSaveData.disallowedSubPilots[$gameTemp.reassignTargetMech.slot].includes(value));
+                }
+            }
 			if(allowedSubPilots){
 				allowedSubPilots.forEach(function(id){
 					assignablePilotLookup[id] = true;

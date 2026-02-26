@@ -162,6 +162,13 @@
 					$equipablesManager.removeItemHolder(args[0], args[1]);
 				}
 				
+                if (command === 'allowPilot') {
+                    $SRWSaveManager.allowPilot(args[0],args[1],args[2]);
+                }
+                if (command === 'disallowPilot') {
+                    $SRWSaveManager.disallowPilot(args[0],args[1],args[2]);
+                }
+                
 				if (command === 'setFreeEventCam') {
 					$gameTemp.freeEventCam = true;
 				}
