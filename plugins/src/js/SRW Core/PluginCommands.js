@@ -575,8 +575,8 @@
 					$gameSystem.setActiveShipDeployList(activeDeployList);
 					$gameSystem.deployShips(args[0] * 1);					
 				}
-				
-				if (command === 'deployAll') {
+
+				function refreshDeployInfo(){
 					var deployInfo = $gameSystem.getDeployInfo();
 					var deployList = $gameSystem.getDeployList();
 					var activeDeployList = [];
@@ -584,14 +584,20 @@
 						activeDeployList.push(deployList[i]);
 					}
 					$gameSystem.setActiveDeployList(activeDeployList);
+				}
+				
+				if (command === 'deployAll') {
+					refreshDeployInfo();
 					$gameSystem.deployActors(args[0] * 1, "all");
 				}
 				
 				if (command === 'deployAllLocked') {
+					refreshDeployInfo();
 					$gameSystem.deployActors(args[0] * 1, "locked");
 				}
 				
 				if (command === 'deployAllUnLocked') {
+					refreshDeployInfo();
 					$gameSystem.deployActors(args[0] * 1, "unlocked");
 				}
 				

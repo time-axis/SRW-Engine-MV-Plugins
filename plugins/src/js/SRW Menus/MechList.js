@@ -244,7 +244,7 @@ MechList.prototype.defineContent = function(){
 						return $statCalc.getCurrentLevel(pilot);
 					},
 					compareFunction: function(a, b){
-						return $statCalc.getCurrentLevel(getUnitData(a).pilot) - $statCalc.getCurrentLevel(getUnitData(b).pilot)  * _this._sortDirection;						
+						return ($statCalc.getCurrentLevel(getUnitData(a).pilot) - $statCalc.getCurrentLevel(getUnitData(b).pilot))  * _this._sortDirection;						
 					}
 				}
 			]
@@ -598,7 +598,7 @@ MechList.prototype.defineContent = function(){
 						return $statCalc.getCurrentLevel(pilot);
 					},
 					compareFunction: function(a, b){
-						return $statCalc.getCurrentLevel(getUnitData(a).pilot) - $statCalc.getCurrentLevel(getUnitData(b).pilot)  * _this._sortDirection;						
+						return ($statCalc.getCurrentLevel(getUnitData(a).pilot) - $statCalc.getCurrentLevel(getUnitData(b).pilot))  * _this._sortDirection;							
 					}
 				},
 				{
@@ -698,7 +698,7 @@ MechList.prototype.defineContent = function(){
 						return $statCalc.getCurrentLevel(pilot);
 					},
 					compareFunction: function(a, b){
-						return $statCalc.getCurrentLevel(getUnitData(a).pilot) - $statCalc.getCurrentLevel(getUnitData(b).pilot)  * _this._sortDirection;						
+						return ($statCalc.getCurrentLevel(getUnitData(a).pilot) - $statCalc.getCurrentLevel(getUnitData(b).pilot))  * _this._sortDirection;							
 					}
 				},
 				{
@@ -834,7 +834,7 @@ MechList.prototype.defineContent = function(){
 						return $statCalc.getCurrentLevel(pilot);
 					},
 					compareFunction: function(a, b){
-						return $statCalc.getCurrentLevel(getUnitData(a).pilot) - $statCalc.getCurrentLevel(getUnitData(b).pilot)  * _this._sortDirection;						
+						return ($statCalc.getCurrentLevel(getUnitData(a).pilot) - $statCalc.getCurrentLevel(getUnitData(b).pilot))  * _this._sortDirection;						
 					}
 				},
 				{
@@ -920,7 +920,7 @@ MechList.prototype.defineContent = function(){
 						return $statCalc.getCurrentLevel(pilot);
 					},
 					compareFunction: function(a, b){
-						return $statCalc.getCurrentLevel(getUnitData(a).pilot) - $statCalc.getCurrentLevel(getUnitData(b).pilot)  * _this._sortDirection;						
+						return ($statCalc.getCurrentLevel(getUnitData(a).pilot) - $statCalc.getCurrentLevel(getUnitData(b).pilot))  * _this._sortDirection;						
 					}
 				},
 				{
@@ -1016,7 +1016,7 @@ MechList.prototype.defineContent = function(){
 						return $statCalc.getCurrentLevel(pilot);
 					},
 					compareFunction: function(a, b){
-						return $statCalc.getCurrentLevel(getUnitData(a).pilot) - $statCalc.getCurrentLevel(getUnitData(b).pilot)  * _this._sortDirection;						
+						return ($statCalc.getCurrentLevel(getUnitData(a).pilot) - $statCalc.getCurrentLevel(getUnitData(b).pilot))  * _this._sortDirection;						
 					}
 				}
 			]
