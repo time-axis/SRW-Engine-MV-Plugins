@@ -563,6 +563,7 @@ GameState_actor_map_target.prototype.update = function(scene){
 			}	
 		}									
 	} else if (Input.isTriggered('cancel') || TouchInput.isCancelled()) {
+		$gameTemp.currentMapTargets = [];		
 		if(TouchInput.isTriggered() && $gameTemp.touchMapAttackState == "confirm"){
 			$gameTemp.touchMapAttackState = "direction";
 		} else {	
@@ -1533,7 +1534,12 @@ GameState_map_attack_animation.prototype.update = function(scene){
 		
 		var textInfo = mapAttackDef.textInfo;
 		if(textInfo && textInfo.faceName != null && textInfo.faceIdx != null && textInfo.text){
-			$gameMap._interpreter.showMapAttackText(textInfo.faceName, textInfo.faceIdx, textInfo.text);
+			const textParts = textInfo.text.split("\n");
+			if(textParts[0] == $gameTemp.currentMapAttacker?._name){
+				textParts[0] = $statCalc.getPilotName($gameTemp.currentMapAttacker);
+			}
+			const text = textParts.join("\n");
+			$gameMap._interpreter.showMapAttackText(textInfo.faceName, textInfo.faceIdx, text);
 		}	
 		$gameTemp.mapAttackAnimationPlaying = false;			
 		
@@ -1668,6 +1674,7 @@ GameState_normal.prototype.update = function(scene){
 	$gameTemp.unitHitInfo = {};
 	$gameTemp.unitDamageInfo = {};
 	$gameTemp.currentMapAttacker = null;
+	$gameTemp.hasTwinned = false;
 	
 	if(!scene._mapButtonsWindow.visible && !$gameTemp.onMapSaving){
 		scene._mapButtonsWindow.open();
@@ -2013,6 +2020,7 @@ GameState_end_actor_turn.prototype.update = function(scene){
 	if($gameTemp.eraseActorAfterTurn){
 		$gameTemp.activeEvent().erase();
 		$statCalc.applyRelativeTransforms();
+		$gameSystem.expireAbilityZones(true);
 	}
 	scene.srpgPrepareNextAction();
 }
