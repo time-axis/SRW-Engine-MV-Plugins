@@ -594,6 +594,7 @@
 				focusEvent: true,
 				clearDeployInfo: true,
 				populateDeployList: true,
+                boardAllUnits: true,
 				setDeployCount: true,
 				setMinDeployCount: true,
 				setShipDeployCount: true,

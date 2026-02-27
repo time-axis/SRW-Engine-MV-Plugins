@@ -274,6 +274,10 @@
 					$gameSystem.updateAvailableUnits();
 					$gameSystem.constructDeployList();
 				}
+                
+                if (command === 'boardAllUnits') {
+                    $statCalc.boardAllUnits(args[0]);
+                }
 				
 				if (command === 'setMinDeployCount') {
 					var deployInfo = $gameSystem.getDeployInfo();

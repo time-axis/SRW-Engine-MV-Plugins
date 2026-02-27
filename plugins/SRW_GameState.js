@@ -2462,11 +2462,11 @@ GameState_pause_menu.prototype = Object.create(GameState.prototype);
 GameState_pause_menu.prototype.constructor = GameState_pause_menu;
 
 GameState_pause_menu.prototype.update = function(scene){
-	if(ENGINE_SETTINGS.ENABLE_ATTRIBUTE_SYSTEM){
+	/*if(ENGINE_SETTINGS.ENABLE_ATTRIBUTE_SYSTEM){
 		$SRWGameState.updateStateButtonPrompts([["select_action"], ["confirm_action"], ["show_attr_window"]], "pause_menu");
-	} else {
-		$SRWGameState.updateStateButtonPrompts([["select_action"], ["confirm_action"]], "pause_menu");
-	}
+	} else {*/
+    $SRWGameState.updateStateButtonPrompts([["select_action"], ["confirm_action"]], "pause_menu");
+	/*}
 	
 	if(!$gameTemp.displayingAttrChart && ENGINE_SETTINGS.ENABLE_ATTRIBUTE_SYSTEM){
 		if(Input.isTriggered('L3')){
@@ -2484,7 +2484,7 @@ GameState_pause_menu.prototype.update = function(scene){
 			$gameTemp.deactivatePauseMenu = true;
 			return;
 		}
-	}	
+	}*/	
 	
 	if(!scene._mapButtonsWindow.visible){
 		scene._mapButtonsWindow.open();

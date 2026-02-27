@@ -3688,11 +3688,46 @@ StatCalc.prototype.removeBoardedUnit = function(actor, ship){
 	} 
 }
 
+
 StatCalc.prototype.addBoardedUnit = function(actor, ship){
 	if(this.isActorSRWInitialized(ship)){
 		this.setBoarded(actor);
 		ship.SRWStats.mech.unitsOnBoard.push(actor);	
 	} 
+}
+
+StatCalc.prototype.boardUnits = function(actorIDList, ship){
+    var _this = this;
+    if(this.isActorSRWInitialized(ship)){
+        actorIDList.forEach(function(actorID){
+              var actor = $gameActors.actor(actorID.main);
+              console.log(["boardUnits1",actor]);
+              if (actor.event === null){
+                var newEvent = $gameMap.requestDynamicEvent();
+                newEvent.setType("actor");
+                //actor.event = newEvent;
+                //$gameSystem.deployActor(actor, newEvent, false, null, true);
+                $gameSystem.deployActor(actor, newEvent, false);
+                actor.event.locate(ship.event.posX(),ship.event.posY());
+                actor.event.erase();
+                _this.addBoardedUnit(actor, ship);
+                console.log(["boardUnits2",actor]);
+              }
+        });
+    }
+}
+
+StatCalc.prototype.boardAllUnits = function(shipEvent){
+    var shipUnit =  $gameSystem.EventToUnit(shipEvent);
+    var ship = shipUnit[1];
+    console.log(["boardAllUnits1",ship]);
+    if(this.isActorSRWInitialized(ship)){
+        var actorList = $gameSystem.getDeployList();
+        console.log(["boardAllUnits2",actorList]);
+        if(actorList !== null){
+            this.boardUnits(actorList, ship);
+        }
+    }
 }
 
 StatCalc.prototype.getBattleSceneInfo = function(actor){
