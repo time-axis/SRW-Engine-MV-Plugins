@@ -27,7 +27,8 @@ Window_DeploySelection.prototype.getAvailableUnits = function(){
 
 Window_DeploySelection.prototype.rowEnabled = function(actor){
 	var canStand = $statCalc.canStandOnTile(actor, {x: $gameTemp.activeEvent().posX(), y: $gameTemp.activeEvent().posY()});
-	return canStand && !actor.srpgTurnEnd();
+	var costAllowed = actor.SRWStats.mech.deployCost + $gameVariables.value(102) <= $gameVariables.value(101); //101: DeployCostLimit 102: CurrentTotalDeployCost
+    return canStand && !actor.srpgTurnEnd() && costAllowed;
 }
 
 Window_DeploySelection.prototype.getCurrentSelection = function(){
@@ -55,6 +56,14 @@ Window_DeploySelection.prototype.createComponents = function() {
 	this._header.appendChild(this._headerText);
 	windowNode.appendChild(this._header);
 	
+    this._deployLimitContainer = document.createElement("div");
+    this._deployLimitContainer.id = this.createId("deployLimitContainer");
+    this._deployLimitContainer.classList.add("scaled_text");
+    this._deployLimitText= document.createElement("div");
+    this._deployLimitText.innerHTML = "Deploy Limit: "+$gameVariables.value(102)+"/"+$gameVariables.value(101);
+    this._deployLimitContainer.appendChild(this._deployLimitText);
+    windowNode.appendChild(this._deployLimitContainer);
+    
 	this._listContainer = document.createElement("div");
 	this._listContainer.classList.add("list_container");
 	windowNode.appendChild(this._listContainer);	
@@ -130,7 +139,8 @@ Window_DeploySelection.prototype.update = function() {
 			}*/
 		
 			var canStand = $statCalc.canStandOnTile(this.getCurrentSelection().actor, {x: $gameTemp.activeEvent().posX(), y: $gameTemp.activeEvent().posY()});
-			if(canStand && !this.getCurrentSelection().actor.srpgTurnEnd()){
+			var costAllowed = this.getCurrentSelection().actor.SRWStats.mech.deployCost + $gameVariables.value(102) <= $gameVariables.value(101); //101: DeployCostLimit 102: CurrentTotalDeployCost
+            if(canStand && !this.getCurrentSelection().actor.srpgTurnEnd() && costAllowed){
 				SoundManager.playOk();
 				$gameTemp.popMenu = true;	
 				if($gameTemp.deployWindowCallback){
@@ -165,7 +175,7 @@ Window_DeploySelection.prototype.redraw = function() {
 		this._detailBarMech.hide();
 	}
 	
-	
+	this._deployLimitText.innerHTML = "Deploy Limit: "+$gameVariables.value(102)+"/"+$gameVariables.value(101);
 	
 
 	Graphics._updateCanvas();

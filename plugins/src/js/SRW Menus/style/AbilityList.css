@@ -129,6 +129,10 @@
 	font-weight: bold;
 }
 
+.attribute_block_entry .size_display{
+    background-color: transparent;
+}
+
 #ability_list_control_details {
 	position: absolute;
 	width: 48%;

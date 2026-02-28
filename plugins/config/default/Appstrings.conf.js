@@ -1143,6 +1143,7 @@ EDITORSTRINGS.PILOT = {
 	label_exp_yield:"Exp. Yield",
 	label_pp_yield: "PP Yield",
 	label_tags: "Tags",
+    label_deployCost: "Deploy Cost",
 	label_target_formula: "Targeting Formula",	
 	label_text_alias: "Battle Text Alias",
 	

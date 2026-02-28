@@ -306,6 +306,7 @@ MechUI.prototype.initPropertyHandlers = function(){
 		pp_yield: handleDefaultProp("mechPPYield",  EDITORSTRINGS.MECH.label_pp_yield),
 		fund_yield: handleDefaultProp("mechFundYield",  EDITORSTRINGS.MECH.label_fund_yield),
 		tags: handleDefaultProp("mechTags",  EDITORSTRINGS.MECH.label_tags),
+        deployCost: handleDefaultProp("deployCost",  EDITORSTRINGS.MECH.label_deployCost),
 		attribute1: handleDefaultProp("mechAttribute1",  EDITORSTRINGS.MECH.label_attribute1),
 		attribute2: handleDefaultProp("mechAttribute2",  EDITORSTRINGS.MECH.label_attribute2),
 		carryingCapacity: handleDefaultProp("mechCarryingCapacity",  EDITORSTRINGS.MECH.label_carrying_capacity),
@@ -2164,7 +2165,10 @@ MechUI.prototype.show = async function(){
 	content+="</div>";
 	content+="<div class='row'>";
 	content+=_this._propertyHandlers.tags.createControls();
-	content+="</div>";	
+	content+="</div>";
+    content+="<div class='row'>";
+	content+=_this._propertyHandlers.deployCost.createControls();
+	content+="</div>";		
 	
 	content+="</div>";
 	content+="</div>";

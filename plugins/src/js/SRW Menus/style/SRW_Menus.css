@@ -279,23 +279,27 @@ to {background-position: -182px -95px;}
 }
 
 .mech_stats_container .stat_section_move {
-	width: 11%;
-    left: 40%;
+	width: 10.75%;
+    left: 36%;
 }
 
 .mech_stats_container .stat_section_armor {
-	width: 19%;
-    left: 53%;
+	width: 18%;
+    left: 48%;
 }
 
 .mech_stats_container .stat_section_mobility {
-	width: 22.5%;
-    left: 74%;
+	width: 20.5%;
+    left: 67.25%;
 }
 
 .mech_stats_container .stat_section_accuracy {
-	width: 23%;
-    left: 98.5%;
+	width: 18%;
+    left: 89%;
+}
+.mech_stats_container .stat_section_cost {
+	width: 10.75%;
+    left: 108.25%;
 }
 
 .mech_stats_container .stat_label {

@@ -65,6 +65,10 @@ DetailBarMech.prototype.redraw = function(){
 	detailContent+="<div class='stat_label'>"+APPSTRINGS.MECHSTATS.accuracy+"</div>";
 	detailContent+="<div class='stat_value'>"+calculatedStats.accuracy+"</div>";
 	detailContent+="</div>";
+    detailContent+="<div class='stat_section stat_section_cost'>";
+	detailContent+="<div class='stat_label'>Cost</div>";
+	detailContent+="<div class='stat_value'>"+mechData.deployCost+"</div>";
+	detailContent+="</div>";
 	
 
 	detailContent+="</div>";

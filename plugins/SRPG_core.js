@@ -3076,8 +3076,27 @@ SceneManager.isInSaveScene = function(){
 		this._mapSrpgActorCommandWindow.hide()
     };	
 	
+    Scene_Map.prototype.updateCurrentTotalDeployCost = function() {
+        var totalDeployCost = 0;
+        $gameMap.events().forEach(function(event) {
+            if (event.isType() === 'actor'){
+                var unit = $gameSystem.EventToUnit(event.eventId());
+                console.log(['updateCurrentTotalDeployCost1',unit]);
+                if(unit !== undefined){
+                    var actor = unit[1];
+                    console.log(['updateCurrentTotalDeployCost2',actor]);
+                    if(!event._erased || $statCalc.getCalculatedMechStats(actor).currentHP < 1) { // Destroyed Units Count Toward Total
+                        totalDeployCost = totalDeployCost + actor.SRWStats.mech.deployCost;
+                    }
+                }
+            }
+        });
+        $gameVariables.setValue(102,totalDeployCost);
+    };
+    
 	Scene_Map.prototype.commandDeploy = function() {
 		var _this = this;
+        this.updateCurrentTotalDeployCost();
 		var actionBattlerArray = $gameSystem.EventToUnit($gameTemp.activeEvent().eventId());
 		this._deploySelectionWindow.setAvailableUnits($statCalc.getBoardedUnits(actionBattlerArray[1]));
 		this._deploySelectionWindow.setCurrentSelection(0);

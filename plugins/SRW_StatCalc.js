@@ -2001,7 +2001,8 @@ StatCalc.prototype.getMechData = function(mech, forActor, items, previousWeapons
 		allowedPilots: [],
 		items: [],
 		noEquips: false,
-		noEject: false
+		noEject: false,
+        deployCost: 0
 	};
 	if(mech && mech.name && mech.meta && Object.keys(mech.meta).length){		
 		var mechProperties = mech.meta;
@@ -2238,6 +2239,8 @@ StatCalc.prototype.getMechData = function(mech, forActor, items, previousWeapons
 		
 		result.noEquips = !!(mechProperties.mechNoEquips * 1 || 0);
 		result.noEject = !!(mechProperties.mechNoEject * 1 || 0);
+        
+        result.deployCost = parseInt(mechProperties.deployCost);
 			
 		if(forActor){
 			if(result.inheritsUpgradesFrom){
@@ -9324,7 +9327,7 @@ StatCalc.prototype.getPopUpAnims = function(actor){
 			actor.SRWStats.stageTemp.popUpAnimsPlayed = {};
 		}	
 		for(let animAbility of mods){
-			if(!actor.SRWStats.stageTemp.popUpAnimsPlayed[animAbility.stackId]){
+			if(!actor.SRWStats.stageTemp.popUpAnimsPlayed[animAbility.stackId] && !actor.SRWStats.stageTemp.isBoarded && actor.event){
 				result.push({actor: actor, animId: animAbility.animationId, trackingId: animAbility.stackId, lockedFrameRate: animAbility.lockedFrameRate, bgm: animAbility.bgm});
 			}
 		}

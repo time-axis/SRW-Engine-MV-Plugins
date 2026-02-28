@@ -28,6 +28,23 @@
 	text-align: center;
 }
 
+#deploy_selection_deployLimitContainer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+	border: 0.2vw solid #4ae0fa;
+	border-radius: 10px;
+	height: 5%;
+	width: 20%;
+	position: absolute;
+	right: 40%;
+	top: 2%;
+	background-color: var(--section-bg-color);
+	color: #FFFFFF;
+	--fontsize: 2.6px;
+	text-align: center;
+}
+
 #mech_list_control_page #prev_page{
 	transform: scaleX(-1);
 	width: 23%;
@@ -62,7 +79,7 @@
 	width: 70%;
 	margin-left: auto;
 	margin-right: auto;
-	height: 60%;
+	height: 57%;
 }
 
 .unit_list_table {
